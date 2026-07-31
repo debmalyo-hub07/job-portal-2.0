@@ -1,0 +1,16 @@
+{
+  "name": "job-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=20.19" },
+  "scripts": {
+    "dev:api": "npm run dev --workspace @jobportal/api",
+    "dev:web": "npm run dev --workspace @jobportal/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}

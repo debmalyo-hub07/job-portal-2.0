@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Node >= 20.11.** Required for stable `node:test` interop and `crypto.randomUUID` in all contexts.
+- **Node >= 20.19.** Vite 7.3 refuses anything below `20.19.0 || >=22.12.0`. It currently *warns and still runs* on 20.18, but that is not a supported configuration and should not be relied on.
 - **ESM throughout.** Every `package.json` sets `"type": "module"`.
 - **`moduleResolution: "NodeNext"`.** This means **every relative import must carry a `.js` extension**, even when the source file is `.ts` — `import { env } from "./config/env.js"`. This is the single most common mistake in this migration. TypeScript will not warn you in every case; Node will fail at runtime.
 - **No behavior changes in Phase 1A.** Endpoints keep their current paths, methods, and response shapes. Security fixes to those endpoints belong to plans 1B and 1C. The one exception is the error envelope, which is additive.
@@ -109,7 +109,7 @@ git mv Frontend apps/web
   "private": true,
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
-  "engines": { "node": ">=20.11" },
+  "engines": { "node": ">=20.19" },
   "scripts": {
     "dev:api": "npm run dev --workspace @jobportal/api",
     "dev:web": "npm run dev --workspace @jobportal/web",

@@ -28,3 +28,10 @@ Backend/.env
 
 # Brainstorming companion scratch files
 .superpowers/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
