@@ -1,7 +1,9 @@
-import {Company} from "../models/company.model.js";
+import type { Request, Response } from "express";
+import { Company } from "../models/company.model.js";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
-export const registerCompany = async (req, res) => {
+
+export const registerCompany = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { companyName } = req.body;
     if (!companyName) {
@@ -30,7 +32,8 @@ export const registerCompany = async (req, res) => {
     console.log(error);
   }
 };
-export const getCompany = async (req, res) => {
+
+export const getCompany = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const userId = req.id;
     const companies = await Company.find({ userId });
@@ -49,7 +52,8 @@ export const getCompany = async (req, res) => {
     console.log(error);
   }
 };
-export const getCompanyById = async (req, res) => {
+
+export const getCompanyById = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const companyId = req.params.id;
     const company = await Company.findById(companyId);
@@ -68,19 +72,20 @@ export const getCompanyById = async (req, res) => {
     console.log(error);
   }
 };
-export const updateCompany = async (req, res) => {
+
+export const updateCompany = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { name, description, website, location } = req.body;
-    const file = req.file;
+    const file = req.file as Express.Multer.File;
     const fileUri = getDataUri(file);
-    const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+    const cloudResponse = await cloudinary.uploader.upload(fileUri.content as string);
     const logo = cloudResponse.secure_url;
 
-    const updateData = { name, description, website, location, logo};
+    const updateData = { name, description, website, location, logo };
     const company = await Company.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
     });
-    if(!company) {
+    if (!company) {
       return res.status(404).json({
         message: "Company not found",
         success: false,

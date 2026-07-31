@@ -1,5 +1,6 @@
-import mongoose from "mongoose";
-const jobSchema = new mongoose.Schema(
+import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+
+const jobSchema = new Schema(
   {
     title: {
       type: String,
@@ -35,22 +36,24 @@ const jobSchema = new mongoose.Schema(
       required: true,
     },
     company: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Company",
       required: true,
     },
     created_by: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
     applications: [
       {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         ref: "Application",
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-export const Job = mongoose.model("Job", jobSchema);
+
+export type JobDocument = InferSchemaType<typeof jobSchema>;
+export const Job: Model<JobDocument> = mongoose.model<JobDocument>("Job", jobSchema);

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -20,10 +20,10 @@ const clientOrigin = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",")
   : "http://localhost:5173";
 const corsOptions = {
-    origin: clientOrigin,
-    credentials: true,
-    sameSite: "none",
-}
+  origin: clientOrigin,
+  credentials: true,
+  sameSite: "none",
+};
 app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
@@ -33,7 +33,7 @@ app.use("/api/v1/company", companyRoute);
 app.use("/api/v1/job", jobRoute);
 app.use("/api/v1/application", applicationRoute);
 
-app.use((err, req, res, next) => {
+app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled error:", err);
   return res.status(err.status || 500).json({
     message: err.message || "Internal server error",
@@ -41,7 +41,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.use((req, res) => {
+app.use((_req: Request, res: Response) => {
   return res.status(404).json({ message: "Route not found", success: false });
 });
 
