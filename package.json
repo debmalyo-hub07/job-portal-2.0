@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["backend", "frontend", "packages/*"],
   "engines": { "node": ">=20.19" },
   "scripts": {
     "dev:api": "npm run dev --workspace @jobportal/api",

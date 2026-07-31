@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import getDataUri from "../utils/datauri.js";
-import cloudinary from "../utils/cloudinary.js";
+import { getCloudinary } from "../utils/cloudinary.js";
 import { AppError } from "../lib/AppError.js";
 import { env } from "../config/env.js";
 
@@ -15,7 +15,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
   const file = req.file as Express.Multer.File;
   const fileUri = getDataUri(file);
-  const cloudResponse = await cloudinary.uploader.upload(fileUri.content as string);
+  const cloudResponse = await getCloudinary().uploader.upload(fileUri.content as string);
 
   const user = await User.findOne({ email });
   if (user) {
@@ -101,7 +101,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
 
   const file = req.file as Express.Multer.File;
   const fileUri = getDataUri(file);
-  const cloudResponse = await cloudinary.uploader.upload(fileUri.content as string);
+  const cloudResponse = await getCloudinary().uploader.upload(fileUri.content as string);
 
   let skillsArray: string[] | undefined;
   if (skills) {

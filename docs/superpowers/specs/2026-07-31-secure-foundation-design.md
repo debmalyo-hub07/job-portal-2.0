@@ -331,7 +331,7 @@ CI via GitHub Actions on push and PR: typecheck → lint → test → build. `np
 
 ## Migration
 
-Existing documents predate these schemas. A one-off script in `apps/api/scripts/migrate-phase1.ts`:
+Existing documents predate these schemas. A one-off script in `backend/scripts/migrate-phase1.ts`:
 
 1. Split `users` into `seekers` and `recruiters` by the existing `role` field.
 2. Convert `phoneNumber` from Number to string.
