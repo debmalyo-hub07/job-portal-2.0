@@ -11,6 +11,12 @@ declare global {
        * non-optional field would be a lie the compiler cannot catch.
        */
       id?: string;
+
+      /**
+       * Per-request correlation id, set by the `requestId` middleware.
+       * Distinct from `id` above, which predates it and holds a user id.
+       */
+      requestId?: string;
     }
   }
 }
