@@ -40,3 +40,5 @@ coverage/
 .research/
 .brevo-probe/
 *-registry.json
+.mvfinal/
+.rlprobe/
