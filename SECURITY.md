@@ -152,6 +152,20 @@ the repository from 4.5 MB to 292 KB. Verified absent from all remaining commits
 
 - `.env` is gitignored; only `.env.example` is tracked, with names and no values
 - Secrets require 32+ characters, enforced at startup
-- Dependencies are audited in CI (`npm audit --audit-level=high`, non-blocking so
-  an unfixable transitive advisory cannot block unrelated work)
+- Dependencies are audited in CI by `scripts/audit-prod.mjs`, which checks
+  **production dependencies only** and fails on any high or critical advisory
+  that is not explicitly allowlisted
+- Dev-only advisories are excluded deliberately: a DoS in a linter's transitive
+  glob parser cannot be reached by a user, and treating it as a build failure
+  produces a permanently red check that trains everyone to ignore CI
 - No secret is ever logged — redaction is enforced in the Pino config
+
+## Allowlisted advisories
+
+Each entry in `scripts/audit-prod.mjs` records why the advisory is suppressed
+and what would make it relevant again. Adding one deserves the same scrutiny as
+any other security decision.
+
+| Advisory | Package | Why suppressed |
+|---|---|---|
+| [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) | `react-router` | RSC Mode CSRF bypass. This app is a plain Vite SPA with no React Server Components, so the vulnerable path is absent from the bundle. The advisory range (7.12.0–8.2.0) extends past 7.18.2, the latest published release — there is no patched version to move to. Re-check when react-router publishes outside the range, or if this app adopts RSC. |

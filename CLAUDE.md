@@ -13,6 +13,7 @@ Guidance for Claude Code when working in this repository.
 | Test all | `npm test` |
 | Test one file | `npm test --workspace @jobportal/api -- errors` |
 | Full CI locally | `npm run ci` |
+| Audit prod deps | `npm run audit:prod` |
 
 ## Layout
 

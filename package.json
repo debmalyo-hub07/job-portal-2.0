@@ -12,6 +12,7 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "audit:prod": "node scripts/audit-prod.mjs",
     "ci": "npm run build --workspace @jobportal/shared && npm run typecheck && npm run lint && npm run test && npm run build"
   }
 }
