@@ -10,7 +10,7 @@
 
 ```bash
 npm install                      # workspace root only
-cp .env.example apps/api/.env    # then fill it in — see README
+cp .env.example backend/.env    # then fill it in — see README
 npm run dev:api                  # terminal 1
 npm run dev:web                  # terminal 2
 ```
@@ -59,7 +59,7 @@ Checklist:
 - [ ] No new direct `process.env` reads — use `env()` from `config/env.ts`
 - [ ] No Mongoose document serialized straight into a response — build a DTO
 - [ ] Failures throw `AppError`, not `res.status(...).json(...)`
-- [ ] Relative imports in `apps/api` and `packages/shared` end in `.js`
+- [ ] Relative imports in `backend` and `packages/shared` end in `.js`
 - [ ] Any route touching a user-owned resource has an ownership check
 - [ ] Docs updated if behaviour, config, or commands changed
 
@@ -72,13 +72,13 @@ npm test --workspace @jobportal/api -- -t "429"    # test name substring
 
 ## Notes that will save you time
 
-- **`.js` extensions on relative imports.** `apps/api` and `packages/shared` use
+- **`.js` extensions on relative imports.** `backend` and `packages/shared` use
   `moduleResolution: NodeNext`, so `import { env } from "./config/env.js"` is
   correct even though the file is `env.ts`. Omitting it typechecks but fails at
-  runtime. `apps/web` uses `Bundler` resolution and does not need them.
+  runtime. `frontend` uses `Bundler` resolution and does not need them.
 - **Build `shared` before typechecking the API.** The API compiles against
   `packages/shared/dist/*.d.ts`. A stale build produces confusing type errors.
-- **Env vars in tests** are set in `apps/api/tests/setup.ts`, which runs before
+- **Env vars in tests** are set in `backend/tests/setup.ts`, which runs before
   any import. Adding a required variable to the env schema means adding it there
   too, or every test fails at import time.
 - **`LegacyJob`, `LegacyUser`, and friends** in `packages/shared/src/legacy-dto.ts`

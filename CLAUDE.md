@@ -16,8 +16,8 @@ Guidance for Claude Code when working in this repository.
 
 ## Layout
 
-- `apps/api` — Express 5 + Mongoose 8 API
-- `apps/web` — React 19 + Vite client
+- `backend` — Express 5 + Mongoose 8 API
+- `frontend` — React 19 + Vite client
 - `packages/shared` — Zod schemas and types imported by both
 
 `packages/shared` must be built before the API typechecks against it. The root
@@ -25,9 +25,9 @@ Guidance for Claude Code when working in this repository.
 
 ## Conventions
 
-- **ESM with `moduleResolution: NodeNext`** in `apps/api` and `packages/shared`.
+- **ESM with `moduleResolution: NodeNext`** in `backend` and `packages/shared`.
   Every relative import needs a `.js` extension even in `.ts` files:
-  `import { env } from "./config/env.js"`. `apps/web` uses `Bundler` resolution
+  `import { env } from "./config/env.js"`. `frontend` uses `Bundler` resolution
   and does *not* need extensions.
 - **Module structure:** `routes → controller → service → model`. Controllers do
   HTTP only. Services hold business rules and are the only layer touching models.

@@ -35,10 +35,10 @@ control as the starting point rather than an afterthought.
 git clone https://github.com/debmalyo-hub07/job-portal-2.0.git
 cd job-portal-2.0
 npm install          # workspace root only — installs all three packages
-cp .env.example apps/api/.env
+cp .env.example backend/.env
 ```
 
-Fill in `apps/api/.env` (see [Environment](#environment) below), then run the
+Fill in `backend/.env` (see [Environment](#environment) below), then run the
 two apps in separate terminals:
 
 ```bash
@@ -102,7 +102,7 @@ client/server contract mismatch a compile error rather than a runtime surprise.
 
 ## Scripts
 
-Set `VITE_API_URL` in `apps/web/.env.local` for local development:
+Set `VITE_API_URL` in `frontend/.env.local` for local development:
 
 ```
 VITE_API_URL=http://localhost:8000/api/v1
@@ -129,7 +129,7 @@ the repository root so npm can resolve the workspace symlink, and
 **API** (Render, Railway, Fly):
 
 ```
-Root directory: apps/api
+Root directory: backend
 Build:  npm ci && npm run build -w @jobportal/shared && npm run build -w @jobportal/api
 Start:  npm start
 ```
@@ -137,7 +137,7 @@ Start:  npm start
 **Web** (Vercel, Netlify, Cloudflare Pages):
 
 ```
-Root directory: apps/web
+Root directory: frontend
 Build:  npm ci && npm run build -w @jobportal/shared && npm run build -w @jobportal/web
 Output: dist
 ```

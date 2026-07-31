@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { Company } from "../models/company.model.js";
 import getDataUri from "../utils/datauri.js";
-import cloudinary from "../utils/cloudinary.js";
+import { getCloudinary } from "../utils/cloudinary.js";
 import { AppError } from "../lib/AppError.js";
 
 export const registerCompany = async (req: Request, res: Response): Promise<void> => {
@@ -51,7 +51,7 @@ export const updateCompany = async (req: Request, res: Response): Promise<void> 
   const { name, description, website, location } = req.body;
   const file = req.file as Express.Multer.File;
   const fileUri = getDataUri(file);
-  const cloudResponse = await cloudinary.uploader.upload(fileUri.content as string);
+  const cloudResponse = await getCloudinary().uploader.upload(fileUri.content as string);
   const logo = cloudResponse.secure_url;
 
   const updateData = { name, description, website, location, logo };

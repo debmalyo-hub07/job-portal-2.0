@@ -2,7 +2,7 @@
 
 ## Request lifecycle
 
-Middleware order in `apps/api/src/app.ts`. Order is load-bearing — the comments
+Middleware order in `backend/src/app.ts`. Order is load-bearing — the comments
 in that file explain why each position matters.
 
 ```
@@ -114,7 +114,7 @@ job belongs to the requester.
 
 ## Configuration
 
-`apps/api/src/config/env.ts` parses `process.env` through a Zod schema and
+`backend/src/config/env.ts` parses `process.env` through a Zod schema and
 freezes the result. Missing or malformed variables abort startup with each
 offending name listed. `env()` is lazy so the test harness can populate
 `process.env` before the first read.

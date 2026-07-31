@@ -4,7 +4,7 @@
 
 **Goal:** Convert the existing JavaScript job portal into a typed npm-workspaces monorepo with validated configuration, real error handling, structured logging, security middleware, a working test harness, CI, and a complete documentation set — with no change to application behavior.
 
-**Architecture:** `apps/api` and `apps/web` become npm workspaces alongside `packages/shared`, which holds Zod schemas both ends import so client and server cannot disagree about an API shape. The Express app is split into `app.ts` (wiring, exported without listening) and `server.ts` (listen + graceful shutdown) so Supertest can mount the app directly. Cross-cutting concerns — config, errors, logging, rate limiting — move behind small modules with single responsibilities.
+**Architecture:** `backend` and `frontend` become npm workspaces alongside `packages/shared`, which holds Zod schemas both ends import so client and server cannot disagree about an API shape. The Express app is split into `app.ts` (wiring, exported without listening) and `server.ts` (listen + graceful shutdown) so Supertest can mount the app directly. Cross-cutting concerns — config, errors, logging, rate limiting — move behind small modules with single responsibilities.
 
 **Tech Stack:** Node 20+, TypeScript 5.9 (NodeNext), Express 5.1, Mongoose 8, Zod 4, Vitest 3, Supertest 7, mongodb-memory-server 10, Pino 9, Helmet 8, GitHub Actions.
 
@@ -37,7 +37,7 @@ packages/shared/
   src/pagination.ts              paginationQuerySchema, PaginatedResponse<T>
   tests/enums.test.ts
 
-apps/api/
+backend/
   package.json
   tsconfig.json
   vitest.config.ts
@@ -60,7 +60,7 @@ apps/api/
   tests/errors.test.ts
   tests/rateLimit.test.ts
 
-apps/web/                        (migrated to TS in Task 11)
+frontend/                        (migrated to TS in Task 11)
 
 CLAUDE.md  README.md  ARCHITECTURE.md  SECURITY.md  CONTRIBUTING.md
 docs/adr/0001..0005-*.md
@@ -74,12 +74,12 @@ Pure file movement and workspace wiring. No source edits. Doing this first means
 
 **Files:**
 - Create: `package.json` (root), `tsconfig.base.json`
-- Move: `Backend/` → `apps/api/`, `Frontend/` → `apps/web/`
+- Move: `Backend/` → `backend/`, `Frontend/` → `frontend/`
 - Modify: `.gitignore`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: workspace root with `apps/api`, `apps/web`, `packages/shared` resolvable by name. Package names are `@jobportal/api`, `@jobportal/web`, `@jobportal/shared`.
+- Produces: workspace root with `backend`, `frontend`, `packages/shared` resolvable by name. Package names are `@jobportal/api`, `@jobportal/web`, `@jobportal/shared`.
 
 - [ ] **Step 1: Stop tracking `node_modules` before moving anything**
 
@@ -96,8 +96,8 @@ Use `git mv` so history follows the files.
 
 ```bash
 mkdir -p apps packages
-git mv Backend apps/api
-git mv Frontend apps/web
+git mv Backend backend
+git mv Frontend frontend
 ```
 
 - [ ] **Step 3: Create the workspace root `package.json`**
@@ -146,7 +146,7 @@ git mv Frontend apps/web
 
 - [ ] **Step 5: Rename the two workspace packages**
 
-In `apps/api/package.json` set `"name": "@jobportal/api"`. In `apps/web/package.json` set `"name": "@jobportal/web"`.
+In `backend/package.json` set `"name": "@jobportal/api"`. In `frontend/package.json` set `"name": "@jobportal/web"`.
 
 - [ ] **Step 6: Append to `.gitignore`**
 
@@ -162,13 +162,13 @@ coverage/
 - [ ] **Step 7: Reinstall and verify both apps still run**
 
 ```bash
-rm -rf apps/api/node_modules apps/web/node_modules package-lock.json apps/*/package-lock.json
+rm -rf backend/node_modules frontend/node_modules package-lock.json apps/*/package-lock.json
 npm install
 npm run dev:api    # expect "Server is running at port 8000"; Ctrl-C
 npm run dev:web    # expect Vite dev server URL; Ctrl-C
 ```
 
-Expected: both start with no module-resolution errors. If `apps/web` fails on the `@/` alias, confirm `apps/web/jsconfig.json` and `vite.config.js` moved intact — paths inside them are relative and should not need editing.
+Expected: both start with no module-resolution errors. If `frontend` fails on the `@/` alias, confirm `frontend/jsconfig.json` and `vite.config.js` moved intact — paths inside them are relative and should not need editing.
 
 - [ ] **Step 8: Commit**
 
@@ -181,7 +181,7 @@ git commit -m "refactor: restructure into npm workspaces monorepo"
 
 ### Task 2: `packages/shared` scaffold
 
-The package that makes client/server drift a compile error. Built first because `apps/api` will depend on it in Task 3.
+The package that makes client/server drift a compile error. Built first because `backend` will depend on it in Task 3.
 
 **Files:**
 - Create: `packages/shared/package.json`, `packages/shared/tsconfig.json`, `packages/shared/src/enums.ts`, `packages/shared/src/pagination.ts`, `packages/shared/src/index.ts`, `packages/shared/tests/enums.test.ts`, `packages/shared/vitest.config.ts`
@@ -349,18 +349,18 @@ git commit -m "feat(shared): add enums and pagination schemas"
 
 ---
 
-### Task 3: TypeScript migration of `apps/api`
+### Task 3: TypeScript migration of `backend`
 
 Mechanical. Rename, type, make it compile — no logic changes. Behavior stays byte-identical so a reviewer can diff with confidence.
 
 **Files:**
-- Create: `apps/api/tsconfig.json`
-- Modify: `apps/api/package.json`, every `.js` file under `apps/api/src`
-- Move: `apps/api/*.js` → `apps/api/src/**/*.ts`
+- Create: `backend/tsconfig.json`
+- Modify: `backend/package.json`, every `.js` file under `backend/src`
+- Move: `backend/*.js` → `backend/src/**/*.ts`
 
 **Interfaces:**
 - Consumes: `@jobportal/shared` from Task 2
-- Produces: `apps/api/src/index.ts` still boots the same server on the same port with the same routes
+- Produces: `backend/src/index.ts` still boots the same server on the same port with the same routes
 
 - [ ] **Step 1: Install TypeScript toolchain**
 
@@ -371,7 +371,7 @@ npm install -D --workspace @jobportal/api \
 npm install --workspace @jobportal/api @jobportal/shared@*
 ```
 
-- [ ] **Step 2: Create `apps/api/tsconfig.json`**
+- [ ] **Step 2: Create `backend/tsconfig.json`**
 
 ```json
 {
@@ -389,14 +389,14 @@ npm install --workspace @jobportal/api @jobportal/shared@*
 - [ ] **Step 3: Move sources under `src/` and rename to `.ts`**
 
 ```bash
-cd apps/api
+cd backend
 mkdir -p src
 git mv controllers middlewares models routes utils index.js src/ 2>/dev/null
 cd src && for f in $(find . -name "*.js"); do git mv "$f" "${f%.js}.ts"; done
 cd ../../..
 ```
 
-- [ ] **Step 4: Update `apps/api/package.json` scripts**
+- [ ] **Step 4: Update `backend/package.json` scripts**
 
 ```json
 {
@@ -478,8 +478,8 @@ git commit -m "refactor(api): migrate to TypeScript with no behavior change"
 The first TDD cycle. Splitting `app` from `server` is what makes every later task testable, so it comes before any behavior work.
 
 **Files:**
-- Create: `apps/api/vitest.config.ts`, `apps/api/tests/setup.ts`, `apps/api/tests/health.test.ts`, `apps/api/src/app.ts`, `apps/api/src/server.ts`, `apps/api/src/routes/health.ts`, `apps/api/src/config/db.ts`
-- Delete: `apps/api/src/index.ts` (replaced by `app.ts` + `server.ts`), `apps/api/src/utils/db.ts` (moves to `config/db.ts`)
+- Create: `backend/vitest.config.ts`, `backend/tests/setup.ts`, `backend/tests/health.test.ts`, `backend/src/app.ts`, `backend/src/server.ts`, `backend/src/routes/health.ts`, `backend/src/config/db.ts`
+- Delete: `backend/src/index.ts` (replaced by `app.ts` + `server.ts`), `backend/src/utils/db.ts` (moves to `config/db.ts`)
 
 **Interfaces:**
 - Consumes: Task 3's compiled API
@@ -495,7 +495,7 @@ npm install -D --workspace @jobportal/api \
   vitest@^3 supertest@^7 @types/supertest mongodb-memory-server@^10
 ```
 
-- [ ] **Step 2: Create `apps/api/vitest.config.ts`**
+- [ ] **Step 2: Create `backend/vitest.config.ts`**
 
 `singleFork` keeps one in-memory MongoDB per run instead of one per worker, which is both faster and avoids port contention.
 
@@ -513,7 +513,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: Create `apps/api/tests/setup.ts`**
+- [ ] **Step 3: Create `backend/tests/setup.ts`**
 
 Test env vars are set before any import reads them. Every collection is cleared between tests so no test can depend on another's leftovers.
 
@@ -556,7 +556,7 @@ afterAll(async () => {
 
 - [ ] **Step 4: Write the failing test**
 
-`apps/api/tests/health.test.ts`:
+`backend/tests/health.test.ts`:
 
 ```ts
 import request from "supertest";
@@ -588,7 +588,7 @@ describe("unknown routes", () => {
 Run: `npm test --workspace @jobportal/api`
 Expected: FAIL — `Cannot find module '../src/app.js'`.
 
-- [ ] **Step 6: Create `apps/api/src/config/db.ts`**
+- [ ] **Step 6: Create `backend/src/config/db.ts`**
 
 Replaces `utils/db.ts`, whose `process.exit(1)` made it untestable and unrecoverable.
 
@@ -608,7 +608,7 @@ export function isDBConnected(): boolean {
 }
 ```
 
-- [ ] **Step 7: Create `apps/api/src/routes/health.ts`**
+- [ ] **Step 7: Create `backend/src/routes/health.ts`**
 
 ```ts
 import { Router } from "express";
@@ -625,7 +625,7 @@ healthRouter.get("/", (_req, res) => {
 });
 ```
 
-- [ ] **Step 8: Create `apps/api/src/middleware/notFound.ts`**
+- [ ] **Step 8: Create `backend/src/middleware/notFound.ts`**
 
 ```ts
 import type { Request, Response } from "express";
@@ -639,7 +639,7 @@ export function notFound(_req: Request, res: Response): void {
 }
 ```
 
-- [ ] **Step 9: Create `apps/api/src/app.ts`**
+- [ ] **Step 9: Create `backend/src/app.ts`**
 
 Same middleware and routes as the old `index.ts`, minus `listen`. Body limits and hardened CORS arrive in Task 8; this step only relocates what exists.
 
@@ -678,7 +678,7 @@ export function buildApp(): Express {
 }
 ```
 
-- [ ] **Step 10: Create `apps/api/src/server.ts`**
+- [ ] **Step 10: Create `backend/src/server.ts`**
 
 The old code called `listen` and then connected to Mongo inside the callback, so the server accepted traffic before the database was reachable. This connects first.
 
@@ -720,10 +720,10 @@ main().catch((error: unknown) => {
 - [ ] **Step 11: Delete the superseded files and repoint the dev script**
 
 ```bash
-git rm apps/api/src/index.ts apps/api/src/utils/db.ts
+git rm backend/src/index.ts backend/src/utils/db.ts
 ```
 
-Set `"dev": "tsx watch src/server.ts"` and `"start": "node dist/server.js"` in `apps/api/package.json`.
+Set `"dev": "tsx watch src/server.ts"` and `"start": "node dist/server.js"` in `backend/package.json`.
 
 - [ ] **Step 12: Run the tests to verify they pass**
 
@@ -744,8 +744,8 @@ git commit -m "feat(api): split app from server, add health check and test harne
 Replaces silent `undefined` secrets with a startup failure that says exactly what is missing.
 
 **Files:**
-- Create: `apps/api/src/config/env.ts`, `apps/api/tests/env.test.ts`, `.env.example`
-- Modify: `apps/api/src/app.ts`, `apps/api/src/server.ts`
+- Create: `backend/src/config/env.ts`, `backend/tests/env.test.ts`, `.env.example`
+- Modify: `backend/src/app.ts`, `backend/src/server.ts`
 
 **Interfaces:**
 - Consumes: Task 4's `buildApp`
@@ -753,7 +753,7 @@ Replaces silent `undefined` secrets with a startup failure that says exactly wha
 
 - [ ] **Step 1: Write the failing test**
 
-`apps/api/tests/env.test.ts`:
+`backend/tests/env.test.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -807,7 +807,7 @@ describe("parseEnv", () => {
 Run: `npm test --workspace @jobportal/api -- env`
 Expected: FAIL — `Cannot find module '../src/config/env.js'`.
 
-- [ ] **Step 3: Create `apps/api/src/config/env.ts`**
+- [ ] **Step 3: Create `backend/src/config/env.ts`**
 
 The 32-character minimum on secrets is deliberate: it makes the short, guessable value from the leaked `.env` fail loudly rather than work quietly.
 
@@ -917,7 +917,7 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/seeker/auth/google/callback
 - [ ] **Step 7: Verify a missing variable fails startup loudly**
 
 ```bash
-cd apps/api && MONGO_URI= npx tsx src/server.ts; cd ../..
+cd backend && MONGO_URI= npx tsx src/server.ts; cd ../..
 ```
 
 Expected: exits non-zero printing `Invalid environment configuration:` and `MONGO_URI`. Not a stack trace about `undefined`.
@@ -936,8 +936,8 @@ git commit -m "feat(api): validate environment configuration at startup"
 Fixes the defect class that leaves clients hanging: roughly twenty `catch (error) { console.log(error) }` blocks that never send a response.
 
 **Files:**
-- Create: `apps/api/src/lib/AppError.ts`, `apps/api/src/middleware/error.ts`, `apps/api/tests/errors.test.ts`
-- Modify: `apps/api/src/app.ts`, every controller under `apps/api/src/controllers/`
+- Create: `backend/src/lib/AppError.ts`, `backend/src/middleware/error.ts`, `backend/tests/errors.test.ts`
+- Modify: `backend/src/app.ts`, every controller under `backend/src/controllers/`
 
 **Interfaces:**
 - Consumes: `env` from Task 5
@@ -946,11 +946,11 @@ Fixes the defect class that leaves clients hanging: roughly twenty `catch (error
   - `errorHandler(err, req, res, next)` — Express error middleware
   - Envelope: `{ success: false, code: string, message: string, details: unknown[], requestId?: string }`
 
-**Note on `asyncHandler`:** the spec called for an `asyncHandler` wrapper. Express 5 forwards rejected promises from async handlers to error middleware natively, so the wrapper is dead weight here. It is deliberately omitted. This only holds because `apps/api` is on Express 5.1 — under Express 4 the wrapper would be mandatory.
+**Note on `asyncHandler`:** the spec called for an `asyncHandler` wrapper. Express 5 forwards rejected promises from async handlers to error middleware natively, so the wrapper is dead weight here. It is deliberately omitted. This only holds because `backend` is on Express 5.1 — under Express 4 the wrapper would be mandatory.
 
 - [ ] **Step 1: Write the failing test**
 
-`apps/api/tests/errors.test.ts`:
+`backend/tests/errors.test.ts`:
 
 ```ts
 import express from "express";
@@ -1018,7 +1018,7 @@ describe("errorHandler", () => {
 Run: `npm test --workspace @jobportal/api -- errors`
 Expected: FAIL — `Cannot find module '../src/lib/AppError.js'`.
 
-- [ ] **Step 3: Create `apps/api/src/lib/AppError.ts`**
+- [ ] **Step 3: Create `backend/src/lib/AppError.ts`**
 
 ```ts
 export class AppError extends Error {
@@ -1056,7 +1056,7 @@ export class AppError extends Error {
 }
 ```
 
-- [ ] **Step 4: Create `apps/api/src/middleware/error.ts`**
+- [ ] **Step 4: Create `backend/src/middleware/error.ts`**
 
 The four-argument signature is what marks this as error middleware to Express; `_next` must stay even though it is unused.
 
@@ -1128,7 +1128,7 @@ Work through `job.controller.ts`, `company.controller.ts`, `application.controll
 - [ ] **Step 8: Verify nothing regressed**
 
 Run: `npm test --workspace @jobportal/api && npm run typecheck --workspace @jobportal/api`
-Expected: all pass. Then `grep -rn "console.log(error)" apps/api/src` must return nothing.
+Expected: all pass. Then `grep -rn "console.log(error)" backend/src` must return nothing.
 
 - [ ] **Step 9: Commit**
 
@@ -1142,8 +1142,8 @@ git commit -m "feat(api): add error envelope and remove silent catch blocks"
 ### Task 7: Structured logging with request IDs
 
 **Files:**
-- Create: `apps/api/src/lib/logger.ts`, `apps/api/src/middleware/requestId.ts`, `apps/api/src/types/express.d.ts`
-- Modify: `apps/api/src/app.ts`, `apps/api/src/middleware/error.ts`
+- Create: `backend/src/lib/logger.ts`, `backend/src/middleware/requestId.ts`, `backend/src/types/express.d.ts`
+- Modify: `backend/src/app.ts`, `backend/src/middleware/error.ts`
 
 **Interfaces:**
 - Consumes: `env` from Task 5, `errorHandler` from Task 6
@@ -1156,7 +1156,7 @@ npm install --workspace @jobportal/api pino@^9 pino-http@^10
 npm install -D --workspace @jobportal/api pino-pretty@^13
 ```
 
-- [ ] **Step 2: Create `apps/api/src/lib/logger.ts`**
+- [ ] **Step 2: Create `backend/src/lib/logger.ts`**
 
 `redact` is not decoration — without it, every request log line contains the auth cookie, which turns your log aggregator into a session-token store.
 
@@ -1183,7 +1183,7 @@ export const logger = pino({
 });
 ```
 
-- [ ] **Step 3: Create `apps/api/src/types/express.d.ts`**
+- [ ] **Step 3: Create `backend/src/types/express.d.ts`**
 
 ```ts
 import "express";
@@ -1199,7 +1199,7 @@ declare global {
 export {};
 ```
 
-- [ ] **Step 4: Create `apps/api/src/middleware/requestId.ts`**
+- [ ] **Step 4: Create `backend/src/middleware/requestId.ts`**
 
 An inbound `x-request-id` is honoured so a trace survives across a proxy, but it is length-capped — an unbounded client-controlled value ends up in every log line.
 
@@ -1262,8 +1262,8 @@ git commit -m "feat(api): add structured logging with request ids"
 ### Task 8: Security middleware and rate limiting
 
 **Files:**
-- Create: `apps/api/src/middleware/security.ts`, `apps/api/src/lib/rateLimitStore.ts`, `apps/api/src/middleware/rateLimit.ts`, `apps/api/tests/rateLimit.test.ts`
-- Modify: `apps/api/src/app.ts`
+- Create: `backend/src/middleware/security.ts`, `backend/src/lib/rateLimitStore.ts`, `backend/src/middleware/rateLimit.ts`, `backend/tests/rateLimit.test.ts`
+- Modify: `backend/src/app.ts`
 
 **Interfaces:**
 - Consumes: `env` (Task 5), `AppError` (Task 6)
@@ -1284,7 +1284,7 @@ npm install -D --workspace @jobportal/api @types/hpp
 
 - [ ] **Step 2: Write the failing test**
 
-`apps/api/tests/rateLimit.test.ts`:
+`backend/tests/rateLimit.test.ts`:
 
 ```ts
 import express from "express";
@@ -1349,7 +1349,7 @@ describe("InMemoryRateLimitStore", () => {
 Run: `npm test --workspace @jobportal/api -- rateLimit`
 Expected: FAIL — `Cannot find module '../src/middleware/rateLimit.js'`.
 
-- [ ] **Step 4: Create `apps/api/src/lib/rateLimitStore.ts`**
+- [ ] **Step 4: Create `backend/src/lib/rateLimitStore.ts`**
 
 `unref()` on the sweep timer matters: without it the interval keeps the Node process alive and Vitest hangs after the suite finishes.
 
@@ -1397,7 +1397,7 @@ export class InMemoryRateLimitStore implements RateLimitStore {
 export const defaultRateLimitStore = new InMemoryRateLimitStore();
 ```
 
-- [ ] **Step 5: Create `apps/api/src/middleware/rateLimit.ts`**
+- [ ] **Step 5: Create `backend/src/middleware/rateLimit.ts`**
 
 ```ts
 import type { NextFunction, Request, RequestHandler, Response } from "express";
@@ -1449,7 +1449,7 @@ export function rateLimit(options: RateLimitOptions): RequestHandler {
 Run: `npm test --workspace @jobportal/api -- rateLimit`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 7: Create `apps/api/src/middleware/security.ts`**
+- [ ] **Step 7: Create `backend/src/middleware/security.ts`**
 
 CORS rejects unknown origins explicitly rather than reflecting whatever arrives. The 16 MB body limit drops to 1 MB — file uploads go through multer, not the JSON parser, so nothing legitimate needs that headroom.
 
@@ -1592,7 +1592,7 @@ jobs:
 - [ ] **Step 3: Verify the pipeline locally before pushing**
 
 Run: `npm run ci`
-Expected: exits 0. If `lint` fails because `@jobportal/api` has no lint script, add `"lint": "eslint src --ext .ts"` there and an `eslint.config.js` mirroring the one already in `apps/web`.
+Expected: exits 0. If `lint` fails because `@jobportal/api` has no lint script, add `"lint": "eslint src --ext .ts"` there and an `eslint.config.js` mirroring the one already in `frontend`.
 
 - [ ] **Step 4: Commit and confirm the run is green**
 
@@ -1612,7 +1612,7 @@ The deliverable the user asked for by name. Written now because Tasks 1–9 sett
 
 **Files:**
 - Create: `CLAUDE.md`, `README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `CONTRIBUTING.md`, `docs/adr/0001-two-account-collections.md` … `0005-cookie-sessions.md`
-- Delete: `apps/web/README.md` (the stock Vite template readme)
+- Delete: `frontend/README.md` (the stock Vite template readme)
 
 **Interfaces:**
 - Consumes: scripts and structure from Tasks 1–9
@@ -1641,8 +1641,8 @@ Guidance for Claude Code when working in this repository.
 
 ## Layout
 
-- `apps/api` — Express 5 + Mongoose 8 API
-- `apps/web` — React 19 + Vite client
+- `backend` — Express 5 + Mongoose 8 API
+- `frontend` — React 19 + Vite client
 - `packages/shared` — Zod schemas and types imported by both
 
 `packages/shared` must be built before the API typechecks against it.
@@ -1720,21 +1720,21 @@ Work through each command block in `README.md` and `CLAUDE.md` and execute it. A
 - [ ] **Step 8: Commit**
 
 ```bash
-git rm apps/web/README.md
+git rm frontend/README.md
 git add -A
 git commit -m "docs: add CLAUDE.md, README, architecture, security and ADRs"
 ```
 
 ---
 
-### Task 11: TypeScript migration of `apps/web`
+### Task 11: TypeScript migration of `frontend`
 
 Mechanical, and last because nothing else depends on it. Components keep their current markup — the visual rebuild is Phase 2.
 
 **Files:**
-- Create: `apps/web/tsconfig.json`, `apps/web/src/vite-env.d.ts`, `apps/web/src/lib/apiClient.ts`
-- Modify: every `.jsx`/`.js` under `apps/web/src`, `apps/web/package.json`, `apps/web/vite.config.js`
-- Delete: `apps/web/jsconfig.json`, `apps/web/src/utils/constant.js`
+- Create: `frontend/tsconfig.json`, `frontend/src/vite-env.d.ts`, `frontend/src/lib/apiClient.ts`
+- Modify: every `.jsx`/`.js` under `frontend/src`, `frontend/package.json`, `frontend/vite.config.js`
+- Delete: `frontend/jsconfig.json`, `frontend/src/utils/constant.js`
 
 **Interfaces:**
 - Consumes: `@jobportal/shared` (Task 2)
@@ -1747,9 +1747,9 @@ npm install -D --workspace @jobportal/web typescript@^5.9 @types/react @types/re
 npm install --workspace @jobportal/web @jobportal/shared@*
 ```
 
-- [ ] **Step 2: Create `apps/web/tsconfig.json`**
+- [ ] **Step 2: Create `frontend/tsconfig.json`**
 
-Vite bundles, so `moduleResolution: "Bundler"` applies here and the `.js` extension rule from Global Constraints does **not** — that rule is specific to `apps/api` and `packages/shared`.
+Vite bundles, so `moduleResolution: "Bundler"` applies here and the `.js` extension rule from Global Constraints does **not** — that rule is specific to `backend` and `packages/shared`.
 
 ```json
 {
@@ -1771,9 +1771,9 @@ Vite bundles, so `moduleResolution: "Bundler"` applies here and the `.js` extens
 }
 ```
 
-Add `"typecheck": "tsc -p tsconfig.json --noEmit"` to `apps/web/package.json`, then delete `jsconfig.json` — `tsconfig.json` supersedes it and two files defining the `@/*` alias will drift.
+Add `"typecheck": "tsc -p tsconfig.json --noEmit"` to `frontend/package.json`, then delete `jsconfig.json` — `tsconfig.json` supersedes it and two files defining the `@/*` alias will drift.
 
-- [ ] **Step 3: Create `apps/web/src/vite-env.d.ts`**
+- [ ] **Step 3: Create `frontend/src/vite-env.d.ts`**
 
 ```ts
 /// <reference types="vite/client" />
@@ -1789,7 +1789,7 @@ interface ImportMeta {
 
 - [ ] **Step 4: Replace hardcoded endpoints with a configured client**
 
-`src/utils/constant.js` hardcodes `http://localhost:8000`, which cannot be deployed. Delete it and create `apps/web/src/lib/apiClient.ts`:
+`src/utils/constant.js` hardcodes `http://localhost:8000`, which cannot be deployed. Delete it and create `frontend/src/lib/apiClient.ts`:
 
 ```ts
 import axios from "axios";
@@ -1801,14 +1801,14 @@ export const apiClient = axios.create({
 });
 ```
 
-Add `VITE_API_URL=http://localhost:8000/api/v1` to `.env.example`, and create `apps/web/.env.local` with the same line (already gitignored via `*.local`).
+Add `VITE_API_URL=http://localhost:8000/api/v1` to `.env.example`, and create `frontend/.env.local` with the same line (already gitignored via `*.local`).
 
 Then replace every `axios.get(\`${JOB_API_END_POINT}/get\`, { withCredentials: true })` with `apiClient.get("/job/get")` across the five hooks and every component that calls Axios directly. `withCredentials` is now set once on the instance rather than repeated at each call site, where it is easy to forget.
 
 - [ ] **Step 5: Rename files**
 
 ```bash
-cd apps/web/src
+cd frontend/src
 for f in $(find . -name "*.jsx"); do git mv "$f" "${f%.jsx}.tsx"; done
 for f in $(find . -name "*.js" -not -name "*.config.js"); do git mv "$f" "${f%.js}.ts"; done
 cd ../../..
@@ -1865,8 +1865,8 @@ git commit -m "refactor(web): migrate to TypeScript and centralise the API clien
 - [ ] `npm run ci` exits 0 from a clean clone
 - [ ] `git ls-files | grep node_modules` returns nothing
 - [ ] `grep -rn "console.log(error)" apps/` returns nothing
-- [ ] `grep -rn "localhost:8000" apps/web/src` returns nothing
-- [ ] `grep -rn "process.env" apps/api/src | grep -v "config/env.ts"` returns nothing
+- [ ] `grep -rn "localhost:8000" frontend/src` returns nothing
+- [ ] `grep -rn "process.env" backend/src | grep -v "config/env.ts"` returns nothing
 - [ ] Every command in `README.md` and `CLAUDE.md` has been executed successfully
 - [ ] `curl -si localhost:8000/health` returns 200 with an `x-request-id` header and no `x-powered-by`
 - [ ] Both apps run and behave exactly as they did before Phase 1A
