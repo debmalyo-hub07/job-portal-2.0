@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
 import { notFound } from "./middleware/notFound.js";
+import { errorHandler } from "./middleware/error.js";
 import { env } from "./config/env.js";
 
 export function buildApp(): Express {
@@ -30,6 +31,7 @@ export function buildApp(): Express {
   app.use("/api/v1/application", applicationRoute);
 
   app.use(notFound);
+  app.use(errorHandler);
 
   return app;
 }

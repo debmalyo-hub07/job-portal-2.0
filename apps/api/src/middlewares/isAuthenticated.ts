@@ -1,28 +1,25 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
+import { AppError } from "../lib/AppError.js";
 
-const isAuthenticated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const isAuthenticated = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     const token = req.cookies.token;
     if (!token) {
-      res.status(401).json({
-        message: "User not authenticated",
-        success: false,
-      });
+      next(AppError.unauthorized("NOT_AUTHENTICATED", "User not authenticated"));
       return;
     }
     const decode = jwt.verify(token, process.env.SECRET_KEY as string) as JwtPayload;
     if (!decode) {
-      res.status(401).json({
-        message: "Invalid token",
-        success: false,
-      });
+      next(AppError.unauthorized("INVALID_TOKEN", "Invalid token"));
       return;
     }
     req.id = decode.userId;
     next();
-  } catch (error) {
-    console.log(error);
+  } catch {
+    // A malformed or expired token is a 401, not a 500. Previously this was
+    // logged and swallowed, leaving the request hanging until client timeout.
+    next(AppError.unauthorized("INVALID_TOKEN", "Invalid token"));
   }
 };
 export default isAuthenticated;
