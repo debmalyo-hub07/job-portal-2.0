@@ -25,3 +25,13 @@ dist-ssr
 # Environment variables
 .env
 Backend/.env
+
+# Brainstorming companion scratch files
+.superpowers/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
