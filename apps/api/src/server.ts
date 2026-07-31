@@ -1,0 +1,31 @@
+import "dotenv/config";
+import { buildApp } from "./app.js";
+import { connectDB, disconnectDB } from "./config/db.js";
+import { env } from "./config/env.js";
+
+async function main(): Promise<void> {
+  const config = env();
+
+  await connectDB(config.MONGO_URI);
+
+  const server = buildApp().listen(config.PORT, () => {
+    console.log(`API listening on :${config.PORT}`);
+  });
+
+  const shutdown = async (signal: string): Promise<void> => {
+    console.log(`${signal} received, shutting down`);
+    server.close(async () => {
+      await disconnectDB();
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+}
+
+main().catch((error: unknown) => {
+  console.error("Failed to start:", error);
+  process.exit(1);
+});

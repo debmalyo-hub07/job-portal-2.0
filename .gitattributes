@@ -1,0 +1,5 @@
+# Normalise line endings: LF in the repository, native in the working tree.
+* text=auto
+
+# Lockfiles and generated output should never be diffed by hand.
+package-lock.json -diff linguist-generated
