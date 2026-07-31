@@ -14,7 +14,7 @@ control as the starting point rather than an afterthought.
 |---|---|
 | API | Node 20, Express 5, TypeScript, Mongoose 8 |
 | Database | MongoDB (Atlas) |
-| Web | React 19, Vite 7, Redux Toolkit, Tailwind 4, shadcn/ui |
+| Web | React 19, Vite 7, TypeScript, Redux Toolkit, Tailwind 4, shadcn/ui |
 | Validation | Zod 4, shared between client and server |
 | Email | Brevo (transactional) |
 | Media | Cloudinary |
@@ -99,6 +99,14 @@ docs/
 The API and web app remain fully independent processes and deploy separately.
 The workspace root exists so both can share `packages/shared` — which makes a
 client/server contract mismatch a compile error rather than a runtime surprise.
+
+## Scripts
+
+Set `VITE_API_URL` in `apps/web/.env.local` for local development:
+
+```
+VITE_API_URL=http://localhost:8000/api/v1
+```
 
 ## Scripts
 

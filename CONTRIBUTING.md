@@ -81,6 +81,13 @@ npm test --workspace @jobportal/api -- -t "429"    # test name substring
 - **Env vars in tests** are set in `apps/api/tests/setup.ts`, which runs before
   any import. Adding a required variable to the env schema means adding it there
   too, or every test fails at import time.
-- **Web lint is temporarily non-fatal.** `apps/web` has 17 pre-existing
-  dead-code errors in files that the Phase 2 UI rebuild replaces. Do not add new
-  ones; the script goes back to blocking once those files are rewritten.
+- **`LegacyJob`, `LegacyUser`, and friends** in `packages/shared/src/legacy-dto.ts`
+  describe what the API returns *today*, warts included. Phase 1C rewrites those
+  endpoints with projected DTOs and replaces these types; do not build on them
+  as though they are the target shape.
+- **shadcn components are TypeScript.** `components.json` has `"tsx": true`. If
+  you add a component with `npx shadcn add`, it will be generated as `.tsx`
+  correctly — the original 12 were JS because that flag was false.
+- **Import casing matters.** `import ... from "./ui/Table"` when the file is
+  `table.tsx` builds fine on Windows and fails on Linux CI. Match the filename
+  exactly.

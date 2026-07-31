@@ -5,6 +5,7 @@ import { User } from "../models/user.model.js";
 import getDataUri from "../utils/datauri.js";
 import cloudinary from "../utils/cloudinary.js";
 import { AppError } from "../lib/AppError.js";
+import { env } from "../config/env.js";
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const { fullname, email, phoneNumber, password, role } = req.body;
@@ -61,7 +62,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   const tokenData = {
     userId: foundUser._id,
   };
-  const token = jwt.sign(tokenData, process.env.SECRET_KEY as string, {
+  const token = jwt.sign(tokenData, env().JWT_ACCESS_SECRET, {
     expiresIn: "1d",
   });
 
