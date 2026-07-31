@@ -35,3 +35,8 @@ dist/
 
 # Test artifacts
 coverage/
+
+# Scratch space for research agents — never committed
+.research/
+.brevo-probe/
+*-registry.json
