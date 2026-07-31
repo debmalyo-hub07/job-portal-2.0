@@ -33,9 +33,13 @@ jobs:
 
   audit:
     runs-on: ubuntu-latest
-    # Informational. A transitive advisory with no available fix should not
-    # block an unrelated pull request.
-    continue-on-error: true
+    # Production dependencies only, with an explicit allowlist for advisories
+    # that have no published fix. See scripts/audit-prod.mjs for why each
+    # suppression exists. Anything unlisted fails the build.
+    #
+    # This job is NOT continue-on-error: a suppressed advisory should be a
+    # deliberate, documented decision, not a permanently red check that trains
+    # everyone to ignore CI.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,4 +47,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
+      - run: npm run audit:prod
