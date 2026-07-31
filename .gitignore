@@ -25,3 +25,6 @@ dist-ssr
 # Environment variables
 .env
 Backend/.env
+
+# Brainstorming companion scratch files
+.superpowers/
