@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
 import { notFound } from "./middleware/notFound.js";
+import { env } from "./config/env.js";
 
 export function buildApp(): Express {
   const app = express();
@@ -17,7 +18,7 @@ export function buildApp(): Express {
   app.use(cookieParser());
   app.use(
     cors({
-      origin: process.env.CLIENT_URLS?.split(",") ?? "http://localhost:5173",
+      origin: env().CLIENT_URLS,
       credentials: true,
     }),
   );

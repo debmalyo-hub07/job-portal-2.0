@@ -1,17 +1,15 @@
 import "dotenv/config";
 import { buildApp } from "./app.js";
 import { connectDB, disconnectDB } from "./config/db.js";
-
-const PORT = Number(process.env.PORT ?? 8000);
+import { env } from "./config/env.js";
 
 async function main(): Promise<void> {
-  const uri = process.env.MONGO_URI;
-  if (!uri) throw new Error("MONGO_URI is not set");
+  const config = env();
 
-  await connectDB(uri);
+  await connectDB(config.MONGO_URI);
 
-  const server = buildApp().listen(PORT, () => {
-    console.log(`API listening on :${PORT}`);
+  const server = buildApp().listen(config.PORT, () => {
+    console.log(`API listening on :${config.PORT}`);
   });
 
   const shutdown = async (signal: string): Promise<void> => {
