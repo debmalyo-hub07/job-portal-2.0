@@ -1,5 +1,4 @@
 import cookieParser from "cookie-parser";
-import cors from "cors";
 import express, { type Express } from "express";
 
 import applicationRoute from "./routes/application.route.js";
@@ -10,9 +9,10 @@ import userRoute from "./routes/user.route.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/error.js";
 import { requestId } from "./middleware/requestId.js";
+import { applySecurity } from "./middleware/security.js";
+import { rateLimit } from "./middleware/rateLimit.js";
 import { logger } from "./lib/logger.js";
 import { pinoHttp } from "pino-http";
-import { env } from "./config/env.js";
 
 export function buildApp(): Express {
   const app = express();
@@ -21,15 +21,9 @@ export function buildApp(): Express {
   app.use(requestId);
   app.use(pinoHttp({ logger, genReqId: (req) => (req as express.Request).requestId ?? "" }));
 
-  app.use(express.json({ limit: "16mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "16mb" }));
+  applySecurity(app);
   app.use(cookieParser());
-  app.use(
-    cors({
-      origin: env().CLIENT_URLS,
-      credentials: true,
-    }),
-  );
+  app.use(rateLimit({ windowMs: 60_000, max: 100 }));
 
   app.use("/health", healthRouter);
   app.use("/api/v1/user", userRoute);
