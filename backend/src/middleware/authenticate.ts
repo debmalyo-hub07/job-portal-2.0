@@ -1,0 +1,87 @@
+import type { NextFunction, Request, Response } from "express";
+import type { Portal } from "@jobportal/shared";
+import { AppError } from "../lib/AppError.js";
+import { accessCookieName } from "../lib/cookies.js";
+import { verifyAccessToken } from "../services/session.service.js";
+import { findAccountById } from "../services/account.service.js";
+
+/**
+ * Verifies the access token for exactly one portal.
+ *
+ * `portal` is supplied by the route mount as a literal, never read from the
+ * request. The token is verified with that portal's derived key, so a seeker
+ * token presented here fails the signature check before any claim is inspected.
+ */
+export function authenticate(portal: Portal) {
+  return async function authenticateMiddleware(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const token = req.cookies?.[accessCookieName(portal)] as string | undefined;
+    if (!token) {
+      next(AppError.unauthorized("SESSION_MISSING", "Sign in to continue."));
+      return;
+    }
+
+    // Throws AppError SESSION_INVALID on a bad signature, wrong portal key,
+    // expired token, or a `type` claim that disagrees with `portal`. Express 5
+    // forwards the rejection from this async function to the error middleware,
+    // so there is deliberately no try/catch here.
+    const claims = verifyAccessToken(token, portal);
+
+    const account = await findAccountById(portal, claims.sub);
+    if (!account || account.status !== "active") {
+      // Deleted or suspended between minting and use. Same code as a bad token:
+      // a suspended user learning that they are suspended from a 403 on every
+      // route is worse than a uniform "sign in again".
+      next(AppError.unauthorized("SESSION_INVALID", "Sign in to continue."));
+      return;
+    }
+
+    // Access-token revocation. `iat` is seconds; the cutoff is milliseconds.
+    // Both are floored to the second before comparing, and the comparison is
+    // strict — a token minted in the *same second* as the invalidation survives.
+    //
+    // That 1-second window is deliberate. Without the floor, resetting a
+    // password at 10:00:00.500 and issuing the replacement session at
+    // 10:00:00.700 produces a token whose iat floors to 10:00:00.000, which is
+    // < the cutoff — so the user is instantly logged out of the session the
+    // reset just gave them, and logging in again reproduces it. A one-second
+    // overlap is a far better trade than an unusable reset flow.
+    const cutoff = account.sessionsInvalidatedAt;
+    if (cutoff && claims.iat !== undefined) {
+      const cutoffSecond = Math.floor(cutoff.getTime() / 1000);
+      if (claims.iat < cutoffSecond) {
+        next(AppError.unauthorized("SESSION_INVALID", "Sign in to continue."));
+        return;
+      }
+    }
+
+    req.auth = {
+      id: String(account._id),
+      portal,
+      emailVerified: account.emailVerifiedAt !== null,
+    };
+    next();
+  };
+}
+
+/**
+ * Rejects accounts that have not confirmed their email.
+ *
+ * Mounted after `authenticate`, and deliberately *not* on the resend-code or
+ * profile-read routes — an unverified user has to be able to reach the thing
+ * that lets them become verified.
+ */
+export function requireVerified(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.auth) {
+    next(AppError.unauthorized("SESSION_MISSING", "Sign in to continue."));
+    return;
+  }
+  if (!req.auth.emailVerified) {
+    next(AppError.forbidden("EMAIL_NOT_VERIFIED", "Confirm your email address to continue."));
+    return;
+  }
+  next();
+}

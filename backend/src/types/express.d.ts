@@ -1,22 +1,40 @@
 import "express";
+import type { Portal } from "@jobportal/shared";
 
 declare global {
   namespace Express {
     interface Request {
       /**
-       * Authenticated user's id, set by `isAuthenticated`.
-       *
-       * Phase 1B replaces this with a typed `req.user`. Until then it stays
-       * optional, because most routes run without authentication and a
-       * non-optional field would be a lie the compiler cannot catch.
-       */
-      id?: string;
-
-      /**
        * Per-request correlation id, set by the `requestId` middleware.
-       * Distinct from `id` above, which predates it and holds a user id.
        */
       requestId?: string;
+
+      /**
+       * Authenticated subject, set by `authenticate(portal)` (Task 6) or
+       * `bridgeAuth` (Task 12).
+       *
+       * This is the real contract. A bare string id could not express *which
+       * collection* it came from, so every downstream check had to carry the
+       * portal separately — and the one place that forgot is the whole bug class
+       * Phase 1B exists to close.
+       */
+      auth?: {
+        id: string;
+        portal: Portal;
+        emailVerified: boolean;
+      };
+
+      /**
+       * KEPT UNTIL PHASE 1C. The inherited domain controllers
+       * (`updateProfile`, `postJob`, `getAdminJobs`, `applyJob`, …) read this,
+       * and Task 12's bridge keeps populating it from `auth.id` so they keep
+       * working unchanged.
+       *
+       * Do not add new readers. It cannot express a portal, which is exactly why
+       * `auth` exists; 1C moves those controllers onto `auth` and this goes with
+       * them.
+       */
+      id?: string;
     }
   }
 }
