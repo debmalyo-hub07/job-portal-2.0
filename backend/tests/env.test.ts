@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "../src/config/env.js";
+import { googleRedirectUri, parseEnv } from "../src/config/env.js";
 
 const valid = {
   NODE_ENV: "test",
@@ -56,6 +56,30 @@ describe("parseEnv", () => {
   it("rejects a secret reused across two purposes", () => {
     expect(() => parseEnv({ ...valid, CSRF_SECRET: valid.JWT_ACCESS_SECRET })).toThrow(
       /must all differ/,
+    );
+  });
+
+  it("strips trailing slashes from the base URLs", () => {
+    const parsed = parseEnv({
+      ...valid,
+      API_BASE_URL: "http://localhost:8000/",
+      WEB_BASE_URL: "http://localhost:5173///",
+    });
+    expect(parsed.API_BASE_URL).toBe("http://localhost:8000");
+    expect(parsed.WEB_BASE_URL).toBe("http://localhost:5173");
+  });
+});
+
+describe("googleRedirectUri", () => {
+  // Reads the real env() against tests/setup.ts, where API_BASE_URL has no
+  // trailing slash. Both URIs must be registered on the Google OAuth client
+  // verbatim, so this pins the exact strings rather than a shape.
+  it("pins one callback per portal", () => {
+    expect(googleRedirectUri("seeker")).toBe(
+      "http://localhost:8000/api/v1/seeker/auth/google/callback",
+    );
+    expect(googleRedirectUri("recruiter")).toBe(
+      "http://localhost:8000/api/v1/recruiter/auth/google/callback",
     );
   });
 });

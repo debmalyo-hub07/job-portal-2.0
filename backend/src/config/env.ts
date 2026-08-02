@@ -23,8 +23,12 @@ const envSchema = z.object({
   LOGIN_LOCK_MAX_MINUTES: z.coerce.number().int().positive().default(15),
   GOOGLE_LINK_CONFIRM_TTL_HOURS: z.coerce.number().int().positive().default(24),
 
-  API_BASE_URL: z.string().url(),
-  WEB_BASE_URL: z.string().url(),
+  // Trailing slashes are stripped so the derived Google redirect URIs and the
+  // frontend links built from these never contain a double slash. z.url()
+  // accepts "http://host:8000/", and Google matches redirect_uri byte-for-byte
+  // — an un-normalised base fails at the consent screen, not at boot.
+  API_BASE_URL: z.string().url().transform((url) => url.replace(/\/+$/, "")),
+  WEB_BASE_URL: z.string().url().transform((url) => url.replace(/\/+$/, "")),
 
   CLIENT_URLS: z
     .string()

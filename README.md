@@ -73,7 +73,11 @@ exactly — it will not boot with a broken config.
 | `BREVO_API_KEY` | Brevo → SMTP & API → API Keys → Create a new API key |
 | `BREVO_SENDER_EMAIL` | A sender address verified in Brevo |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application |
-| `GOOGLE_REDIRECT_URI` | Must be registered as an authorised redirect URI on that OAuth client |
+
+The redirect URI is not configured directly. Both are derived from `API_BASE_URL`
+— `<API_BASE_URL>/api/v1/seeker/auth/google/callback` and the `recruiter`
+equivalent — and **both** must be registered on that OAuth client. Google matches
+`redirect_uri` byte-for-byte, so a mismatch fails at consent time, not at boot.
 
 `.env` is never committed. Only `.env.example` is tracked.
 
