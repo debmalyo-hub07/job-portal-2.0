@@ -1348,13 +1348,37 @@ async function handleMiss(tokenHash: string): Promise<void> {
   const used = await RefreshToken.findOne({ tokenHash });
   if (!used) return;
 
+  // The window is keyed on `revokedAt`, which `rotateSession` sets ATOMICALLY at
+  // the moment it claims the row. It is deliberately NOT keyed on `replacedBy`.
+  //
+  // AMENDED 2026-08-03, after implementation. The original gated on
+  // `used.replacedBy`, which cannot work: `replacedBy` stores the successor's
+  // `_id`, so it can only be written after the successor row exists — after the
+  // claim. A genuinely CONCURRENT double-fire therefore reaches this function
+  // while it is still null no matter what order rotateSession writes in, so the
+  // loser read a just-rotated row as theft and revoked the family. That signs
+  // the user out *because* their client retried, which is precisely the case
+  // this window exists to absorb. Confirmed by dumping row state after a
+  // concurrent pair: liveRows=0, the winner's freshly-issued token already dead.
+  //
+  // Note the sequential replay test passes under BOTH versions — by the time a
+  // sequential replay runs, rotateSession has finished and `replacedBy` is set.
+  // Only a `Promise.all` pair distinguishes them. Write that test.
   const age = Date.now() - (used.revokedAt?.getTime() ?? 0);
-  if (used.replacedBy && age <= REUSE_GRACE_MS) {
-    const replacement = await RefreshToken.findById(used.replacedBy).select("replacedBy revokedAt");
-    if (replacement && !replacement.replacedBy && !replacement.revokedAt) {
-      logger.warn({ familyId: String(used.familyId) }, "refresh retried inside grace window");
-      return;
+  if (used.revokedAt !== null && age <= REUSE_GRACE_MS) {
+    // If a successor was recorded, it must still be live. A successor that has
+    // itself been spent means the chain moved on, so this is a real replay of an
+    // old token rather than a retry of the current one.
+    if (used.replacedBy) {
+      const replacement = await RefreshToken.findById(used.replacedBy).select("replacedBy revokedAt");
+      if (replacement && (replacement.replacedBy || replacement.revokedAt)) {
+        logger.warn({ familyId: String(used.familyId) }, "refresh token reuse — revoking family");
+        await revokeFamily(used.familyId);
+        return;
+      }
     }
+    logger.warn({ familyId: String(used.familyId) }, "refresh retried inside grace window");
+    return;
   }
 
   logger.warn({ familyId: String(used.familyId) }, "refresh token reuse — revoking family");
