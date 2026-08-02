@@ -24,7 +24,7 @@
 - **Failures throw `AppError`.** Never `res.status(4xx).json(...)` for a failure — the error middleware owns every failure envelope. Never `catch` without rethrowing; Express 5 forwards async rejections automatically, so no `asyncHandler` wrapper is needed.
 - **Never serialize a Mongoose document into a response.** Build an explicit DTO. This is how the inherited `getApplicants` leaks bcrypt hashes.
 - **Config through `env()` only.** No direct `process.env` reads outside `src/config/env.ts` (the one documented exception is `src/lib/logger.ts`).
-- **The legacy `/api/v1/user/*` auth routes keep working until Task 15.** New routes are built alongside them; the frontend switches in Task 13; the legacy *auth surface* (register/login/logout, `isAuthenticated`) is deleted in Task 15. This ordering means the app is never broken mid-phase, and it means the `httpsOnly` typo survives in the tree slightly longer than instinct wants — do not "fix" it in place, it is deleted wholesale. Two legacy pieces deliberately outlive this phase: `updateProfile` (with `user.model.ts`) and the domain routes' `ref: "User"` fields stay behind the Task 12 bridge until Phase 1C rebuilds profiles and domain DTOs on the new collections — deleting them in 1B would take profile editing dark for weeks for no security gain.
+- **The legacy `/api/v1/user/*` auth routes keep working until Task 15.** New routes are built alongside them; the frontend switches in Task 13; the legacy *auth surface* (register/login/logout, `isAuthenticated`) is deleted in Task 15. This ordering means the app is never broken mid-phase, and it means the `httpsOnly` typo survives in the tree slightly longer than instinct wants — do not "fix" it in place, it is deleted wholesale. `updateProfile` is the one handler in `user.controller.ts` that survives Task 15: Task 12 repoints it (and the three `ref: "User"` fields) at the account collections, because leaving one writer on `users` while every reader moved would lose profile edits silently. It keeps its inherited path and body until 1C — see the scope boundary below. `user.model.ts` stays through the phase as the migration's rollback path.
 - **Uniform failure messaging on all auth endpoints.** "Incorrect email or password" regardless of which check failed. Distinct machine codes are permitted only where the amended spec says so, and `EMAIL_NOT_VERIFIED` only *after* a correct password.
 - **Commit after every task** in Conventional Commits format. Push directly to `main` (project instruction). Stage by explicit path — never `git add -A`, which has twice swept scratch directories into the repository.
 - **Every task must leave `npm run typecheck` and `npm test` green** at the repository root.
@@ -1438,8 +1438,29 @@ describe("session", () => {
   });
 
   it("revokes the whole family when a rotated token is replayed after the grace window", async () => {
-    // rotate once, backdate revokedAt past REUSE_GRACE_MS, replay the original
-    // expect: every row in the family has revokedAt set
+    const first = await issue("seeker");
+    const rotated = await rotate(first.refresh);
+
+    // Push the replaced row's revokedAt outside REUSE_GRACE_MS so the replay
+    // reads as theft rather than as a retried request on a flaky network.
+    const original = await RefreshToken.findOne({ tokenHash: hashRefreshToken(first.refresh) });
+    await RefreshToken.updateOne(
+      { _id: original!._id },
+      { $set: { revokedAt: new Date(Date.now() - REUSE_GRACE_MS - 1_000) } },
+    );
+
+    const replay = await request(app).post(`/rotate?token=${encodeURIComponent(first.refresh)}`);
+    expect(replay.status).toBe(401);
+
+    // Not just the replayed row — every row in the family, including the
+    // legitimate token the real user is still holding.
+    const family = await RefreshToken.find({ familyId: original!.familyId });
+    expect(family.length).toBeGreaterThanOrEqual(2);
+    expect(family.every((row) => row.revokedAt !== null)).toBe(true);
+
+    // And the good token is genuinely dead, not merely marked.
+    const afterKill = await request(app).post(`/rotate?token=${encodeURIComponent(rotated.refresh)}`);
+    expect(afterKill.status).toBe(401);
   });
 
   it("rejects a seeker access token against the recruiter portal on signature, not on a claim", () => {
@@ -5150,7 +5171,27 @@ describe("migratePhase1b", () => {
   });
 
   it("routes by role and reports rows it cannot route", async () => {
-    // student -> Seeker, recruiter -> Recruiter, role:"admin" -> skippedBadRole
+    await User.create({ fullname: "Seeker One", email: "s@x.test", phoneNumber: 1,
+      password: "x", role: "student" });
+    await User.create({ fullname: "Rec One", email: "r@x.test", phoneNumber: 2,
+      password: "x", role: "recruiter" });
+    // Written straight to the collection: `role` has an enum, so Mongoose would
+    // reject this through the model. The migration still has to survive it —
+    // inherited data predates the enum.
+    await mongoose.connection.collection("users").insertOne({
+      fullname: "Admin", email: "a@x.test", phoneNumber: 3, password: "x", role: "admin",
+    });
+
+    const report = await migratePhase1b();
+
+    expect(report.scanned).toBe(3);
+    expect(report.inserted).toEqual({ seeker: 1, recruiter: 1 });
+    expect(await Seeker.countDocuments({})).toBe(1);
+    expect(await Recruiter.countDocuments({})).toBe(1);
+    // Reported, not silently dropped, and not guessed into a portal.
+    expect(report.skippedBadRole).toEqual([{ id: expect.any(String), role: "admin" }]);
+    expect(await Seeker.countDocuments({ email: "a@x.test" })).toBe(0);
+    expect(await Recruiter.countDocuments({ email: "a@x.test" })).toBe(0);
   });
 
   it("is idempotent and never clobbers post-migration state", async () => {
