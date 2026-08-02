@@ -452,7 +452,19 @@ export function applyAuthIndexes(schema: Schema): void {
   // Unique WITHIN the collection, not globally — one person may be both a
   // seeker and a recruiter, which is normal on Naukri and Internshala.
   schema.index({ email: 1 }, { unique: true });
-  schema.index({ googleId: 1 }, { unique: true, sparse: true });
+  // A PARTIAL index, not a sparse one. `sparse` only skips documents where the
+  // field is ABSENT, and `googleId` has `default: null`, so every
+  // password-registered account stores an explicit null and indexes it. Under
+  // `sparse: true` the second such account dies with
+  // `E11000 dup key: { googleId: null }` — nobody after the first can register
+  // without Google, and the Task 12 migration (which writes `googleId: null`
+  // for every row) fails on its second document. `$type: "string"` indexes only
+  // real Google ids. Note `$ne` is not a permitted operator in a
+  // partialFilterExpression.
+  schema.index(
+    { googleId: 1 },
+    { unique: true, partialFilterExpression: { googleId: { $type: "string" } } },
+  );
   // Drives the unverified-account sweeper. `migratedFromLegacyAt` is left out
   // deliberately — it is a null-check against an already-tiny candidate set, and
   // a third key would only make the index larger for every write.
@@ -3490,7 +3502,7 @@ export async function confirmGoogleLink(portal: Portal, token: string): Promise<
     if (!linked) throw invalid;
   } catch (error) {
     // The Google identity got linked to a DIFFERENT account meanwhile; the
-    // sparse unique index on googleId refuses the alias. Same uniform error.
+    // partial unique index on googleId refuses the alias. Same uniform error.
     if ((error as { code?: number }).code === 11000) throw invalid;
     throw error;
   }
