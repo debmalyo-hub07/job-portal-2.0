@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { defineModel } from "./defineModel.js";
 
 const otpCodeSchema = new Schema(
   {
@@ -30,7 +31,7 @@ otpCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type OtpCodeDocument = InferSchemaType<typeof otpCodeSchema>;
 export const OtpCode: Model<OtpCodeDocument> =
-  mongoose.model<OtpCodeDocument>("OtpCode", otpCodeSchema);
+  defineModel<OtpCodeDocument>("OtpCode", otpCodeSchema);
 
 /** Exported for the mailer and the services; keep in sync with the enum above. */
 export type OtpPurpose = "verify_email" | "reset_password";

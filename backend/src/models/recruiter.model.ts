@@ -1,5 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { authFields, applyAuthIndexes } from "./authFields.js";
+import { defineModel } from "./defineModel.js";
 
 const recruiterSchema = new Schema(
   {
@@ -13,7 +14,7 @@ const recruiterSchema = new Schema(
 applyAuthIndexes(recruiterSchema);
 
 export type RecruiterDocument = InferSchemaType<typeof recruiterSchema>;
-export const Recruiter: Model<RecruiterDocument> = mongoose.model<RecruiterDocument>(
+export const Recruiter: Model<RecruiterDocument> = defineModel<RecruiterDocument>(
   "Recruiter",
   recruiterSchema,
 );

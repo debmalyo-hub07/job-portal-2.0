@@ -3,14 +3,19 @@ import mongoose from "mongoose";
 
 import { Seeker } from "../src/models/seeker.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
+import { defineModel } from "../src/models/defineModel.js";
 
 /**
  * Stands in for `applications`, carrying the `ref` that Task 12 will repoint at
- * `Seeker`. Registered once at module scope: model registration is global and
- * permanent within a Vitest worker, so doing it inside a test would throw
- * OverwriteModelError on the second run.
+ * `Seeker`.
+ *
+ * Registered idempotently. `vitest.config.ts` sets `singleFork: true`, so every
+ * test file shares ONE module registry and ONE mongoose instance — a bare
+ * `mongoose.model(...)` at module scope throws OverwriteModelError as soon as a
+ * second test file imports anything that re-evaluates this. Reuse the existing
+ * registration when there is one.
  */
-const LeakProbe = mongoose.model(
+const LeakProbe = defineModel<{ applicant: mongoose.Types.ObjectId }>(
   "LeakProbe",
   new mongoose.Schema({ applicant: { type: mongoose.Schema.Types.ObjectId, ref: "Seeker" } }),
 );

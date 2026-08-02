@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { defineModel } from "./defineModel.js";
 
 const refreshTokenSchema = new Schema(
   {
@@ -26,4 +27,4 @@ refreshTokenSchema.index({ subjectId: 1, subjectType: 1 });
 
 export type RefreshTokenDocument = InferSchemaType<typeof refreshTokenSchema>;
 export const RefreshToken: Model<RefreshTokenDocument> =
-  mongoose.model<RefreshTokenDocument>("RefreshToken", refreshTokenSchema);
+  defineModel<RefreshTokenDocument>("RefreshToken", refreshTokenSchema);

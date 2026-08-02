@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { defineModel } from "./defineModel.js";
 
 const companySchema = new Schema(
   {
@@ -29,7 +30,7 @@ const companySchema = new Schema(
 );
 
 export type CompanyDocument = InferSchemaType<typeof companySchema>;
-export const Company: Model<CompanyDocument> = mongoose.model<CompanyDocument>(
+export const Company: Model<CompanyDocument> = defineModel<CompanyDocument>(
   "Company",
   companySchema,
 );
