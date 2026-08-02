@@ -63,7 +63,11 @@ exactly — it will not boot with a broken config.
 | `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path**, or Mongoose silently uses one called `test`. |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48`. Minimum 32 characters. |
 | `JWT_REFRESH_PEPPER` | `openssl rand -base64 48`. Must differ from the above. |
+| `OTP_PEPPER` | `openssl rand -base64 48`. Must differ from the other three. |
+| `CSRF_SECRET` | `openssl rand -base64 48`. Must differ from the other three. The API refuses to boot if any two of the four match. |
 | `CLIENT_URLS` | Comma-separated browser origins allowed by CORS. Local: `http://localhost:5173` |
+| `API_BASE_URL` | Public origin of this API. The two Google redirect URIs are derived from it. Local: `http://localhost:8000` |
+| `WEB_BASE_URL` | Public origin of the frontend. Local: `http://localhost:5173` |
 | `COOKIE_SAMESITE` | `strict` when API and web share a domain, `none` when they do not (requires HTTPS). |
 | `CLOUDINARY_*` | Cloudinary → Dashboard → Product Environment Credentials |
 | `BREVO_API_KEY` | Brevo → SMTP & API → API Keys → Create a new API key |
