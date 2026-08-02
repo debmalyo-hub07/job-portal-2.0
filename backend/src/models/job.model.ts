@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { defineModel } from "./defineModel.js";
 
 const jobSchema = new Schema(
   {
@@ -56,4 +57,4 @@ const jobSchema = new Schema(
 );
 
 export type JobDocument = InferSchemaType<typeof jobSchema>;
-export const Job: Model<JobDocument> = mongoose.model<JobDocument>("Job", jobSchema);
+export const Job: Model<JobDocument> = defineModel<JobDocument>("Job", jobSchema);

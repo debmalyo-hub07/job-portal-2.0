@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { defineModel } from "./defineModel.js";
 
 /**
  * Cumulative failure budget per (account, purpose), independent of any one code.
@@ -29,4 +30,4 @@ otpBudgetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type OtpBudgetDocument = InferSchemaType<typeof otpBudgetSchema>;
 export const OtpBudget: Model<OtpBudgetDocument> =
-  mongoose.model<OtpBudgetDocument>("OtpBudget", otpBudgetSchema);
+  defineModel<OtpBudgetDocument>("OtpBudget", otpBudgetSchema);
