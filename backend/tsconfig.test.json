@@ -1,0 +1,19 @@
+{
+  // Typechecks the test suite, which `tsconfig.json` deliberately does not:
+  // that config drives the BUILD, so its `include` is `src/**/*` and its
+  // `rootDir` is `src`. Vitest transpiles tests without typechecking them, so
+  // without this file nothing checks `tests/` at all — and from Task 7 onward
+  // the test files are the bulk of the new code in this phase.
+  //
+  // `rootDir` is widened to the workspace root because `tests/` sits outside
+  // `src/`. That is safe here and only here: `noEmit` is on, so there is no
+  // output layout for a wrong `rootDir` to corrupt.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
