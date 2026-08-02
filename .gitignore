@@ -42,3 +42,7 @@ coverage/
 *-registry.json
 .mvfinal/
 .rlprobe/
+
+# Mutation-testing harness and the backups it writes next to the file it edits
+*.scratch.mjs
+*.bak
