@@ -1,6 +1,7 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { afterAll, afterEach, beforeAll } from "vitest";
+import { defaultRateLimitStore } from "../src/lib/rateLimitStore.js";
 
 let mongo: MongoMemoryServer;
 
@@ -29,6 +30,7 @@ beforeAll(async () => {
 afterEach(async () => {
   const { collections } = mongoose.connection;
   await Promise.all(Object.values(collections).map((c) => c.deleteMany({})));
+  defaultRateLimitStore.clear();
 });
 
 afterAll(async () => {
