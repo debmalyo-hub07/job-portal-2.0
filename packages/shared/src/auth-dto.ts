@@ -38,3 +38,24 @@ export const AUTH_ERROR_CODES = [
 ] as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
+
+export interface ProfileView {
+  user: SessionUser;
+  phone: string | null;
+  seeker: {
+    headline: string | null;
+    bio: string | null;
+    skills: string[];
+    experienceYears: number | null;
+    location: string | null;
+    resumeUrl: string | null;
+    resumeName: string | null;
+  } | null;
+  recruiter: { designation: string | null } | null;
+}
+
+export interface ProfileResponse {
+  success: true;
+  message?: string;
+  profile: ProfileView;
+}

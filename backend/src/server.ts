@@ -2,11 +2,13 @@ import "dotenv/config";
 import { buildApp } from "./app.js";
 import { connectDB, disconnectDB } from "./config/db.js";
 import { env } from "./config/env.js";
+import { startSweeper } from "./lib/sweeper.js";
 
 async function main(): Promise<void> {
   const config = env();
 
   await connectDB(config.MONGO_URI);
+  const stopSweeper = startSweeper();
 
   const server = buildApp().listen(config.PORT, () => {
     console.log(`API listening on :${config.PORT}`);
@@ -15,6 +17,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down`);
     server.close(async () => {
+      stopSweeper();
       await disconnectDB();
       process.exit(0);
     });

@@ -56,10 +56,21 @@ export type LegacyJob = {
   updatedAt: string;
 };
 
+export type PopulatedApplicant = {
+  _id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  profile?: { bio: string | null; skills: string[] };
+  resume?: { storageKey: string | null; originalName: string | null };
+  createdAt?: string;
+};
+
 export type LegacyApplication = {
   _id: string;
   job?: LegacyJob;
-  applicant?: LegacyUser;
+  applicant?: PopulatedApplicant;
   status: "pending" | "accepted" | "rejected";
   createdAt: string;
   updatedAt: string;

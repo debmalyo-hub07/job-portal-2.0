@@ -1,5 +1,5 @@
 import express from "express";
-import isAuthenticated from "../middleware/isAuthenticated.js";
+import { bridgeAuth } from "../middleware/bridgeAuth.js";
 import {
   registerCompany,
   getCompany,
@@ -10,9 +10,9 @@ import { singleUpload } from "../middleware/multer.js";
 
 const router = express.Router();
 
-router.route("/register").post(isAuthenticated, registerCompany);
-router.route("/get").get(isAuthenticated, getCompany);
-router.route("/get/:id").get(isAuthenticated, getCompanyById);
-router.route("/update/:id").put(isAuthenticated, singleUpload, updateCompany);
+router.route("/register").post(bridgeAuth("recruiter"), registerCompany);
+router.route("/get").get(bridgeAuth("recruiter"), getCompany);
+router.route("/get/:id").get(bridgeAuth("recruiter"), getCompanyById);
+router.route("/update/:id").put(bridgeAuth("recruiter"), singleUpload, updateCompany);
 
 export default router;
