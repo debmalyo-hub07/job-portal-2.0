@@ -83,3 +83,41 @@ export function clearAuthCookies(res: Response, portal: Portal): void {
   res.clearCookie(refreshCookieName(portal), opts);
   res.clearCookie(csrfCookieName(), { ...opts, httpOnly: false });
 }
+
+const GOOGLE_TXN_COOKIE = "jp_gtxn";
+
+export function googleTxnCookieName(): string {
+  return prefixed(GOOGLE_TXN_COOKIE);
+}
+
+/**
+ * sameSite is hardcoded "lax", NOT the configured value.
+ *
+ * The callback is a cross-site top-level GET arriving from
+ * accounts.google.com; a `strict` cookie is not sent on that navigation, so
+ * with the default COOKIE_SAMESITE=strict every sign-in would die with a
+ * missing-transaction error and nothing in any log to explain it. `lax` sends
+ * the cookie on top-level navigations — exactly and only what the callback is.
+ *
+ * The session cookies are NOT loosened; they keep the configured value. They
+ * are SET on the callback response, which is always allowed; sameSite gates
+ * sending, not setting.
+ */
+export function setGoogleTxnCookie(res: Response, token: string): void {
+  res.cookie(googleTxnCookieName(), token, {
+    httpOnly: true,
+    secure: isSecure(),
+    sameSite: "lax",
+    path: "/",
+    maxAge: 10 * 60_000,
+  });
+}
+
+export function clearGoogleTxnCookie(res: Response): void {
+  res.clearCookie(googleTxnCookieName(), {
+    httpOnly: true,
+    secure: isSecure(),
+    sameSite: "lax",
+    path: "/",
+  });
+}

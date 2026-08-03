@@ -19,6 +19,15 @@ export function accessTokenKey(portal: Portal): Buffer {
   return Buffer.from(hkdfSync("sha256", env().JWT_ACCESS_SECRET, "", `access:${portal}`, 32));
 }
 
+/**
+ * Key for the OAuth transaction cookie's JWT and the mailed link-confirmation
+ * token. Derived, not a fifth env secret: same HKDF pattern as the access keys,
+ * with its own info string so it can never collide with a portal key.
+ */
+export function googleTxnKey(): Buffer {
+  return Buffer.from(hkdfSync("sha256", env().JWT_ACCESS_SECRET, "", "google-txn", 32));
+}
+
 /** Keyed hash of an opaque refresh token. A dump alone must not be replayable. */
 export function hashRefreshToken(token: string): string {
   return createHmac("sha256", env().JWT_REFRESH_PEPPER).update(token).digest("hex");
