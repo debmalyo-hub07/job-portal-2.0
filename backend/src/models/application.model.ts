@@ -10,7 +10,7 @@ const applicationSchema = new Schema(
     },
     applicant: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Seeker",
       required: true,
     },
     status: {

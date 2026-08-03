@@ -43,7 +43,7 @@ const jobSchema = new Schema(
     },
     created_by: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Recruiter",
       required: true,
     },
     applications: [

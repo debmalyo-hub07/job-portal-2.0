@@ -20,7 +20,9 @@ process.env.BREVO_API_KEY = "test";
 process.env.BREVO_SENDER_EMAIL = "no-reply@example.com";
 process.env.GOOGLE_CLIENT_ID = "test";
 process.env.GOOGLE_CLIENT_SECRET = "test";
-
+process.env.LEGACY_AUTH_FALLBACK = "true";
+process.env.UNVERIFIED_ACCOUNT_TTL_HOURS = "24";
+process.env.SWEEP_INTERVAL_MINUTES = "60";
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   process.env.MONGO_URI = mongo.getUri();

@@ -51,18 +51,18 @@ const ApplicantsTable = () => {
         <TableBody>
           {applicants.map((item) => (
             <TableRow key={item._id}>
-              <TableCell>{item.applicant?.fullname}</TableCell>
+              <TableCell>{item.applicant?.fullName}</TableCell>
               <TableCell>{item.applicant?.email}</TableCell>
-              <TableCell>{item.applicant?.phoneNumber}</TableCell>
+              <TableCell>{item.applicant?.phone}</TableCell>
               <TableCell>
-                {item.applicant?.profile?.resume ? (
+                {item.applicant?.resume?.storageKey ? (
                   <a
                     className="text-blue-600 cursor-pointer"
-                    href={item.applicant.profile.resume}
+                    href={item.applicant.resume.storageKey}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {item.applicant.profile.resumeOriginalName}
+                    {item.applicant.resume.originalName ?? "Download"}
                   </a>
                 ) : (
                   <span>NA</span>

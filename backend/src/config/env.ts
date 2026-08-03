@@ -18,7 +18,25 @@ const envSchema = z.object({
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   OTP_BUDGET_MAX_FAILURES: z.coerce.number().int().positive().default(20),
   OTP_BUDGET_WINDOW_HOURS: z.coerce.number().int().positive().default(24),
-  UNVERIFIED_ACCOUNT_TTL_HOURS: z.coerce.number().int().positive().default(72),
+  /**
+   * Accept the inherited `token` cookie on the domain routes while the frontend
+   * is still being switched over (Task 13). Turning this off is the kill switch
+   * that ends legacy authentication without a deploy; Task 15 deletes both the
+   * flag and the code path it guards.
+   *
+   * Not `z.coerce.boolean()`: that returns `true` for the string "false", which
+   * is the worst possible behaviour for a security kill switch.
+   */
+  LEGACY_AUTH_FALLBACK: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+
+  /** Age at which an unverified, non-migrated account is deleted. */
+  UNVERIFIED_ACCOUNT_TTL_HOURS: z.coerce.number().int().positive().default(24),
+
+  /** How often the in-process sweeper runs. */
+  SWEEP_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
   LOGIN_LOCK_THRESHOLD: z.coerce.number().int().positive().default(5),
   LOGIN_LOCK_MAX_MINUTES: z.coerce.number().int().positive().default(15),
   GOOGLE_LINK_CONFIRM_TTL_HOURS: z.coerce.number().int().positive().default(24),

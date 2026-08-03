@@ -1,5 +1,5 @@
 import express from "express";
-import isAuthenticated from "../middleware/isAuthenticated.js";
+import { bridgeAuth } from "../middleware/bridgeAuth.js";
 import {
   postJob,
   getAllJobs,
@@ -9,9 +9,9 @@ import {
 
 const router = express.Router();
 
-router.route("/post").post(isAuthenticated, postJob);
-router.route("/get").get(isAuthenticated, getAllJobs);
-router.route("/get/:id").get(isAuthenticated, getJobById);
-router.route("/getadminjobs").get(isAuthenticated, getAdminJobs);
+router.route("/post").post(bridgeAuth("recruiter"), postJob);
+router.route("/get").get(bridgeAuth("any"), getAllJobs);
+router.route("/get/:id").get(bridgeAuth("any"), getJobById);
+router.route("/getadminjobs").get(bridgeAuth("recruiter"), getAdminJobs);
 
 export default router;
