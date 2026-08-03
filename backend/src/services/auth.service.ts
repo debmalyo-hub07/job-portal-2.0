@@ -2,7 +2,7 @@ import { Types, type HydratedDocument } from "mongoose";
 import type { Portal, RegisterBody, SessionUser } from "@jobportal/shared";
 import { AppError } from "../lib/AppError.js";
 import { env } from "../config/env.js";
-import { hashPassword } from "../lib/password.js";
+import { burnPasswordTime, hashPassword, needsRehash, verifyPassword } from "../lib/password.js";
 import { generateOtp, hashOtp } from "../lib/otp.js";
 import { dispatch, sendOtpEmail, sendRendered } from "../lib/mailer.js";
 import { renderOtpBudgetEmail } from "../lib/emailTemplates.js";
@@ -14,6 +14,7 @@ import {
   findAccountById,
   type AccountDocument,
 } from "./account.service.js";
+import { revokeAllForSubject } from "./session.service.js";
 
 /**
  * A saved account, not the bare schema shape.
@@ -300,6 +301,213 @@ async function writeGhostOtp(portal: Portal, purpose: OtpPurpose): Promise<void>
     attempts: 0,
     expiresAt: new Date(Date.now() + env().OTP_TTL_MINUTES * 60_000),
   });
+}
+
+/**
+ * Password sign-in.
+ *
+ * Every line's position here is one of the review findings — read the ordering
+ * comments before rearranging anything. Three invariants shape the whole
+ * function: one failure message for every rejection reason, a lockout that
+ * cannot be weaponised against the account it protects, and no branch that is
+ * measurably faster than another.
+ */
+export async function login(portal: Portal, email: string, password: string): Promise<AccountDoc> {
+  const account = await findAccountByEmail(portal, email, { withSecret: true });
+
+  if (!account) {
+    // Same Argon2 cost as the real branch, then the same error. Without the
+    // burn, response time says which addresses exist.
+    await burnPasswordTime(password);
+    throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
+  }
+
+  // ALWAYS verify before branching on lock state, so a locked account costs
+  // the same time as a wrong password and the lock is not a timing oracle.
+  // verifyPassword(_, null) burns a dummy verify for Google-only accounts, so
+  // "this account has no password" is not an oracle either.
+  //
+  // `?? null` because Mongoose types a non-required path as possibly undefined,
+  // and `select: false` means passwordHash genuinely can be absent. Collapsing
+  // undefined to null routes an absent hash through the dummy-verify burn
+  // instead of past it, which is exactly the branch that must not be fast.
+  const passwordOk = await verifyPassword(password, account.passwordHash ?? null);
+
+  const lockedUntil = account.lockedUntil ?? null;
+  if (lockedUntil !== null && lockedUntil > new Date()) {
+    // Uniform message even when the password was right: the lock IS the
+    // backoff. A distinct "locked" response would confirm both that the
+    // account exists and that guesses are landing. No counter increment
+    // during the lock — the attacker cannot ratchet it further.
+    throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
+  }
+
+  if (!passwordOk) {
+    await registerLoginFailure(portal, account._id);
+    throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
+  }
+
+  if (account.status !== "active") {
+    // Suspended reads exactly like a bad credential — account state is not
+    // for strangers. The owner finds out through support, not through probes.
+    throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
+  }
+
+  if (account.emailVerifiedAt === null) {
+    // Security invariant 10: this distinct code is reachable ONLY here, after
+    // passwordOk. A wrong password on an unverified account took the uniform
+    // exit above, so login is not an existence-and-state oracle.
+    throw AppError.forbidden("EMAIL_NOT_VERIFIED", "Confirm your email address to continue.");
+  }
+
+  // Success: clear counters, and transparently upgrade a legacy bcrypt hash.
+  // Migrated accounts carry bcrypt (the migration has no plaintext to work
+  // with); this is the only moment plaintext and account meet, so this is
+  // where the upgrade happens (see needsRehash, Task 3).
+  const updates: Record<string, unknown> = { failedLoginCount: 0, lockedUntil: null };
+  if (needsRehash(account.passwordHash ?? null)) {
+    updates.passwordHash = await hashPassword(password);
+  }
+  await accountModel(portal).updateOne({ _id: account._id }, { $set: updates });
+
+  return account;
+}
+
+/**
+ * Exponential backoff from the threshold, atomically counted, capped hard.
+ *
+ * The cap is load-bearing: an uncapped lock is a denial-of-service primitive —
+ * anyone who knows an address can keep that account locked forever with wrong
+ * passwords. 5th failure locks 1 minute, doubling per failure to
+ * LOGIN_LOCK_MAX_MINUTES (default 15), cleared entirely by one success. Never
+ * keyed by IP (a corporate NAT shares one), never touching OTP paths.
+ */
+async function registerLoginFailure(portal: Portal, id: Types.ObjectId): Promise<void> {
+  const updated = await accountModel(portal).findOneAndUpdate(
+    { _id: id },
+    { $inc: { failedLoginCount: 1 } },
+    { new: true },
+  );
+  if (!updated) return;
+
+  const over = updated.failedLoginCount - env().LOGIN_LOCK_THRESHOLD;
+  if (over < 0) return;
+
+  const minutes = Math.min(2 ** over, env().LOGIN_LOCK_MAX_MINUTES);
+  await accountModel(portal).updateOne(
+    { _id: id },
+    { $set: { lockedUntil: new Date(Date.now() + minutes * 60_000) } },
+  );
+}
+
+/** Response-time floor for the enumeration-sensitive endpoints. */
+const UNIFORM_FLOOR_MS = 250;
+
+async function holdUntil(started: number, floorMs: number): Promise<void> {
+  const remaining = started + floorMs - Date.now();
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+}
+
+/**
+ * Always 200, and the same work on both branches: a real account gets a real
+ * OTP row and an ENQUEUED send; an absent address gets the ghost write and no
+ * send. Neither branch awaits Brevo — dispatch() is fire-and-forget precisely
+ * so the 50-300ms provider round-trip never shows up in the response time —
+ * and the floor absorbs the residual skew. "Uniform in body" without this is
+ * still an existence oracle; see the spec's hardening section.
+ */
+export async function forgotPassword(portal: Portal, email: string): Promise<void> {
+  const started = Date.now();
+  const account = await findAccountByEmail(portal, email);
+  if (account) {
+    await issueOtp(portal, account, "reset_password");
+  } else {
+    await writeGhostOtp(portal, "reset_password");
+  }
+  await holdUntil(started, UNIFORM_FLOOR_MS);
+}
+
+/**
+ * Redeems a reset_password code and rotates the credential.
+ *
+ * No session is issued afterwards. The resetter proved mailbox control, not
+ * possession of the new password from a device we should trust silently — they
+ * sign in once with the password they just chose, which also exercises the new
+ * credential immediately.
+ */
+export async function resetPassword(
+  portal: Portal,
+  email: string,
+  code: string,
+  newPassword: string,
+): Promise<void> {
+  const account = await findAccountByEmail(portal, email);
+  const subjectId = account?._id ?? new Types.ObjectId();
+
+  // Atomic pre-charge, refunded on success — identical to verify-email.
+  await chargeOtpAttempt(portal, subjectId, "reset_password");
+
+  const otp = await OtpCode.findOneAndUpdate(
+    {
+      codeHash: hashOtp(code, subjectId),
+      purpose: "reset_password", // a verify_email code cannot rotate a credential
+      subjectType: portal,
+      subjectId,
+      consumedAt: null,
+      expiresAt: { $gt: new Date() },
+      attempts: { $lt: env().OTP_MAX_ATTEMPTS },
+    },
+    { $inc: { attempts: 1 } },
+    { new: true },
+  );
+  if (!otp) throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
+
+  const claimed = await OtpCode.findOneAndUpdate(
+    { _id: otp._id, consumedAt: null },
+    { $set: { consumedAt: new Date() } },
+  );
+  if (!claimed) throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
+
+  // The account comes from the ROW, never from `email` (invariant 1).
+  // `withSecret` because the reuse check below is a credential comparison.
+  const target = await findAccountById(portal, String(otp.subjectId), { withSecret: true });
+  if (!target) throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
+
+  // Reuse check AFTER redemption, deliberately: checking before would spend an
+  // Argon2 verify on every unauthenticated garbage-code request — a CPU
+  // faucet. The cost of this ordering is that a reuse rejection has consumed
+  // the code and the user requests another. Annoying once, abusable never.
+  if (await verifyPassword(newPassword, target.passwordHash ?? null)) {
+    throw AppError.badRequest(
+      "PASSWORD_REUSED",
+      "Choose a password you have not used here before.",
+    );
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await accountModel(portal).updateOne(
+    { _id: otp.subjectId },
+    {
+      $set: {
+        passwordHash,
+        // Kills outstanding ACCESS tokens too. Revoking refresh families only
+        // stops sessions from CONTINUING; the access token already in an
+        // attacker's hands stays valid for up to ACCESS_TOKEN_TTL_MINUTES,
+        // which is exactly the window the owner is trying to close. The
+        // authenticate middleware compares iat against this cutoff (Task 6).
+        sessionsInvalidatedAt: new Date(),
+        failedLoginCount: 0,
+        lockedUntil: null,
+        // Redeeming a mailed code is the same mailbox proof verify-email asks
+        // for, so an unverified account that resets becomes verified. Without
+        // this, "forgot my password before verifying" is unrecoverable.
+        ...(target.emailVerifiedAt === null ? { emailVerifiedAt: new Date() } : {}),
+      },
+    },
+  );
+
+  await revokeAllForSubject(otp.subjectId, portal);
+  await clearOtpBudget(portal, otp.subjectId, "reset_password");
 }
 
 /**

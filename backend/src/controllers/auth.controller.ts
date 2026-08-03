@@ -1,12 +1,18 @@
 import type { RequestHandler } from "express";
 import {
+  forgotPasswordBodySchema,
+  loginBodySchema,
   registerBodySchema,
   resendVerificationBodySchema,
+  resetPasswordBodySchema,
   verifyEmailBodySchema,
   type Portal,
 } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
-import { issueSession } from "../services/session.service.js";
+import { AppError } from "../lib/AppError.js";
+import { refreshCookieName } from "../lib/cookies.js";
+import { endSession, issueSession, rotateSession } from "../services/session.service.js";
+import { findAccountById } from "../services/account.service.js";
 import * as auth from "../services/auth.service.js";
 
 /**
@@ -42,5 +48,75 @@ export function resendCodeHandler(portal: Portal): RequestHandler {
       success: true,
       message: "If that address has an unverified account, a new code is on its way.",
     });
+  };
+}
+
+export function loginHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const { email, password } = parseBody(loginBodySchema, req.body);
+    const account = await auth.login(portal, email, password);
+    await issueSession(res, req, account._id, portal);
+    res.json({ success: true, user: auth.toSessionUser(portal, account) });
+  };
+}
+
+export function logoutHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const presented = req.cookies?.[refreshCookieName(portal)] as string | undefined;
+    // Revokes the family if the cookie is present and known; clears cookies
+    // with matching attributes either way (the inherited logout's bug).
+    await endSession(res, portal, presented);
+    res.json({ success: true, message: "Signed out." });
+  };
+}
+
+export function forgotPasswordHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const { email } = parseBody(forgotPasswordBodySchema, req.body);
+    await auth.forgotPassword(portal, email);
+    res.json({
+      success: true,
+      message: "If that address has an account, a reset code is on its way.",
+    });
+  };
+}
+
+export function resetPasswordHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const { email, code, newPassword } = parseBody(resetPasswordBodySchema, req.body);
+    await auth.resetPassword(portal, email, code, newPassword);
+    res.json({ success: true, message: "Password changed. Sign in with the new password." });
+  };
+}
+
+export function refreshHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const presented = req.cookies?.[refreshCookieName(portal)] as string | undefined;
+    if (!presented) {
+      throw AppError.unauthorized(
+        "SESSION_INVALID",
+        "Your session has expired. Please sign in again.",
+      );
+    }
+    // The mount's portal decides only WHICH COOKIE NAME to read. The session
+    // that comes back is whatever the stored row says (Task 5): a seeker token
+    // smuggled under the recruiter cookie name re-issues seeker cookies —
+    // never recruiter ones.
+    await rotateSession(res, req, presented);
+    res.json({ success: true });
+  };
+}
+
+export function meHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    // Mounted behind authenticate(portal) in Task 10, so req.auth is set. The
+    // plan reached for `req.auth!.id`; guarded instead, because the assertion
+    // is only true as long as every future mount remembers the middleware, and
+    // the failure mode of forgetting is a 500 on a TypeError rather than the
+    // 401 this obviously means.
+    if (!req.auth) throw AppError.unauthorized("SESSION_MISSING", "Sign in to continue.");
+    const account = await findAccountById(portal, req.auth.id);
+    if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
+    res.json({ success: true, user: auth.toSessionUser(portal, account) });
   };
 }
