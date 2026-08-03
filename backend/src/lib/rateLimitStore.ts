@@ -36,6 +36,11 @@ export class InMemoryRateLimitStore implements RateLimitStore {
     this.entries.delete(key);
   }
 
+  /** Test hook: drop every window. Cheap, and meaningless in production. */
+  clear(): void {
+    this.entries.clear();
+  }
+
   private sweep(): void {
     const now = Date.now();
     for (const [key, entry] of this.entries) {
