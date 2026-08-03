@@ -1,4 +1,4 @@
-import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
+import { Schema, type InferSchemaType, type Model } from "mongoose";
 import { authFields, applyAuthIndexes } from "./authFields.js";
 import { defineModel } from "./defineModel.js";
 
