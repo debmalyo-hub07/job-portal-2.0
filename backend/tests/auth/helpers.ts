@@ -6,6 +6,8 @@ import type { Portal } from "@jobportal/shared";
 import { setMailer } from "../../src/lib/mailer.js";
 import { errorHandler } from "../../src/middleware/error.js";
 import { notFound } from "../../src/middleware/notFound.js";
+import { buildApp } from "../../src/app.js";
+import request from "supertest";
 
 export interface CapturedMail {
   to: string;
@@ -105,4 +107,35 @@ export function linkTokenFor(email: string, subjectPattern: RegExp): string {
   const raw = /token=([^\s&]+)/.exec(mail.text)?.[1];
   if (!raw) throw new Error(`mail to ${email} carries no token`);
   return decodeURIComponent(raw);
+}
+
+const sharedApp = buildApp();
+
+export async function signedUpOn(
+  portal: Portal,
+  email: string,
+  overrides?: Record<string, any>
+): Promise<{ id: string; access: string; refresh: string; csrf: string }> {
+  const password = "correct horse battery staple";
+  const fullName = overrides?.fullName ?? "Signed Up";
+
+  await request(sharedApp)
+    .post(`/api/v1/${portal}/auth/register`)
+    .send({ fullName, email, password, ...overrides });
+
+  const code = await lastCodeFor(email);
+  await request(sharedApp)
+    .post(`/api/v1/${portal}/auth/verify-email`)
+    .send({ email, code });
+
+  const res = await request(sharedApp)
+    .post(`/api/v1/${portal}/auth/login`)
+    .send({ email, password });
+
+  const id = res.body.user.id;
+  const access = cookieValue(res, `jp_${portal}_at`)!;
+  const refresh = cookieValue(res, `jp_${portal}_rt`)!;
+  const csrf = cookieValue(res, "jp_csrf")!;
+
+  return { id, access, refresh, csrf };
 }
