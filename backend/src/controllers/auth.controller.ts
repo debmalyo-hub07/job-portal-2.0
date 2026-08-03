@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import {
+  confirmGoogleLinkBodySchema,
   forgotPasswordBodySchema,
   loginBodySchema,
   registerBodySchema,
@@ -11,8 +12,14 @@ import {
 import { parseBody } from "../lib/validate.js";
 import { AppError } from "../lib/AppError.js";
 import { refreshCookieName } from "../lib/cookies.js";
+import { env } from "../config/env.js";
 import { endSession, issueSession, rotateSession } from "../services/session.service.js";
 import { findAccountById } from "../services/account.service.js";
+import {
+  confirmGoogleLink,
+  handleGoogleCallback,
+  startGoogleFlow,
+} from "../services/googleAuth.service.js";
 import * as auth from "../services/auth.service.js";
 
 /**
@@ -104,6 +111,47 @@ export function refreshHandler(portal: Portal): RequestHandler {
     // never recruiter ones.
     await rotateSession(res, req, presented);
     res.json({ success: true });
+  };
+}
+
+export function googleStartHandler(portal: Portal): RequestHandler {
+  return (_req, res) => {
+    res.redirect(startGoogleFlow(portal, res));
+  };
+}
+
+/**
+ * DELIBERATE exception to the "failures throw AppError" convention, and the
+ * only one in the phase: this endpoint is a top-level browser navigation from
+ * Google, not an XHR. A JSON envelope strands a human on a wall of JSON, so
+ * every outcome — including failure — is a redirect back into the web app, and
+ * failure carries ONE uniform code so the URL never tells a prober which check
+ * tripped.
+ */
+export function googleCallbackHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const outcome = await handleGoogleCallback(portal, req, res);
+    const web = env().WEB_BASE_URL;
+    if (outcome.kind === "signed-in") {
+      await issueSession(res, req, outcome.account._id, portal);
+      // The portal in the query is a bootstrap hint for the SPA's /me call,
+      // nothing more — the session's real portal is enforced by the cookies.
+      res.redirect(`${web}/auth/complete?portal=${portal}`);
+      return;
+    }
+    if (outcome.kind === "link-pending") {
+      res.redirect(`${web}/auth/link-pending`);
+      return;
+    }
+    res.redirect(`${web}/auth/error?code=GOOGLE_AUTH_FAILED`);
+  };
+}
+
+export function confirmGoogleLinkHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const { token } = parseBody(confirmGoogleLinkBodySchema, req.body);
+    await confirmGoogleLink(portal, token);
+    res.json({ success: true, message: "Google sign-in is now linked. Use it to sign in." });
   };
 }
 

@@ -25,6 +25,7 @@
     "datauri": "^4.1.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",

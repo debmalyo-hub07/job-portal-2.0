@@ -36,6 +36,17 @@ export function renderAccountClaimedEmail(): Rendered {
   };
 }
 
+/** Step-up mail for linking Google to a VERIFIED password account (Task 9, branch 2b). */
+export function renderGoogleLinkEmail(confirmUrl: string, hours: number): Rendered {
+  return {
+    subject: "Confirm linking Google sign-in",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">Link Google sign-in?</h1><p>Someone — hopefully you — asked to sign in to this account with Google. If that was you, confirm below within ${hours} hours. If it was not, do nothing: your password keeps working and nothing changes.</p><p style="margin:1.5rem 0"><a href="${confirmUrl}" style="display:inline-block;padding:.6rem 1.2rem;background:#1a1a1a;color:#ffffff;border-radius:.375rem;text-decoration:none">Link Google sign-in</a></p>`,
+    ),
+    text: `Link Google sign-in?\n\nConfirm within ${hours} hours:\n${confirmUrl}\n\nIf this wasn't you, do nothing — your password keeps working and nothing changes.`,
+  };
+}
+
 /** Sent when the cumulative OTP failure budget trips, so a lockout is never silent. */
 export function renderOtpBudgetEmail(hours: number): Rendered {
   return {

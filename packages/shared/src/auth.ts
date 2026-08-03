@@ -56,7 +56,12 @@ export const resetPasswordBodySchema = z.object({
 export const forgotPasswordBodySchema = z.object({ email: emailSchema });
 export const resendVerificationBodySchema = z.object({ email: emailSchema });
 
+export const confirmGoogleLinkBodySchema = z.object({
+  token: z.string().min(1).max(2048),
+});
+
 export type RegisterBody = z.infer<typeof registerBodySchema>;
+export type ConfirmGoogleLinkBody = z.infer<typeof confirmGoogleLinkBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type VerifyEmailBody = z.infer<typeof verifyEmailBodySchema>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
