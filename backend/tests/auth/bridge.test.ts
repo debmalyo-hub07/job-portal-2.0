@@ -4,10 +4,11 @@ import jwt from "jsonwebtoken";
 import { describe, it, expect } from "vitest";
 import { bridgeAuth, type BridgeScope } from "../../src/middleware/bridgeAuth.js";
 import { User } from "../../src/models/user.model.js";
-import { signedUpOn, installCaptureMailer, sharedApp } from "./helpers.js";
+import { signedUpOn, installCaptureMailer } from "./helpers.js";
 import cookieParser from "cookie-parser";
+import { beforeEach } from "vitest";
 
-installCaptureMailer(sharedApp);
+beforeEach(installCaptureMailer);
 
 async function probe(scope: BridgeScope, opts: { cookies?: string[]; legacyFallback?: boolean } = {}) {
   const app = express();
