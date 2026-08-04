@@ -15,10 +15,10 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.role === "recruiter") {
+    if (user?.portal === "recruiter") {
       navigate("/admin/companies");
     }
-  }, [user?.role, navigate]);
+  }, [user?.portal, navigate]);
 
   return (
     <div>

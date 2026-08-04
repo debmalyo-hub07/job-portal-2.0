@@ -19,12 +19,41 @@ import applicationSlice from "./applicationSlice";
 
 const persistConfig = {
   key: "root",
-  version: 1,
+  // 1 -> 2: every browser that has used this app has a LegacyUser in
+  // localStorage under version 1 — `{ fullname, phoneNumber, role, profile }`.
+  // redux-persist rehydrates whatever it finds, so without this bump the store
+  // would come up holding an object that TypeScript insists is a SessionUser and
+  // that every component reads incorrectly: `user.fullName` undefined,
+  // `user.portal` undefined, so ProtectedRoute fails open or closed at random.
+  //
+  // No migration function, because there is nothing to migrate: `role` does not
+  // determine `portal` reliably (a legacy "student" is a seeker, but the account
+  // may not exist on that portal until the migration runs), and `/me` gives the
+  // truth in one request anyway. Bumping the version discards the old subtree,
+  // which is the intended behaviour.
+  version: 2,
   storage,
 };
 
+/**
+ * `bootstrapped` and `loading` are session-lifetime flags, not cached data, and
+ * persisting them is actively wrong: a rehydrated `bootstrapped: true` tells
+ * ProtectedRoute that `/me` has already answered when it has not even been
+ * sent, so the guard rules on a stale `user` and either flashes admin UI at a
+ * signed-out visitor or bounces a signed-in recruiter. Only `user` is worth
+ * caching, and only to avoid a signed-out flicker while `/me` is in flight.
+ *
+ * A nested persistReducer rather than a top-level `blacklist`, because
+ * redux-persist's blacklist matches top-level keys only — `"auth.bootstrapped"`
+ * is not a path it understands and would silently do nothing.
+ */
+const persistedAuth = persistReducer(
+  { key: "auth", version: 2, storage, blacklist: ["bootstrapped", "loading"] },
+  authSlice,
+);
+
 const rootReducer = combineReducers({
-  auth: authSlice,
+  auth: persistedAuth,
   job: jobSlice,
   company: companySlice,
   application: applicationSlice,

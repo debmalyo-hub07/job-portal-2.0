@@ -1,35 +1,54 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import type { LegacyUser } from "@jobportal/shared";
+import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
-import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { useAppDispatch } from "@/redux/store";
 
 type UpdateProfileDialogProps = {
   open: boolean;
   setOpen: (open: boolean) => void;
+  profile: ProfileView | null;
+  onUpdated: (profile: ProfileView) => void;
 };
 
-const UpdateProfileDialog = ({ open, setOpen }: UpdateProfileDialogProps) => {
+const UpdateProfileDialog = ({
+  open,
+  setOpen,
+  profile,
+  onUpdated,
+}: UpdateProfileDialogProps) => {
   const [loading, setLoading] = useState(false);
-  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
 
   const [input, setInput] = useState({
-    fullname: user?.fullname ?? "",
-    email: user?.email ?? "",
-    phoneNumber: String(user?.phoneNumber ?? ""),
-    bio: user?.profile?.bio ?? "",
-    skills: user?.profile?.skills?.join(", ") ?? "",
+    fullname: "",
+    phoneNumber: "",
+    bio: "",
+    skills: "",
     file: null as File | null,
   });
+
+  // Prefilled in an effect, not in useState's initialiser: the parent fetches
+  // the profile after this component has already mounted, and an initialiser
+  // runs once against the `null` it saw first.
+  useEffect(() => {
+    if (!profile) return;
+    setInput({
+      fullname: profile.user.fullName,
+      phoneNumber: profile.phone ?? "",
+      bio: profile.seeker?.bio ?? "",
+      skills: profile.seeker?.skills.join(", ") ?? "",
+      file: null,
+    });
+  }, [profile]);
 
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });
@@ -43,7 +62,6 @@ const UpdateProfileDialog = ({ open, setOpen }: UpdateProfileDialogProps) => {
     e.preventDefault();
     const formData = new FormData();
     formData.append("fullname", input.fullname);
-    formData.append("email", input.email);
     formData.append("phoneNumber", input.phoneNumber);
     formData.append("bio", input.bio);
     formData.append("skills", input.skills);
@@ -52,16 +70,15 @@ const UpdateProfileDialog = ({ open, setOpen }: UpdateProfileDialogProps) => {
     }
     try {
       setLoading(true);
-      const res = await apiClient.post<{ success: boolean; message: string; user: LegacyUser }>(
-        "/user/profile/update",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
-      if (res.data.success) {
-        dispatch(setUser(res.data.user));
-        toast.success(res.data.message);
-        setOpen(false);
-      }
+      const res = await apiClient.post<ProfileResponse>("/user/profile/update", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      // The name and avatar in the navbar come from the session user, so that
+      // has to be refreshed too — the rest goes back to the page.
+      dispatch(setUser(res.data.profile.user));
+      onUpdated(res.data.profile);
+      toast.success(res.data.message ?? "Profile updated successfully.");
+      setOpen(false);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not update profile"));
     } finally {
@@ -95,14 +112,22 @@ const UpdateProfileDialog = ({ open, setOpen }: UpdateProfileDialogProps) => {
                 <Label htmlFor="email" className="text-right">
                   Email
                 </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={input.email}
-                  onChange={changeEventHandler}
-                  className="col-span-3"
-                />
+                {/* Read-only: the update endpoint dropped `email` from the
+                    mutable set, so an editable field here would silently
+                    discard whatever the user typed. */}
+                <div className="col-span-3">
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={profile?.user.email ?? ""}
+                    readOnly
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your email address cannot be changed here.
+                  </p>
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="phoneNumber" className="text-right">

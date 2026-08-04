@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
+import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
 const Navbar = () => {
@@ -16,15 +17,21 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const logoutHandler = async () => {
+    if (!user) return;
     try {
-      const res = await apiClient.get<{ success: boolean; message: string }>("/user/logout");
-      if (res.data.success) {
-        dispatch(setUser(null));
-        navigate("/");
-        toast.success(res.data.message);
-      }
+      // The portal comes from `user`, not the hint: the hint is for when there
+      // is no user. The interceptor attaches the CSRF header.
+      await apiClient.post(`/${user.portal}/auth/logout`);
+      toast.success("Logged out.");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Logout failed"));
+    } finally {
+      // Local state is cleared either way. A logout that failed server-side is
+      // still a user who asked to be signed out, and leaving them looking
+      // signed in is the worse of the two wrong answers.
+      clearPortalHint();
+      dispatch(setUser(null));
+      navigate("/");
     }
   };
 
@@ -38,7 +45,7 @@ const Navbar = () => {
         </div>
         <div className="flex items-center gap-12">
           <ul className="flex font-medium items-center gap-5">
-            {user && user.role === "recruiter" ? (
+            {user && user.portal === "recruiter" ? (
               <>
                 <li>
                   <Link to="/admin/companies">Companies</Link>
@@ -74,22 +81,26 @@ const Navbar = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <Avatar className="cursor-pointer">
-                  <AvatarImage src={user?.profile?.profilePhoto} alt={user?.fullname} />
+                  {/* `?? undefined` because avatarUrl is `string | null` and
+                      AvatarImage's src is `string | undefined`. */}
+                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.fullName} />
                 </Avatar>
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <div>
                   <div className="flex gap-2 space-y-2">
                     <Avatar className="cursor-pointer">
-                      <AvatarImage src={user?.profile?.profilePhoto} alt={user?.fullname} />
+                      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.fullName} />
                     </Avatar>
                     <div>
-                      <h4 className="font-medium">{user?.fullname}</h4>
-                      <p className="text-sm text-muted-foreground">{user?.profile?.bio}</p>
+                      <h4 className="font-medium">{user?.fullName}</h4>
+                      {/* SessionUser has no bio by design, and the email is the
+                          more useful identifier in a session popover anyway. */}
+                      <p className="text-sm text-muted-foreground">{user?.email}</p>
                     </div>
                   </div>
                   <div className="flex flex-col my-2 text-gray-600">
-                    {user && user.role === "student" && (
+                    {user && user.portal === "seeker" && (
                       <div className="flex w-fit items-center gap-2 cursor-pointer">
                         <User2 />
                         <Button variant="link">

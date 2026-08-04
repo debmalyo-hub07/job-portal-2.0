@@ -12,15 +12,21 @@ type ProtectedRouteProps = {
  * tracks the missing ownership checks scheduled for Phase 1C.
  */
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user } = useAppSelector((state) => state.auth);
+  const { user, bootstrapped } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user || user.role !== "recruiter") {
-      navigate("/");
-    }
-  }, [user, navigate]);
+    // Waiting for /me is not the same as being signed out. Without this, every
+    // hard reload of an admin page bounces the recruiter to the home page
+    // before the answer arrives.
+    if (!bootstrapped) return;
+    if (!user || user.portal !== "recruiter") navigate("/", { replace: true });
+  }, [user, bootstrapped, navigate]);
 
+  // The inherited version rendered `children` while redirecting, so admin UI
+  // flashed on screen for non-recruiters and its data fetches fired. Render
+  // nothing until the check passes.
+  if (!bootstrapped || !user || user.portal !== "recruiter") return null;
   return <>{children}</>;
 };
 
