@@ -50,3 +50,28 @@ published JWKS for OAuth verification.
 - Enterprise SSO (SAML, OIDC) is required — do not build that.
 - MFA beyond email OTP is required.
 - The maintenance burden of the auth code demonstrably outweighs its cost.
+
+## Amendment (2026-08-04) — implemented in Phase 1B
+
+Built as decided. Two things shipped beyond the scope this ADR described, both
+worth recording because they are the parts a reader would not predict from the
+decision above:
+
+**Transparent bcrypt → Argon2id upgrade.** Inherited accounts carry bcrypt
+hashes. Rather than forcing a reset, the verifier detects the algorithm by hash
+prefix, verifies against it, and — on a *successful* login only — rehashes the
+supplied plaintext with Argon2id and writes it back. The upgrade therefore costs
+the user nothing and happens exactly once per account, at the only moment the
+plaintext is legitimately available.
+
+**Subject-bound peppered OTP hashes.** Codes are stored as
+`HMAC-SHA256(OTP_PEPPER, "<subjectId>:<code>")`, not as a hash of the bare code.
+Binding the subject into the digest is what stops a code issued for one account
+being redeemed against another: the same six digits produce a different hash per
+account, so a row lifted from one subject cannot match another's lookup. The
+pepper being an env secret rather than a stored salt means a database dump alone
+does not permit offline enumeration of a six-digit space.
+
+The failure budget is cumulative per account per purpose rather than per code.
+Per-code counting would have made five attempts unlimited: request a fresh code,
+get five more.

@@ -43,6 +43,15 @@ Guidance for Claude Code when working in this repository.
   `NODE_ENV` to pick a log level — going through `env()` there would force full
   config validation at import time and break the test harness.
 - **New endpoints:** define the Zod schema in `packages/shared` first.
+- **Auth:** never read `passwordHash` without `{ withSecret: true }` on
+  `findAccountByEmail`/`findAccountById`. The schema marks it `select: false`, so
+  a plain read silently yields `undefined` and every password check fails open
+  into the dummy-verify branch.
+- **Portals:** `Portal` is `"seeker" | "recruiter"` and always arrives as a route
+  literal, never from a request body, query or cookie. A function that takes a
+  portal from user input is a bug regardless of what it does with it.
+- **OTPs:** never log a code, and never resolve the account to mutate from a
+  request body — it comes from the matched OTP row's `subjectId`.
 
 ## Guardrails
 
@@ -65,16 +74,26 @@ seeker, unrelated recruiter, owner — each asserting its expected status code.
 
 ## Current state
 
-Phase 1A (foundation) is complete. Phases 1B (authentication) and 1C
-(authorization and domain) are not yet built, so the following known defects are
+Phases 1A (foundation) and 1B (authentication) are complete. Phase 1C
+(authorization and domain) is not yet built, so the following known defects are
 still present *by design* and should not be treated as surprises:
 
-- No ownership checks on any route — any authenticated user can edit any company
-- `httpsOnly` typo on the login cookie (a real bug, fixed in 1B)
-- Client-selected `role` at login
-- `getApplicants` returns password hashes
+- No ownership checks on any route — any authenticated recruiter can edit any
+  company. Portal *scoping* exists (a seeker cannot reach a recruiter route), but
+  scoping is not ownership
+- `getApplicants` returns a raw Mongoose document. It no longer leaks a password
+  hash (`select: false` on `passwordHash`), but it is still not a DTO and still
+  returns full applicant PII to any recruiter
 - `$regex` search on raw user input
 - Public, guessable resume URLs
 - `GET /apply/:id` mutates state
 
-See `docs/superpowers/plans/2026-07-31-phase-1a-foundation.md` for the full list.
+Fixed in 1B: the `httpsOnly` typo, client-selected `role` (the collection is now
+the role), unverified emails, no password policy, no login rate limit, and the
+password-hash leak in `getApplicants`.
+
+Still transitional until Phase 1C: `bridgeAuth` on the domain routes, the
+`users` collection and `user.model.ts` (unread, kept as the migration's rollback
+path), and `req.id`.
+
+See `docs/superpowers/plans/2026-08-01-phase-1b-authentication.md`.

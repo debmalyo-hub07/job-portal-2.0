@@ -4,9 +4,10 @@ A job portal for the Indian market — job seekers find and apply to roles,
 recruiters post them and manage applicants. Built with security and access
 control as the starting point rather than an afterthought.
 
-> **Status:** Phase 1A (typed, tested, hardened foundation) is complete.
-> Authentication and authorization rebuilds are in progress. Not yet suitable
-> for production use — see [Roadmap](#roadmap).
+> **Status:** Phase 1A (typed, tested, hardened foundation) and Phase 1B
+> (authentication) are complete. The authorization rebuild is next. Not yet
+> suitable for production use — there are still no ownership checks on any
+> route. See [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -84,19 +85,25 @@ equivalent — and **both** must be registered on that OAuth client. Google matc
 ## Layout
 
 ```
-apps/
-  api/                  Express API
-    src/
-      config/           env parsing, database connection
-      controllers/      HTTP handling
-      middleware/       requestId, security, rateLimit, error, notFound
-      models/           Mongoose schemas
-      routes/           route definitions
-      lib/              AppError, logger, rate-limit store
-      app.ts            buildApp() — wired app, does not listen
-      server.ts         listen + graceful shutdown
-    tests/
-  web/                  React client
+backend/                Express API
+  src/
+    config/             env parsing, database connection
+    controllers/        HTTP handling
+    middleware/         requestId, security, rateLimit, auth, csrf, error, notFound
+    models/             Mongoose schemas
+    routes/             route definitions
+    services/           business rules — the only layer touching models
+    lib/                AppError, logger, crypto primitives, mailer, rate-limit store
+    scripts/            one-off migrations
+    app.ts              buildApp() — wired app, does not listen
+    server.ts           listen, sweeper, graceful shutdown
+  tests/
+frontend/               React client
+  src/
+    components/         pages and UI
+    hooks/              data fetching, auth bootstrap
+    lib/                api client, portal hint, error readers
+    redux/              store and slices
 packages/
   shared/               Zod schemas and types used by both apps
 docs/
@@ -108,13 +115,40 @@ The API and web app remain fully independent processes and deploy separately.
 The workspace root exists so both can share `packages/shared` — which makes a
 client/server contract mismatch a compile error rather than a runtime surprise.
 
-## Scripts
+## Local configuration
 
 Set `VITE_API_URL` in `frontend/.env.local` for local development:
 
 ```
 VITE_API_URL=http://localhost:8000/api/v1
 ```
+
+## Authentication
+
+Every endpoint below exists twice, once per portal — `/api/v1/seeker/auth/...`
+and `/api/v1/recruiter/auth/...` — from the same router mounted with a different
+portal literal.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/register` | Create an account. Issues **no session**; sends a code |
+| POST | `/verify-email` | Redeem the code. This is what issues the first session |
+| POST | `/resend-code` | New verification code, 3/hour/email |
+| POST | `/login` | Password login |
+| POST | `/logout` | Revoke this session's refresh family and clear cookies |
+| POST | `/refresh` | Rotate the refresh token and mint a new access token |
+| POST | `/forgot-password` | Send a reset code. Answers identically whether or not the address exists |
+| POST | `/reset-password` | Redeem the reset code and set a new password |
+| GET | `/me` | The current `SessionUser` |
+| GET | `/google` | Start the OAuth flow (top-level redirect, not XHR) |
+| GET | `/google/callback` | OAuth return; redirects into the web app |
+| POST | `/google/confirm-link` | Confirm linking Google to an existing password account |
+
+**The same email address may hold one seeker account and one recruiter
+account.** They are separate rows in separate collections with separate
+passwords, and signing into one grants nothing on the other. This is the single
+most surprising behaviour for a new reader, and it is deliberate — see
+[ADR-0001](docs/adr/0001-two-account-collections.md).
 
 ## Scripts
 
@@ -151,16 +185,36 @@ Output: dist
 ```
 
 Set `VITE_API_URL` on the web host and every variable from `.env.example` on the
-API host. If the two are on different domains, set `COOKIE_SAMESITE=none`, which
-requires HTTPS on both.
+API host.
+
+### Cookies and where you host the two apps
+
+`COOKIE_SAMESITE` defaults to `strict`, and SameSite compares *sites*
+(registrable domains), not origins. The distinction decides whether your deploy
+works, and getting it wrong produces a login that succeeds and a next request
+that is anonymous — with no error anywhere.
+
+| Setup | Same site? | What to do |
+|---|---|---|
+| Both behind one proxy on one origin | Yes | Nothing |
+| `app.example.com` → `api.example.com` | Yes — different origin, same site | Nothing. Cookies are sent under `strict`; just allowlist the exact origin in `CLIENT_URLS` |
+| `app.vercel.app` → `api.onrender.com` | **No** | Set `COOKIE_SAMESITE=none`, and serve both over HTTPS |
+
+Only the third case needs the variable. Setting `none` when you did not need it
+weakens CSRF defence in depth for no benefit; leaving it `strict` when you did
+need it withholds every session cookie.
+
+`__Host-` prefixed cookies work in all three cases: the prefix forbids a
+`Domain` attribute, so each origin sets its own cookie rather than one cookie
+spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 
 ## Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1A | Monorepo, TypeScript, config validation, error handling, logging, security middleware, CI, docs | Complete |
-| 1B | Two-collection accounts, Argon2id, Brevo OTP verification, Google OAuth, refresh-token rotation | Next |
-| 1C | Ownership-based authorization, response DTOs, pagination, private resume storage, migration | Planned |
+| 1B | Two-collection accounts, Argon2id, Brevo OTP verification, Google OAuth, refresh-token rotation | Complete |
+| 1C | Ownership-based authorization, response DTOs, pagination, private resume storage, migration | Next |
 | 2 | Design system and full UI rebuild, seeker and recruiter portals both | Planned |
 | 3 | Saved jobs, server-side search and filters, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
