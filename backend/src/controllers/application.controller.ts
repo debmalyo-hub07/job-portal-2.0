@@ -1,91 +1,34 @@
 import type { Request, Response } from "express";
-import { Application } from "../models/application.model.js";
-import { Job } from "../models/job.model.js";
-import { AppError } from "../lib/AppError.js";
+import {
+  applicationStatusBodySchema,
+  objectIdSchema,
+  paginationQuerySchema,
+} from "@jobportal/shared";
+import { parseBody } from "../lib/validate.js";
+import * as applicationService from "../services/application.service.js";
 
 export const applyJob = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.id;
-  const jobId = req.params.id;
-  if (!jobId) {
-    throw AppError.badRequest("MISSING_FIELDS", "Job id is required.");
-  }
-  // check if the user has already applied for the job
-  const existingApplication = await Application.findOne({ job: jobId, applicant: userId });
-
-  if (existingApplication) {
-    throw AppError.conflict("ALREADY_APPLIED", "You have already applied for this jobs");
-  }
-
-  // check if the jobs exists
-  const job = await Job.findById(jobId);
-  if (!job) {
-    throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
-  }
-  // create a new application
-  await Application.create({
-    job: jobId,
-    applicant: userId,
-  });
-
-  res.status(201).json({
-    message: "Job applied successfully.",
-    success: true,
-  });
+  const jobId = parseBody(objectIdSchema, req.params.id);
+  await applicationService.applyToJob(req.auth!.id, jobId);
+  res.status(201).json({ success: true, message: "Job applied successfully." });
 };
 
 export const getAppliedJobs = async (req: Request, res: Response): Promise<void> => {
-  const userId = req.id;
-  const application = await Application.find({ applicant: userId })
-    .sort({ createdAt: -1 })
-    .populate({
-      path: "job",
-      options: { sort: { createdAt: -1 } },
-      populate: {
-        path: "company",
-        options: { sort: { createdAt: -1 } },
-      },
-    });
-  res.status(200).json({
-    application,
-    success: true,
-  });
+  const query = parseBody(paginationQuerySchema, req.query);
+  const result = await applicationService.listAppliedJobs(req.auth!.id, query);
+  res.status(200).json({ success: true, ...result });
 };
 
-// admin dekhega kitna user ne apply kiya hai
 export const getApplicants = async (req: Request, res: Response): Promise<void> => {
-  const jobId = req.params.id;
-  const job = await Job.findById(jobId);
-  if (!job) {
-    throw AppError.notFound("JOB_NOT_FOUND", "Job not found.");
-  }
-  const applications = await Application.find({ job: jobId })
-    .sort({ createdAt: -1 })
-    .populate("applicant");
-  res.status(200).json({
-    job: { ...job.toObject(), applications },
-    success: true,
-  });
+  const jobId = parseBody(objectIdSchema, req.params.id);
+  const query = parseBody(paginationQuerySchema, req.query);
+  const result = await applicationService.listApplicants(req.auth!.id, jobId, query);
+  res.status(200).json({ success: true, ...result });
 };
 
 export const updateStatus = async (req: Request, res: Response): Promise<void> => {
-  const { status } = req.body;
-  const applicationId = req.params.id;
-  if (!status) {
-    throw AppError.badRequest("MISSING_FIELDS", "status is required");
-  }
-
-  // find the application by applicantion id
-  const application = await Application.findOne({ _id: applicationId });
-  if (!application) {
-    throw AppError.notFound("APPLICATION_NOT_FOUND", "Application not found.");
-  }
-
-  // update the status
-  application.status = status.toLowerCase();
-  await application.save();
-
-  res.status(200).json({
-    message: "Status updated successfully.",
-    success: true,
-  });
+  const applicationId = parseBody(objectIdSchema, req.params.id);
+  const { status } = parseBody(applicationStatusBodySchema, req.body);
+  await applicationService.decideApplication(req.auth!.id, applicationId, status);
+  res.status(200).json({ success: true, message: "Status updated successfully." });
 };

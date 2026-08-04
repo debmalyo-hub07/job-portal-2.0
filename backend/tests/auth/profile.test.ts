@@ -100,8 +100,7 @@ describe("populate after the ref change", () => {
       title: "Dev", description: "d", salary: 1, experienceLevel: 1, location: "Remote",
       jobType: "full-time", position: 1, company: company._id, created_by: recruiter.id,
     });
-    const application = await Application.create({ job: job._id, applicant: seeker.id });
-    await Job.updateOne({ _id: job._id }, { $push: { applications: application._id } });
+    await Application.create({ job: job._id, applicant: seeker.id });
 
     const res = await request(app)
       .get(`/api/v1/application/${job._id}/applicants`)
@@ -109,7 +108,9 @@ describe("populate after the ref change", () => {
 
     expect(res.status).toBe(200);
     // Before the ref change this was null — the seeker has no `users` row.
-    expect(res.body.job.applications[0].applicant.fullName).toBe("Applicant Name");
+    // The applicant now arrives flattened into the DTO rather than as a
+    // populated subdocument, but resolving the ref is still what is under test.
+    expect(res.body.items[0].fullName).toBe("Applicant Name");
     // And the hash is gone from a response that used to carry it.
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|\$argon2id\$|\$2[aby]\$/);
   });
