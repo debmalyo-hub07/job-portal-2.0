@@ -37,7 +37,8 @@ describe("the public job board", () => {
     await seedJob("Anon Listed");
     const res = await request(app).get("/api/v1/job/get?keyword=");
     expect(res.status).toBe(200);
-    expect(res.body.jobs.map((j: { title: string }) => j.title)).toContain("Anon Listed");
+    expect(res.body).toMatchObject({ success: true, page: 1 });
+    expect(res.body.items.map((j: { title: string }) => j.title)).toContain("Anon Listed");
   });
 
   it("serves a single job to an anonymous visitor", async () => {
@@ -50,17 +51,31 @@ describe("the public job board", () => {
   it("never exposes a job's applicant list on the public endpoint", async () => {
     // The load-bearing assertion. This endpoint used to populate `applications`,
     // so opening it to anonymous callers would have published who applied where.
+    // The Job schema no longer even has that field — the applicant side lives
+    // entirely in the Application collection — so the guarantee is now enforced
+    // by the DTO's shape, which is what this asserts.
     const { job } = await seedJob("Has Applicants");
     const seeker = await signedUpOn("seeker", "applied@x.test");
     const application = await Application.create({ job: job._id, applicant: seeker.id });
-    await Job.updateOne({ _id: job._id }, { $push: { applications: application._id } });
 
     for (const cookies of [[], [`jp_seeker_at=${seeker.access}`]]) {
-      const res = await request(app)
-        .get(`/api/v1/job/get/${job._id}`)
-        .set("Cookie", cookies);
+      const res = await request(app).get(`/api/v1/job/get/${job._id}`).set("Cookie", cookies);
       expect(res.status).toBe(200);
       expect(res.body.job.applications).toBeUndefined();
+      // The DTO is an allowlist: anything not named here cannot be returned.
+      expect(Object.keys(res.body.job).sort()).toEqual([
+        "company",
+        "createdAt",
+        "description",
+        "experienceLevel",
+        "id",
+        "jobType",
+        "location",
+        "position",
+        "requirements",
+        "salary",
+        "title",
+      ]);
       // Neither the applicant's id nor the application's should appear anywhere.
       expect(JSON.stringify(res.body)).not.toContain(seeker.id);
       expect(JSON.stringify(res.body)).not.toContain(String(application._id));
@@ -74,7 +89,7 @@ describe("the public job board", () => {
   });
 
   it("resolves a session on the public route when one is present", async () => {
-    // optionalBridgeAuth must populate req.auth rather than ignore the cookie —
+    // optionalAuthenticate must populate req.auth rather than ignore the cookie —
     // a seeker's own applications list depends on it elsewhere.
     const seeker = await signedUpOn("seeker", "optional@x.test");
     const res = await request(app)

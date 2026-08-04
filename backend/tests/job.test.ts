@@ -1,0 +1,175 @@
+import request from "supertest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { buildApp } from "../src/app.js";
+import { Company } from "../src/models/company.model.js";
+import { Job } from "../src/models/job.model.js";
+import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+
+const app = buildApp();
+
+async function recruiterWithCompany(email: string) {
+  const session = await signedUpOn("recruiter", email);
+  const res = await request(app)
+    .post("/api/v1/company/register")
+    .set("Cookie", [`jp_recruiter_at=${session.access}`])
+    .send({ name: `Co-${email}` });
+  return { ...session, companyId: res.body.company.id as string };
+}
+
+function jobBody(companyId: string, title = "TypeScript Dev") {
+  return {
+    title,
+    description: "Build the portal",
+    requirements: "ts,node",
+    salary: 10,
+    experience: 2,
+    location: "Remote",
+    jobType: "full-time",
+    position: "2",
+    companyId,
+  };
+}
+
+describe("job routes", () => {
+  let owner: Awaited<ReturnType<typeof recruiterWithCompany>>;
+  let rival: Awaited<ReturnType<typeof recruiterWithCompany>>;
+
+  beforeEach(async () => {
+    installCaptureMailer();
+    // autoIndex builds the {userId, name} index asynchronously; company
+    // registration below would otherwise race the build.
+    await Company.init();
+    await Job.init();
+    owner = await recruiterWithCompany("owner@example.com");
+    rival = await recruiterWithCompany("rival@example.com");
+  });
+
+  it("posts a job against an owned company", async () => {
+    const res = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send(jobBody(owner.companyId));
+    expect(res.status).toBe(201);
+    expect(res.body.job.company.name).toBe("Co-owner@example.com");
+    expect(res.body.job.requirements).toEqual(["ts", "node"]);
+    expect(res.body.job._id).toBeUndefined();
+    expect(res.body.job.__v).toBeUndefined();
+    expect(res.body.job.created_by).toBeUndefined();
+  });
+
+  it("404s posting a job against someone else's company", async () => {
+    const res = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${rival.access}`])
+      .send(jobBody(owner.companyId));
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("COMPANY_NOT_FOUND");
+  });
+
+  it("404s posting a job against a company that does not exist", async () => {
+    const res = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send(jobBody("64b0c8f2a9d3e45f6a7b8c9d"));
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("COMPANY_NOT_FOUND");
+  });
+
+  it("rejects an invalid post body with 400 VALIDATION_ERROR", async () => {
+    const res = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send({ title: "x" });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("public list is paginated and filters by escaped keyword", async () => {
+    for (let i = 0; i < 3; i++) {
+      await request(app)
+        .post("/api/v1/job/post")
+        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .send(jobBody(owner.companyId, `Dev ${i}`));
+    }
+    const res = await request(app).get("/api/v1/job/get?limit=2&keyword=dev");
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(2);
+    expect(res.body).toMatchObject({ success: true, total: 3, page: 1, pages: 2 });
+
+    const second = await request(app).get("/api/v1/job/get?limit=2&page=2&keyword=dev");
+    expect(second.body.items).toHaveLength(1);
+    expect(second.body.page).toBe(2);
+
+    // Hostile regex input matches literally instead of exploding. `.*` is the
+    // discriminator: unescaped it is a pattern matching all four jobs, escaped
+    // it is a two-character literal present in exactly one title.
+    await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send(jobBody(owner.companyId, "Literal .* match"));
+
+    const wildcard = await request(app).get(`/api/v1/job/get?keyword=${encodeURIComponent(".*")}`);
+    expect(wildcard.status).toBe(200);
+    expect(wildcard.body.total).toBe(1);
+    expect(wildcard.body.items[0].title).toBe("Literal .* match");
+
+    // A catastrophically backtracking pattern is inert, not a 500 or a timeout.
+    const hostile = await request(app).get(
+      `/api/v1/job/get?keyword=${encodeURIComponent("(a+)+$")}`,
+    );
+    expect(hostile.status).toBe(200);
+    expect(hostile.body.total).toBe(0);
+    expect(hostile.body.items).toEqual([]);
+
+    // An empty keyword lists everything rather than filtering on "".
+    const all = await request(app).get("/api/v1/job/get");
+    expect(all.body.total).toBe(4);
+  });
+
+  it("GET /get/:id serves a DTO, 400s a malformed id and 404s an unknown one", async () => {
+    const created = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send(jobBody(owner.companyId));
+    const id = created.body.job.id as string;
+
+    const ok = await request(app).get(`/api/v1/job/get/${id}`);
+    expect(ok.status).toBe(200);
+    expect(ok.body.job).toMatchObject({ id, title: "TypeScript Dev" });
+    expect(ok.body.job._id).toBeUndefined();
+
+    expect((await request(app).get("/api/v1/job/get/nope")).status).toBe(400);
+    const unknown = await request(app).get("/api/v1/job/get/64b0c8f2a9d3e45f6a7b8c9d");
+    expect(unknown.status).toBe(404);
+    expect(unknown.body.code).toBe("JOB_NOT_FOUND");
+  });
+
+  it("getadminjobs matrix: anonymous 401, seeker 401, recruiter sees only own", async () => {
+    await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send(jobBody(owner.companyId));
+    expect((await request(app).get("/api/v1/job/getadminjobs")).status).toBe(401);
+    const seeker = await signedUpOn("seeker", "s@example.com");
+    expect(
+      (
+        await request(app)
+          .get("/api/v1/job/getadminjobs")
+          .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      ).status,
+    ).toBe(401);
+
+    const theirs = await request(app)
+      .get("/api/v1/job/getadminjobs")
+      .set("Cookie", [`jp_recruiter_at=${rival.access}`]);
+    expect(theirs.status).toBe(200);
+    expect(theirs.body.items).toHaveLength(0);
+    expect(theirs.body).toMatchObject({ total: 0, page: 1, pages: 0 });
+
+    const mine = await request(app)
+      .get("/api/v1/job/getadminjobs")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`]);
+    expect(mine.body.items).toHaveLength(1);
+    expect(mine.body.items[0].title).toBe("TypeScript Dev");
+  });
+});
