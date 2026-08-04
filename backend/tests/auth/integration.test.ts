@@ -70,10 +70,16 @@ describe("the whole journey, through the real app", () => {
     expect(fourth.status).toBe(429);
   });
 
-  it("keeps the legacy /api/v1/user routes alive alongside the new mounts", async () => {
-    // Not a 404: the legacy surface must survive until Task 15 so the
-    // untouched frontend keeps working between now and Task 13.
-    const res = await request(app).post("/api/v1/user/login").send({});
-    expect(res.status).not.toBe(404);
+  it("no longer serves the legacy auth endpoints", async () => {
+    // The inverse of what this asserted before the teardown. These three are
+    // gone; the /api/v1/user mount survives only for the profile pair, which
+    // Phase 1C rebuilds.
+    for (const path of ["/api/v1/user/login", "/api/v1/user/register", "/api/v1/user/logout"]) {
+      const res = await request(app).post(path).send({});
+      expect(res.status).toBe(404);
+    }
+    // Still mounted, still requires a portal session.
+    const profile = await request(app).get("/api/v1/user/profile");
+    expect(profile.status).toBe(401);
   });
 });

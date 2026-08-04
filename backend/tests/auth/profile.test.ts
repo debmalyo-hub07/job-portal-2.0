@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { signedUpOn, installCaptureMailer } from "./helpers.js";
 import { Seeker } from "../../src/models/seeker.model.js";
-import { User } from "../../src/models/user.model.js";
 import { Company } from "../../src/models/company.model.js";
 import { Job } from "../../src/models/job.model.js";
 import { Application } from "../../src/models/application.model.js";
@@ -79,10 +78,11 @@ describe("updateProfile on the account collections", () => {
     expect(account!.resume!.storageKey).toBeNull();
   });
 
-  it("works for an account that never had a users row", async () => {
-    // The gap this step closes: registered on the new endpoints, so no legacy row.
+  it("works for an account registered on the new endpoints", async () => {
+    // Was phrased as "never had a users row" while the legacy collection still
+    // existed. The collection is gone, so every account is this case now — the
+    // test stays because it is the plain happy path for a fresh registration.
     const seeker = await signedUpOn("seeker", "brandnew@x.test");
-    expect(await User.countDocuments({ email: "brandnew@x.test" })).toBe(0);
     const res = await request(app)
       .post("/api/v1/user/profile/update")
       .set("Cookie", [`jp_seeker_at=${seeker.access}`])

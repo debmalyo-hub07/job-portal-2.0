@@ -9,8 +9,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "lint": "eslint src",
-    "migrate:phase1b": "tsx src/scripts/migrate-phase1b.ts"
+    "lint": "eslint src"
   },
   "author": "",
   "license": "ISC",
