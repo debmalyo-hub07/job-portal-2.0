@@ -1,5 +1,25 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Offline, like every other suite that touches uploads. The signed-URL stub
+// carries a marker so the applicant DTO assertion can prove the recruiter gets
+// a minted link rather than the stored key.
+vi.mock("../src/utils/cloudinary.js", () => ({
+  getCloudinary: () => ({
+    uploader: {
+      upload: vi.fn(async () => ({
+        public_id: "resumes/abc123",
+        secure_url: "https://res.cloudinary.com/test/raw/authenticated/resumes/abc123",
+      })),
+    },
+    utils: {
+      private_download_url: vi.fn(
+        (publicId: string) => `https://res.cloudinary.com/signed/${publicId}?sig=stub`,
+      ),
+    },
+  }),
+}));
+
 import { buildApp } from "../src/app.js";
 import { Application } from "../src/models/application.model.js";
 import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
@@ -141,6 +161,23 @@ describe("application routes", () => {
           "status",
         ].sort(),
       );
+    });
+
+    it("hands the recruiter a signed resume link, not the stored key", async () => {
+      await request(app)
+        .post("/api/v1/user/profile/update")
+        .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+        .attach("file", Buffer.from("%PDF-1.4 fake"), {
+          filename: "cv.pdf",
+          contentType: "application/pdf",
+        });
+
+      const res = await request(app)
+        .get(`/api/v1/application/${jobId}/applicants`)
+        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+      expect(res.body.items[0].resumeUrl).toContain("sig=");
+      expect(res.body.items[0].resumeUrl).not.toBe("resumes/abc123");
+      expect(res.body.items[0].resumeName).toBe("cv.pdf");
     });
 
     it("unrelated recruiter → 404 on applicants and on status update", async () => {

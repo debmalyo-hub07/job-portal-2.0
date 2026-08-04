@@ -1,5 +1,25 @@
 import request from "supertest";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Never opens a socket to Cloudinary: the suite runs offline and with fake
+// credentials. `private_download_url` is echoed back with a marker so the tests
+// can tell a signed link from a bare storage key.
+vi.mock("../../src/utils/cloudinary.js", () => ({
+  getCloudinary: () => ({
+    uploader: {
+      upload: vi.fn(async () => ({
+        public_id: "resumes/abc123",
+        secure_url: "https://res.cloudinary.com/test/raw/authenticated/resumes/abc123",
+      })),
+    },
+    utils: {
+      private_download_url: vi.fn(
+        (publicId: string) => `https://res.cloudinary.com/signed/${publicId}?sig=stub`,
+      ),
+    },
+  }),
+}));
+
 import { buildApp } from "../../src/app.js";
 import { signedUpOn, installCaptureMailer } from "./helpers.js";
 import { Seeker } from "../../src/models/seeker.model.js";
@@ -88,6 +108,47 @@ describe("updateProfile on the account collections", () => {
       .set("Cookie", [`jp_seeker_at=${seeker.access}`])
       .field("fullname", "Brand New");
     expect(res.status).toBe(200);
+  });
+
+  it("stores the public_id and returns a signed resume URL, never the bare key", async () => {
+    const seeker = await signedUpOn("seeker", "resume@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .attach("file", Buffer.from("%PDF-1.4 fake"), {
+        filename: "cv.pdf",
+        contentType: "application/pdf",
+      })
+      .field("bio", "hello");
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.seeker.resumeUrl).toContain("sig=");
+    expect(res.body.profile.seeker.resumeName).toBe("cv.pdf");
+
+    // What is persisted is the Cloudinary public_id, not a URL. Storing a URL is
+    // what made the old resume links permanent.
+    const account = await Seeker.findById(seeker.id);
+    expect(account!.resume!.storageKey).toBe("resumes/abc123");
+  });
+
+  it("rejects a non-PDF resume with 400 UNSUPPORTED_FILE_TYPE", async () => {
+    const seeker = await signedUpOn("seeker", "gif@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .attach("file", Buffer.from("GIF89a"), { filename: "cv.gif", contentType: "image/gif" });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("UNSUPPORTED_FILE_TYPE");
+  });
+
+  it("rejects an operator-shaped profile body with 400", async () => {
+    const seeker = await signedUpOn("seeker", "operator@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .send({ fullname: { $gt: "" } });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("VALIDATION_ERROR");
   });
 });
 

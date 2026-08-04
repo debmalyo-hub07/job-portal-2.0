@@ -8,6 +8,7 @@ import type {
 import { Application, type ApplicationDocument } from "../models/application.model.js";
 import { AppError } from "../lib/AppError.js";
 import { assertJobOwned, jobExists, toJobDto } from "./job.service.js";
+import { signedResumeUrl } from "./resume.service.js";
 
 /** Mongo's duplicate-key error, whatever driver version raised it. */
 function isDuplicateKey(err: unknown): boolean {
@@ -102,7 +103,7 @@ export async function listApplicants(
       phone: a.applicant?.phone ?? null,
       headline: a.applicant?.profile?.headline ?? null,
       skills: a.applicant?.profile?.skills ?? [],
-      resumeUrl: a.applicant?.resume?.storageKey ?? null,
+      resumeUrl: signedResumeUrl(a.applicant?.resume?.storageKey),
       resumeName: a.applicant?.resume?.originalName ?? null,
     })),
     total,

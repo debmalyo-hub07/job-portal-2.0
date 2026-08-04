@@ -94,3 +94,21 @@ export type ApplicantDto = {
   resumeUrl: string | null;
   resumeName: string | null;
 };
+
+/**
+ * Profile edits arrive as multipart form fields, so every value is a string and
+ * every field is optional — the form posts only what changed. `skills` keeps the
+ * legacy comma-string shape and is normalized here.
+ */
+export const profileUpdateBodySchema = z.object({
+  fullname: z.string().trim().min(2).max(80).optional(),
+  phoneNumber: z.string().trim().max(20).optional(),
+  bio: z.string().trim().max(1000).optional(),
+  skills: z
+    .string()
+    .max(500)
+    .transform((s) => s.split(",").map((t) => t.trim()).filter(Boolean))
+    .optional(),
+});
+
+export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;
