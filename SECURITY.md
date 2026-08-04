@@ -50,6 +50,11 @@ data yet.
 - **`getApplicants` leaked password hashes.** `passwordHash` is now
   `select: false`, so the field cannot reach a response without an explicit
   opt-in at the service boundary. The endpoint is still not a DTO — see below
+- **The public job endpoint leaked applicant lists.** `GET /job/get/:id`
+  populated the job's entire `applications` array so the client could decide
+  whether to show "Already Applied". Fixed when the job board was made public,
+  which is what made it reachable without a session; the client now asks the
+  seeker-scoped `/application/get` about its own applications instead
 
 ### Not yet fixed — known and scheduled
 
@@ -58,7 +63,7 @@ data yet.
 | **No ownership checks on any route** | Any authenticated recruiter can edit any company, read any job's applicants, change any application's status. Portal scoping does not help: it proves *which kind* of user is calling, never *which* user owns the row | 1C |
 | `getApplicants` returns an unprojected document | Full applicant PII to any recruiter. No longer leaks password hashes — `passwordHash` is `select: false` since 1B | 1C |
 | Resumes on public, guessable Cloudinary URLs | PII (phone, address, employment history) enumerable by anyone | 1C |
-| `$regex` search built from raw query input | Unindexable; ReDoS vector | 1C |
+| `$regex` search built from raw query input | Unindexable; ReDoS vector. Reachable **anonymously** since the job board was made public | 1C |
 | `GET /apply/:id` mutates state | Triggerable by an `<img>` tag on any site | 1C |
 
 ## Authentication design (Phase 1B, as built)
