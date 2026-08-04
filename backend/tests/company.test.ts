@@ -106,6 +106,17 @@ describe("company routes", () => {
     expect(res.body.company.name).toBe("Acme");
   });
 
+  it("409s an update that renames a company onto the owner's existing name", async () => {
+    await createCompany(owner.access, "Acme");
+    const betaId = (await createCompany(owner.access, "Beta")).body.company.id;
+    const res = await request(app)
+      .put(`/api/v1/company/update/${betaId}`)
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send({ name: "Acme" });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("COMPANY_EXISTS");
+  });
+
   it("accepts a plain JSON update body too", async () => {
     const companyId = (await createCompany(owner.access)).body.company.id;
     const res = await request(app)
