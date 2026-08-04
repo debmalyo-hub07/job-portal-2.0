@@ -1,6 +1,5 @@
 import express from "express";
 import { getProfile, login, logout, register, updateProfile } from "../controllers/user.controller.js";
-import isAuthenticated from "../middleware/isAuthenticated.js";
 import { bridgeAuth } from "../middleware/bridgeAuth.js";
 import { singleUpload } from "../middleware/multer.js";
 
