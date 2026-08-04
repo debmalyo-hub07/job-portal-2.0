@@ -154,3 +154,25 @@ The related finding — that the two portals need *separate refresh-token signin
 inputs*, so a token minted for one collection cannot verify against the other —
 is recorded in the design spec rather than here, because it concerns token
 construction rather than cookie transport.
+
+## Amendment (2026-08-04) — implemented, with one correction
+
+Built as described. One part of the **Decision** section above is now wrong and
+is corrected here rather than edited in place, because the reasoning is the
+useful part.
+
+**The CSRF token is MAC-bound, not a bare random value.** The cookie carries
+`<nonce>.<HMAC(CSRF_SECRET, nonce)>`, and the server verifies the MAC in addition
+to comparing the cookie against the `X-CSRF-Token` header.
+
+Plain double-submit compares two values that both came from the attacker's side
+of the boundary, so it assumes the attacker cannot set a cookie on the site. That
+assumption fails in two ordinary situations: a compromised or hostile subdomain
+can set a cookie for the parent domain, and a network attacker can inject a
+`Set-Cookie` over any plain-HTTP request to the site. In both cases the attacker
+plants a known nonce, sends it back in the header, and the check passes.
+
+Adding the MAC makes the server the only party able to mint a valid pair, so a
+planted cookie fails verification even when the two submitted halves agree. The
+`__Host-` prefix helps but does not close this on its own — it constrains which
+*origin* can set the cookie, not whether the value is authentic.

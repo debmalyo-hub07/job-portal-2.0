@@ -1,6 +1,6 @@
 # ADR-0001: Two account collections
 
-**Status:** Accepted (2026-07-31) — implementation scheduled for Phase 1B
+**Status:** Accepted (2026-07-31) — implemented in Phase 1B
 
 ## Context
 
@@ -68,3 +68,29 @@ precisely the property that lets a client claim to be a recruiter. Rejected.
 context is needed. Rejected because it requires a cross-collection uniqueness
 check on every signup — a race condition unless carefully done — and it
 permanently prevents anyone from being both a seeker and a recruiter.
+
+## Amendment (2026-08-04) — implemented in Phase 1B
+
+The split shipped. Two implementation facts are load-bearing for anyone reading
+the model later:
+
+**`_id` was preserved verbatim.** The migration copied each `users` row's `_id`
+onto its new `seekers` or `recruiters` row rather than minting a fresh one. That
+is the only reason `applications.applicant`, `jobs.created_by` and
+`companies.userId` still resolve — the values in those columns are the old ids.
+Any future re-migration must preserve `_id` too; a script that generates new ones
+silently dangles the entire object graph, and nothing fails loudly when it
+happens.
+
+**The `ref` fields were repointed, not backfilled.** `applications.applicant`
+now declares `ref: "Seeker"`, `jobs.created_by` and `companies.userId` declare
+`ref: "Recruiter"`. No document was rewritten; only the schema's populate target
+changed, which works precisely because of the `_id` preservation above.
+
+Migrated accounts are deliberately **not** grandfathered as verified. The spec
+originally said to grandfather them, on the grounds that they were usable
+before. They are not, for two reasons: an address that was never proven is
+auto-linkable by a Google sign-in claiming it, and the resend-code flow makes
+recovery a single click. `migratedFromLegacyAt` marks these rows so the
+unverified-account sweeper does not delete the entire inherited userbase on its
+first tick.
