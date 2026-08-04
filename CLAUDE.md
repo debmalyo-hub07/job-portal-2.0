@@ -52,6 +52,12 @@ Guidance for Claude Code when working in this repository.
   portal from user input is a bug regardless of what it does with it.
 - **OTPs:** never log a code, and never resolve the account to mutate from a
   request body — it comes from the matched OTP row's `subjectId`.
+- **Operator queries:** `sanitizeFilter` is on globally, so a `$`-operator in a
+  filter *value* is compared as a literal. A query that deliberately wants an
+  operator must wrap it: `expiresAt: mongoose.trusted({ $gt: new Date() })`.
+  Grep for `mongoose.trusted` to see every deliberate one.
+- **Ownership:** a resource the caller does not own answers exactly as a missing
+  one does — 404, same code, same message. Never 403, which confirms existence.
 
 ## Guardrails
 
@@ -74,28 +80,38 @@ seeker, unrelated recruiter, owner — each asserting its expected status code.
 
 ## Current state
 
-Phases 1A (foundation) and 1B (authentication) are complete. Phase 1C
-(authorization and domain) is not yet built, so the following known defects are
-still present *by design* and should not be treated as surprises:
+Phases 1A (foundation), 1B (authentication) and 1C (authorization and domain)
+are complete. Phase 2 (design-system and UI rebuild) has not started — the
+frontend is still the inherited layout, updated only enough to speak the current
+API.
 
-- No ownership checks on any route — any authenticated recruiter can edit any
-  company. Portal *scoping* exists (a seeker cannot reach a recruiter route), but
-  scoping is not ownership
-- `getApplicants` returns a raw Mongoose document. It no longer leaks a password
-  hash (`select: false` on `passwordHash`), but it is still not a DTO and still
-  returns full applicant PII to any recruiter
-- `$regex` search on raw user input
-- Public, guessable resume URLs
-- `GET /apply/:id` mutates state
+What 1C closed, so these are no longer open questions:
 
-Fixed in 1B: the `httpsOnly` typo, client-selected `role` (the collection is now
-the role), unverified emails, no password policy, no login rate limit, and the
-password-hash leak in `getApplicants`.
+- Ownership checks on every route that touches a user-owned resource. Missing
+  and foreign both answer **404** with the same body — a foreign recruiter must
+  not be able to prove a resource exists
+- `getApplicants` returns `ApplicantDto` — name, email, phone, headline, skills
+  and a resume link, nothing else
+- Keyword search escapes user input before it reaches a `RegExp`
+- Resumes upload as Cloudinary `authenticated` assets; the DB stores the
+  `public_id` and every read mints a ~10-minute signed URL
+- Applying is `POST /application/apply/:id`, deduped by a unique
+  `{job, applicant}` index rather than a read-then-write
+- All list endpoints paginate (`{ items, total, page, pages }`, `limit` capped
+  at 50)
+- `bridgeAuth` and `req.id` are gone. Domain routes use `authenticate(portal)`,
+  `authenticateAny()` or `optionalAuthenticate()`
+- `mongoose.set("sanitizeFilter", true)` is on globally
+- The legacy `users` collection is dropped by `npm run migrate:phase1c`
+  --workspace @jobportal/api (also drops the pre-1C global `name_1` company
+  index; run it once per existing database)
 
-Still transitional until Phase 1C: `bridgeAuth` on the domain routes, and
-`req.id`. Legacy authentication is fully removed — there is no `isAuthenticated`,
-no `/api/v1/user` login/register/logout, and no legacy `token` cookie path. The
-`users` collection still exists on disk but has no model and no reader; 1C's
-migration drops it.
+Known gaps, deliberately deferred:
 
-See `docs/superpowers/plans/2026-08-01-phase-1b-authentication.md`.
+- Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
+  decision, made when there is data and a UI to tune against
+- No pagination UI — clients request `limit=50` and show that
+- The frontend still has no test runner
+- Replacing a company logo orphans the previous Cloudinary asset
+
+See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`.
