@@ -3,14 +3,18 @@ import express, { type Express } from "express";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 
 import { AppError } from "../../src/lib/AppError.js";
 import { accessCookieName } from "../../src/lib/cookies.js";
 import { accessTokenKey } from "../../src/lib/keys.js";
 import { Recruiter } from "../../src/models/recruiter.model.js";
 import { Seeker } from "../../src/models/seeker.model.js";
-import { authenticate, requireVerified } from "../../src/middleware/authenticate.js";
+import { authenticate, requireVerified, authenticateAny, optionalAuthenticate } from "../../src/middleware/authenticate.js";
+import { errorHandler } from "../../src/middleware/error.js";
+import { signedUpOn, installCaptureMailer } from "./helpers.js";
+
+beforeEach(installCaptureMailer);
 
 /**
  * `authenticate` is the gate every authenticated route sits behind, so its
@@ -245,5 +249,44 @@ describe("requireVerified", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.auth.emailVerified).toBe(false);
+  });
+});
+
+function anyApp(): Express {
+  const app = express();
+  app.use(cookieParser());
+  app.get("/any", authenticateAny(), (req, res) => res.json({ auth: req.auth }));
+  app.get("/opt", optionalAuthenticate(), (req, res) => res.json({ auth: req.auth ?? null }));
+  app.use(errorHandler);
+  return app;
+}
+
+describe("authenticateAny / optionalAuthenticate", () => {
+  it("resolves a seeker session and sets no req.id", async () => {
+    const { access } = await signedUpOn("seeker", "any-seeker@example.com");
+    const res = await request(anyApp()).get("/any").set("Cookie", [`jp_seeker_at=${access}`]);
+    expect(res.status).toBe(200);
+    expect(res.body.auth.portal).toBe("seeker");
+  });
+
+  it("401s with no cookie on authenticateAny", async () => {
+    const res = await request(anyApp()).get("/any");
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe("SESSION_MISSING");
+  });
+
+  it("optionalAuthenticate passes anonymous through as null", async () => {
+    const res = await request(anyApp()).get("/opt");
+    expect(res.status).toBe(200);
+    expect(res.body.auth).toBeNull();
+  });
+
+  it("prefers seeker when both cookies are present (fixed order)", async () => {
+    const s = await signedUpOn("seeker", "both-s@example.com");
+    const r = await signedUpOn("recruiter", "both-r@example.com");
+    const res = await request(anyApp())
+      .get("/any")
+      .set("Cookie", [`jp_seeker_at=${s.access}`, `jp_recruiter_at=${r.access}`]);
+    expect(res.body.auth.portal).toBe("seeker");
   });
 });

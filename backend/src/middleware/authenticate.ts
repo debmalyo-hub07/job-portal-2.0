@@ -85,3 +85,68 @@ export function requireVerified(req: Request, _res: Response, next: NextFunction
   }
   next();
 }
+
+const CANDIDATES: readonly Portal[] = ["seeker", "recruiter"];
+
+async function resolveSession(req: Request, portal: Portal): Promise<boolean> {
+  const token = req.cookies?.[accessCookieName(portal)] as string | undefined;
+  if (!token) return false;
+  let claims;
+  try {
+    claims = verifyAccessToken(token, portal);
+  } catch {
+    // Stale cookie for one portal must not kill a route the other portal's
+    // cookie would satisfy.
+    return false;
+  }
+  const account = await findAccountById(portal, claims.sub);
+  if (!account || account.status !== "active") return false;
+  const cutoff = account.sessionsInvalidatedAt;
+  if (cutoff && claims.iat !== undefined && claims.iat < Math.floor(cutoff.getTime() / 1000)) {
+    return false;
+  }
+  req.auth = {
+    id: String(account._id),
+    portal,
+    emailVerified: account.emailVerifiedAt !== null,
+  };
+  return true;
+}
+
+/**
+ * Accepts a session from either portal, seeker first. The fixed order means a
+ * dual-session browser gets the same identity on every request. Routes that can
+ * name their portal must use `authenticate(portal)` instead.
+ */
+export function authenticateAny() {
+  return async function authenticateAnyMiddleware(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    for (const portal of CANDIDATES) {
+      if (await resolveSession(req, portal)) {
+        next();
+        return;
+      }
+    }
+    next(AppError.unauthorized("SESSION_MISSING", "Sign in to continue."));
+  };
+}
+
+/**
+ * Resolves a session if one exists; never 401s. Handlers behind this MUST
+ * treat `req.auth` as absent-by-default.
+ */
+export function optionalAuthenticate() {
+  return async function optionalAuthenticateMiddleware(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    for (const portal of CANDIDATES) {
+      if (await resolveSession(req, portal)) break;
+    }
+    next();
+  };
+}
