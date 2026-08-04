@@ -45,7 +45,7 @@ const JobDescription = () => {
           dispatch(setSingleJob(res.data.job));
           setIsApplied(
             res.data.job.applications?.some(
-              (application) => String(application.applicant) === user?._id,
+              (application) => String(application.applicant) === user?.id,
             ) ?? false,
           );
         }
@@ -54,7 +54,7 @@ const JobDescription = () => {
       }
     };
     void fetchSingleJob();
-  }, [jobId, dispatch, user?._id]);
+  }, [jobId, dispatch, user?.id]);
 
   return (
     <div className="max-w-7xl mx-auto my-10">

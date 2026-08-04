@@ -15,3 +15,10 @@ export function getApiErrorMessage(error: unknown, fallback = "Something went wr
   if (error instanceof Error) return error.message;
   return fallback;
 }
+
+/** The `code` from the API's error envelope, or null if this was not one. */
+export function getApiErrorCode(error: unknown): string | null {
+  if (!axios.isAxiosError(error)) return null;
+  const data = error.response?.data as { code?: unknown } | undefined;
+  return typeof data?.code === "string" ? data.code : null;
+}

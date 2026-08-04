@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import type { Portal } from "@jobportal/shared";
 
 import Navbar from "../shared/Navbar";
 import { Label } from "../ui/label";
@@ -13,23 +14,13 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
-type SignupInput = {
-  fullname: string;
-  email: string;
-  phoneNumber: string;
-  password: string;
-  role: string;
-  file: File | null;
-};
-
 const Signup = () => {
-  const [input, setInput] = useState<SignupInput>({
-    fullname: "",
+  const [portal, setPortal] = useState<Portal>("seeker");
+  const [input, setInput] = useState({
+    fullName: "",
     email: "",
-    phoneNumber: "",
+    phone: "",
     password: "",
-    role: "",
-    file: null,
   });
   const { loading, user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
@@ -42,35 +33,22 @@ const Signup = () => {
     });
   };
 
-  const changeFileHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    setInput({
-      ...input,
-      file: e.target.files?.[0] ?? null,
-    });
-  };
-
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append("fullname", input.fullname);
-    formData.append("email", input.email);
-    formData.append("phoneNumber", input.phoneNumber);
-    formData.append("password", input.password);
-    formData.append("role", input.role);
-    if (input.file) {
-      formData.append("file", input.file);
-    }
     try {
       dispatch(setLoading(true));
-      const res = await apiClient.post<{ success: boolean; message: string }>(
-        "/user/register",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
-      if (res.data.success) {
-        navigate("/login");
-        toast.success(res.data.message);
-      }
+      // JSON, not multipart: the new endpoint takes no file. `phone` is optional
+      // and omitted entirely when blank — an empty string fails E.164.
+      await apiClient.post(`/${portal}/auth/register`, {
+        fullName: input.fullName,
+        email: input.email,
+        password: input.password,
+        ...(input.phone.trim() ? { phone: input.phone.trim() } : {}),
+      });
+      // Deliberately no setUser: the API issues no session before verification,
+      // so a user here would be a UI that thinks it is signed in and a server
+      // that disagrees on the next request.
+      navigate(`/verify-email?portal=${portal}&email=${encodeURIComponent(input.email)}`);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Signup failed"));
     } finally {
@@ -97,8 +75,8 @@ const Signup = () => {
             <Label>Full Name</Label>
             <Input
               type="text"
-              value={input.fullname}
-              name="fullname"
+              value={input.fullName}
+              name="fullName"
               onChange={changeEventHandler}
               placeholder="Enter Your Name"
             />
@@ -117,10 +95,10 @@ const Signup = () => {
             <Label>Phone Number</Label>
             <Input
               type="text"
-              value={input.phoneNumber}
-              name="phoneNumber"
+              value={input.phone}
+              name="phone"
               onChange={changeEventHandler}
-              placeholder="Enter Your Phone Number"
+              placeholder="Optional, in +919876543210 format"
             />
           </div>
           <div className="my-2">
@@ -132,41 +110,33 @@ const Signup = () => {
               onChange={changeEventHandler}
               placeholder="Enter Your Password"
             />
+            <p className="text-xs text-gray-500 mt-1">At least 12 characters.</p>
           </div>
           <div className="flex items-center justify-between">
             <RadioGroup className="flex items-center gap-4 my-5">
               <div className="flex items-center space-x-2">
                 <Input
                   type="radio"
-                  name="role"
-                  value="student"
-                  checked={input.role === "student"}
-                  onChange={changeEventHandler}
+                  name="portal"
+                  value="seeker"
+                  checked={portal === "seeker"}
+                  onChange={() => setPortal("seeker")}
                   className="cursor-pointer"
                 />
-                <Label htmlFor="option-one">Student</Label>
+                <Label>Job seeker</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Input
                   type="radio"
-                  name="role"
+                  name="portal"
                   value="recruiter"
-                  checked={input.role === "recruiter"}
-                  onChange={changeEventHandler}
+                  checked={portal === "recruiter"}
+                  onChange={() => setPortal("recruiter")}
                   className="cursor-pointer"
                 />
-                <Label htmlFor="option-two">Recruiter</Label>
+                <Label>Recruiter</Label>
               </div>
             </RadioGroup>
-            <div className="flex items-center gap-2">
-              <Label>Profile</Label>
-              <Input
-                accept="image/*"
-                type="file"
-                onChange={changeFileHandler}
-                className="cursor-pointer"
-              />
-            </div>
           </div>
           {loading ? (
             <Button className="w-full my-4">
@@ -179,7 +149,7 @@ const Signup = () => {
             </Button>
           )}
           <span className="text-sm">
-            Already have an account?
+            Already have an account?{" "}
             <Link to="/login" className="text-blue-600">
               Login
             </Link>

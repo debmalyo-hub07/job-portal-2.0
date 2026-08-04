@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import type { LegacyUser } from "@jobportal/shared";
+import type { AuthResponse, Portal } from "@jobportal/shared";
 
 import Navbar from "../shared/Navbar";
 import { Label } from "../ui/label";
@@ -10,16 +10,21 @@ import { Input } from "../ui/input";
 import { RadioGroup } from "../ui/radio-group";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
+import { setPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
 const Login = () => {
-  const [input, setInput] = useState({
-    email: "",
-    password: "",
-    role: "",
-  });
+  /**
+   * This radio looks like the defect it replaces, so: it no longer sends a
+   * `role` in the body for the server to trust. It picks which URL to post to.
+   * An account exists in exactly one collection (ADR-0001), so choosing the
+   * wrong portal produces INVALID_CREDENTIALS and nothing else — it cannot
+   * grant a role, because there is no role field left to grant.
+   */
+  const [portal, setPortal] = useState<Portal>("seeker");
+  const [input, setInput] = useState({ email: "", password: "" });
   const { loading, user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -35,16 +40,19 @@ const Login = () => {
     e.preventDefault();
     try {
       dispatch(setLoading(true));
-      const res = await apiClient.post<{ success: boolean; message: string; user: LegacyUser }>(
-        "/user/login",
-        input,
-      );
-      if (res.data.success) {
-        dispatch(setUser(res.data.user));
-        navigate("/");
-        toast.success(res.data.message);
-      }
+      const res = await apiClient.post<AuthResponse>(`/${portal}/auth/login`, input);
+      // Hint written only after the server agreed. Writing it before would leave
+      // a failed login pointing the refresh interceptor at the wrong portal.
+      setPortalHint(portal);
+      dispatch(setUser(res.data.user));
+      navigate("/");
     } catch (error) {
+      // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
+      // means "finish signing up". Route them instead of showing a dead end.
+      if (getApiErrorCode(error) === "EMAIL_NOT_VERIFIED") {
+        navigate(`/verify-email?portal=${portal}&email=${encodeURIComponent(input.email)}`);
+        return;
+      }
       toast.error(getApiErrorMessage(error, "Login failed"));
     } finally {
       dispatch(setLoading(false));
@@ -91,26 +99,32 @@ const Login = () => {
               <div className="flex items-center space-x-2">
                 <Input
                   type="radio"
-                  name="role"
-                  value="student"
-                  checked={input.role === "student"}
-                  onChange={changeEventHandler}
+                  name="portal"
+                  value="seeker"
+                  checked={portal === "seeker"}
+                  onChange={() => setPortal("seeker")}
                   className="cursor-pointer"
                 />
-                <Label htmlFor="option-one">Student</Label>
+                <Label>Job seeker</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Input
                   type="radio"
-                  name="role"
+                  name="portal"
                   value="recruiter"
-                  checked={input.role === "recruiter"}
-                  onChange={changeEventHandler}
+                  checked={portal === "recruiter"}
+                  onChange={() => setPortal("recruiter")}
                   className="cursor-pointer"
                 />
-                <Label htmlFor="option-two">Recruiter</Label>
+                <Label>Recruiter</Label>
               </div>
             </RadioGroup>
+            <Link
+              to={`/forgot-password?portal=${portal}`}
+              className="text-sm text-blue-600"
+            >
+              Forgot password?
+            </Link>
           </div>
           {loading ? (
             <Button className="w-full my-4">
@@ -122,8 +136,22 @@ const Login = () => {
               Login
             </Button>
           )}
+          {/*
+            A real navigation, not a fetch: the OAuth flow is a series of
+            top-level redirects and XHR cannot follow them.
+          */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-4"
+            onClick={() => {
+              window.location.href = `${import.meta.env.VITE_API_URL}/${portal}/auth/google`;
+            }}
+          >
+            Continue with Google
+          </Button>
           <span className="text-sm">
-            Don&apos;t have an account?
+            Don&apos;t have an account?{" "}
             <Link to="/signup" className="text-blue-600">
               Signup
             </Link>
