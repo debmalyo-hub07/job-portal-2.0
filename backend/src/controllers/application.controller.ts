@@ -22,13 +22,11 @@ export const applyJob = async (req: Request, res: Response): Promise<void> => {
     throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
   }
   // create a new application
-  const newApplication = await Application.create({
+  await Application.create({
     job: jobId,
     applicant: userId,
   });
 
-  job.applications.push(newApplication._id);
-  await job.save();
   res.status(201).json({
     message: "Job applied successfully.",
     success: true,
@@ -56,18 +54,15 @@ export const getAppliedJobs = async (req: Request, res: Response): Promise<void>
 // admin dekhega kitna user ne apply kiya hai
 export const getApplicants = async (req: Request, res: Response): Promise<void> => {
   const jobId = req.params.id;
-  const job = await Job.findById(jobId).populate({
-    path: "applications",
-    options: { sort: { createdAt: -1 } },
-    populate: {
-      path: "applicant",
-    },
-  });
+  const job = await Job.findById(jobId);
   if (!job) {
     throw AppError.notFound("JOB_NOT_FOUND", "Job not found.");
   }
+  const applications = await Application.find({ job: jobId })
+    .sort({ createdAt: -1 })
+    .populate("applicant");
   res.status(200).json({
-    job,
+    job: { ...job.toObject(), applications },
     success: true,
   });
 };

@@ -6,7 +6,6 @@ const companySchema = new Schema(
     name: {
       type: String,
       required: true,
-      unique: true,
     },
     description: {
       type: String,
@@ -28,6 +27,8 @@ const companySchema = new Schema(
   },
   { timestamps: true },
 );
+
+companySchema.index({ userId: 1, name: 1 }, { unique: true });
 
 export type CompanyDocument = InferSchemaType<typeof companySchema>;
 export const Company: Model<CompanyDocument> = defineModel<CompanyDocument>(
