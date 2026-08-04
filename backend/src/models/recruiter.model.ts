@@ -6,7 +6,6 @@ const recruiterSchema = new Schema(
   {
     ...authFields,
     designation: { type: String, default: null },
-    company: { type: Schema.Types.ObjectId, ref: "Company", default: null },
   },
   { timestamps: true },
 );

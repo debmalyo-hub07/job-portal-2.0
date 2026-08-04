@@ -22,6 +22,10 @@ const applicationSchema = new Schema(
   { timestamps: true },
 );
 
+// One application per seeker per job, enforced at the storage layer — the old
+// findOne-then-create dedupe was a race.
+applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
+
 export type ApplicationDocument = InferSchemaType<typeof applicationSchema>;
 export const Application: Model<ApplicationDocument> = defineModel<ApplicationDocument>(
   "Application",

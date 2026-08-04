@@ -112,3 +112,26 @@ describe("account schemas", () => {
     expect(Seeker.schema.path("phone").instance).toBe("String");
   });
 });
+
+import { Application } from "../src/models/application.model.js";
+import { Company } from "../src/models/company.model.js";
+import { Types } from "mongoose";
+
+describe("phase 1C model constraints", () => {
+  it("rejects a duplicate {job, applicant} application at the index", async () => {
+    await Application.init(); // ensure indexes exist in memory server
+    const job = new Types.ObjectId();
+    const applicant = new Types.ObjectId();
+    await Application.create({ job, applicant });
+    await expect(Application.create({ job, applicant })).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it("company name is unique per recruiter, not globally", async () => {
+    await Company.init();
+    const a = new Types.ObjectId();
+    const b = new Types.ObjectId();
+    await Company.create({ name: "Acme", userId: a });
+    await expect(Company.create({ name: "Acme", userId: b })).resolves.toBeTruthy();
+    await expect(Company.create({ name: "Acme", userId: a })).rejects.toMatchObject({ code: 11000 });
+  });
+});

@@ -46,12 +46,6 @@ const jobSchema = new Schema(
       ref: "Recruiter",
       required: true,
     },
-    applications: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Application",
-      },
-    ],
   },
   { timestamps: true },
 );
