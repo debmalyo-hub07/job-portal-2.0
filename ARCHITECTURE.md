@@ -84,8 +84,8 @@ recruiters     auth fields + designation, company → companies
 refreshTokens  tokenHash (unique), familyId, subjectId, subjectType, expiresAt (TTL)
 otpCodes       codeHash, purpose, subjectId, subjectType, expiresAt (TTL)
 otpBudgets     subjectId, purpose, failures, expiresAt (TTL)
-users          UNCHANGED and unread. Kept as the migration's rollback path;
-               dropped in the 1C migration
+users          UNCHANGED, and no longer has a model or any reader. Left on disk
+               only so the split is reversible by hand; dropped in the 1C migration
 
 companies      name (unique), description, website, location, logo, userId → recruiters
 jobs           title, description, requirements[], salary, experienceLevel,
@@ -152,10 +152,15 @@ Target (1C)      authenticate(portal) → requireVerified → requireOwnership(r
 
 `bridgeAuth` exists because Phase 1B replaced authentication without rewriting
 the domain modules. It accepts a portal-scoped session from either mount (or a
-named one), populates `req.auth` and the legacy `req.id`, and — while
-`LEGACY_AUTH_FALLBACK` is on — still accepts the inherited `token` cookie so a
-deploy can be rolled back without logging out every signed-in user. It is
-deleted, along with the fallback, in the final teardown of this phase.
+named one) and populates both `req.auth` and the legacy `req.id` those
+controllers still read. It is functionally `authenticate(portal)` generalised
+over two portals, and it disappears when 1C moves those controllers onto
+`req.auth`.
+
+It briefly also accepted the inherited `token` cookie behind a
+`LEGACY_AUTH_FALLBACK` flag, so that a deploy could be rolled back without
+logging out every signed-in user. Both the flag and that branch are now deleted:
+the only session-issuing endpoints are the portal-scoped ones.
 
 Authentication is fixed; **authorization is not**. There is still no ownership
 check on any route: any authenticated recruiter can edit any company, read any

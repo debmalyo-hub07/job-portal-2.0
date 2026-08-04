@@ -92,8 +92,10 @@ Fixed in 1B: the `httpsOnly` typo, client-selected `role` (the collection is now
 the role), unverified emails, no password policy, no login rate limit, and the
 password-hash leak in `getApplicants`.
 
-Still transitional until Phase 1C: `bridgeAuth` on the domain routes, the
-`users` collection and `user.model.ts` (unread, kept as the migration's rollback
-path), and `req.id`.
+Still transitional until Phase 1C: `bridgeAuth` on the domain routes, and
+`req.id`. Legacy authentication is fully removed — there is no `isAuthenticated`,
+no `/api/v1/user` login/register/logout, and no legacy `token` cookie path. The
+`users` collection still exists on disk but has no model and no reader; 1C's
+migration drops it.
 
 See `docs/superpowers/plans/2026-08-01-phase-1b-authentication.md`.
