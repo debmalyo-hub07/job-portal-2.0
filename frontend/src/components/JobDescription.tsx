@@ -43,18 +43,40 @@ const JobDescription = () => {
         );
         if (res.data.success) {
           dispatch(setSingleJob(res.data.job));
-          setIsApplied(
-            res.data.job.applications?.some(
-              (application) => String(application.applicant) === user?.id,
-            ) ?? false,
-          );
         }
       } catch (error) {
         console.error(error);
       }
     };
     void fetchSingleJob();
-  }, [jobId, dispatch, user?.id]);
+  }, [jobId, dispatch]);
+
+  // Whether *this* seeker has applied, asked separately.
+  //
+  // This used to read `job.applications` from the response above, which meant
+  // the public job endpoint had to ship every applicant of every job to anyone
+  // who opened the page. The seeker-scoped endpoint answers the same question
+  // about the caller alone. Recruiters and anonymous visitors skip it — there is
+  // no Apply button for them to gate.
+  useEffect(() => {
+    if (!jobId || user?.portal !== "seeker") {
+      setIsApplied(false);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get<{ success: boolean; application: { job?: { _id: string } }[] }>("/application/get")
+      .then((res) => {
+        if (cancelled) return;
+        setIsApplied(res.data.application.some((a) => a.job?._id === jobId));
+      })
+      .catch(() => {
+        if (!cancelled) setIsApplied(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, user?.portal, user?.id]);
 
   return (
     <div className="max-w-7xl mx-auto my-10">
