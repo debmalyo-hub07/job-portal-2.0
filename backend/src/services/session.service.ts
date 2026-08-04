@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import type { Request, Response } from "express";
 import type { Portal } from "@jobportal/shared";
 import { RefreshToken } from "../models/refreshToken.model.js";
@@ -21,8 +21,8 @@ export interface AccessClaims {
   type: Portal;
   /**
    * Issued-at, in seconds. Not set by `signAccessToken` — `jsonwebtoken` adds it
-   * automatically — but declared here because Task 6's `authenticate` and Task
-   * 12's `bridgeAuth` both compare it against `sessionsInvalidatedAt` to honour
+   * automatically — but declared here because the `authenticate` middlewares
+   * compare it against `sessionsInvalidatedAt` to honour
    * a session cull. Optional because it is absent from the object passed to
    * `jwt.sign`, present on every object that comes back from `jwt.verify`.
    */
@@ -109,7 +109,7 @@ export async function rotateSession(
   // Atomic claim. A read-then-write loses the race between two concurrent
   // refreshes and mints two live tokens from one row.
   const row = await RefreshToken.findOneAndUpdate(
-    { tokenHash, revokedAt: null, replacedBy: null, expiresAt: { $gt: new Date() } },
+    { tokenHash, revokedAt: null, replacedBy: null, expiresAt: mongoose.trusted({ $gt: new Date() }) },
     { $set: { revokedAt: new Date() } },
     { new: false },
   );

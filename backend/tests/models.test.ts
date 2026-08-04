@@ -135,3 +135,26 @@ describe("phase 1C model constraints", () => {
     await expect(Company.create({ name: "Acme", userId: a })).rejects.toMatchObject({ code: 11000 });
   });
 });
+
+describe("sanitizeFilter", () => {
+  it("treats an operator-shaped value as a literal instead of an operator", async () => {
+    await Company.create({ name: "Filter Co", userId: new Types.ObjectId() });
+    // Injected via a string field, this used to match every document. With
+    // sanitizeFilter on it is wrapped in $eq and compared as a value — which for
+    // a string path means it fails to cast rather than matching anything. Either
+    // way the injection cannot reach a document; it must never resolve to a hit.
+    await expect(Company.findOne({ name: { $ne: "" } as unknown as string })).rejects.toThrow(
+      /Cast to string failed/,
+    );
+  });
+
+  it("still honours an operator the application itself asked for", async () => {
+    const userId = new Types.ObjectId();
+    await Company.create({ name: "Trusted Co", userId });
+    const hit = await Company.findOne({
+      userId,
+      createdAt: mongoose.trusted({ $lt: new Date(Date.now() + 60_000) }),
+    });
+    expect(hit).not.toBeNull();
+  });
+});

@@ -1,5 +1,16 @@
 import mongoose from "mongoose";
 
+/**
+ * Injection backstop behind Zod. An operator-shaped VALUE in a filter — the
+ * `{ $ne: "" }` a client smuggles through a string field — is compared as a
+ * literal instead of executed. Queries that legitimately want an operator opt in
+ * with `mongoose.trusted()`; grep for it to see the full list.
+ *
+ * Set at module scope so it applies to every connection, including the one the
+ * test harness opens without going through connectDB.
+ */
+mongoose.set("sanitizeFilter", true);
+
 export async function connectDB(uri: string): Promise<void> {
   await mongoose.connect(uri);
 }
