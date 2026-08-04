@@ -89,6 +89,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
 };
 
+import type { HydratedDocument } from "mongoose";
 import { findAccountById, type AccountDocument } from "../services/account.service.js";
 import { toSessionUser } from "../services/auth.service.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
@@ -102,11 +103,14 @@ export const logout = async (_req: Request, res: Response): Promise<void> => {
   });
 };
 
-function toProfileView(portal: Portal, account: AccountDocument): ProfileView {
-  const seeker = portal === "seeker" ? (account as SeekerDocument) : null;
-  const recruiter = portal === "recruiter" ? (account as RecruiterDocument) : null;
+function toProfileView(
+  portal: Portal,
+  account: HydratedDocument<AccountDocument>,
+): ProfileView {
+  const seeker = portal === "seeker" ? (account as HydratedDocument<SeekerDocument>) : null;
+  const recruiter = portal === "recruiter" ? (account as HydratedDocument<RecruiterDocument>) : null;
   return {
-    user: toSessionUser(portal, account as any),
+    user: toSessionUser(portal, account),
     phone: account.phone ?? null,
     seeker: seeker && {
       headline: seeker.profile!.headline ?? null,

@@ -1,5 +1,5 @@
 import request from "supertest";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { signedUpOn, installCaptureMailer } from "./helpers.js";
 import { Seeker } from "../../src/models/seeker.model.js";
@@ -9,7 +9,7 @@ import { Job } from "../../src/models/job.model.js";
 import { Application } from "../../src/models/application.model.js";
 
 const app = buildApp();
-installCaptureMailer(app);
+beforeEach(installCaptureMailer);
 
 describe("updateProfile on the account collections", () => {
   it("writes to the account, not to users, and returns a SessionUser", async () => {
