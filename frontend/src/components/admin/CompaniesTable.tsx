@@ -12,12 +12,12 @@ import { Avatar, AvatarImage } from "../ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Edit2, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { LegacyCompany } from "@jobportal/shared";
+import type { CompanyDto } from "@jobportal/shared";
 import { useAppSelector } from "@/redux/store";
 
 const CompaniesTable = () => {
   const { companies, searchCompanyByText } = useAppSelector((state) => state.company);
-  const [filterCompany, setFilterCompany] = useState<LegacyCompany[]>(companies);
+  const [filterCompany, setFilterCompany] = useState<CompanyDto[]>(companies);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,14 +44,14 @@ const CompaniesTable = () => {
         </TableHeader>
         <TableBody>
           {filterCompany.map((company) => (
-            <TableRow key={company._id}>
+            <TableRow key={company.id}>
               <TableCell>
                 <Avatar>
-                  <AvatarImage src={company.logo} alt={company.name} />
+                  <AvatarImage src={company.logoUrl ?? undefined} alt={company.name} />
                 </Avatar>
               </TableCell>
               <TableCell>{company.name}</TableCell>
-              <TableCell>{company.createdAt?.split("T")[0]}</TableCell>
+              <TableCell>{company.createdAt.split("T")[0]}</TableCell>
               <TableCell className="text-right cursor-pointer">
                 <Popover>
                   <PopoverTrigger>
@@ -59,7 +59,7 @@ const CompaniesTable = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-32">
                     <div
-                      onClick={() => navigate(`/admin/companies/${company._id}`)}
+                      onClick={() => navigate(`/admin/companies/${company.id}`)}
                       className="flex items-center gap-2 w-fit cursor-pointer"
                     >
                       <Edit2 className="w-4" />

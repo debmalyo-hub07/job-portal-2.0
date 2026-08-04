@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { LegacyCompany } from "@jobportal/shared";
+import type { CompanyDto } from "@jobportal/shared";
 
 import Navbar from "../shared/Navbar";
 import { Label } from "../ui/label";
@@ -19,15 +19,14 @@ const CompanyCreate = () => {
 
   const registerNewCompany = async () => {
     try {
-      const res = await apiClient.post<{
-        success: boolean;
-        message: string;
-        company: LegacyCompany;
-      }>("/company/register", { companyName });
+      const res = await apiClient.post<{ success: boolean; company: CompanyDto }>(
+        "/company/register",
+        { name: companyName },
+      );
       if (res.data.success) {
         dispatch(setSingleCompany(res.data.company));
-        toast.success(res.data.message);
-        navigate(`/admin/companies/${res.data.company._id}`);
+        toast.success("Company created");
+        navigate(`/admin/companies/${res.data.company.id}`);
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not create company"));

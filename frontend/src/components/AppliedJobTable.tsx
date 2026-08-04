@@ -32,8 +32,8 @@ const AppliedJobTable = () => {
             </TableRow>
           ) : (
             allAppliedJobs.map((appliedJob) => (
-              <TableRow key={appliedJob._id}>
-                <TableCell>{appliedJob.createdAt?.split("T")[0]}</TableCell>
+              <TableRow key={appliedJob.id}>
+                <TableCell>{appliedJob.appliedAt.split("T")[0]}</TableCell>
                 <TableCell>{appliedJob.job?.title}</TableCell>
                 <TableCell>{appliedJob.job?.company?.name}</TableCell>
                 <TableCell className="text-right">

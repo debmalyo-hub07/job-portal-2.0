@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import type { LegacyJob } from "@jobportal/shared";
+import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
 
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -21,7 +21,8 @@ const JobDescription = () => {
 
   const applyJobHandler = async () => {
     try {
-      const res = await apiClient.get<{ success: boolean; message: string }>(
+      // POST: applying creates an Application. It answered to a GET until 1C.
+      const res = await apiClient.post<{ success: boolean; message: string }>(
         `/application/apply/${jobId}`,
       );
       if (res.data.success) {
@@ -38,9 +39,7 @@ const JobDescription = () => {
 
     const fetchSingleJob = async () => {
       try {
-        const res = await apiClient.get<{ success: boolean; job: LegacyJob }>(
-          `/job/get/${jobId}`,
-        );
+        const res = await apiClient.get<{ success: boolean; job: JobDto }>(`/job/get/${jobId}`);
         if (res.data.success) {
           dispatch(setSingleJob(res.data.job));
         }
@@ -65,10 +64,12 @@ const JobDescription = () => {
     }
     let cancelled = false;
     apiClient
-      .get<{ success: boolean; application: { job?: { _id: string } }[] }>("/application/get")
+      .get<{ success: boolean } & PaginatedResponse<AppliedJobDto>>("/application/get", {
+        params: { limit: 50 },
+      })
       .then((res) => {
         if (cancelled) return;
-        setIsApplied(res.data.application.some((a) => a.job?._id === jobId));
+        setIsApplied(res.data.items.some((a) => a.job?.id === jobId));
       })
       .catch(() => {
         if (!cancelled) setIsApplied(false);
@@ -130,15 +131,9 @@ const JobDescription = () => {
           <span className="pl-0 font-normal text-gray-800">{singleJob?.salary}LPA</span>
         </h1>
         <h1 className="font-bold my-1">
-          Total Applicants:
-          <span className="pl-0 font-normal text-gray-800">
-            {singleJob?.applications?.length ?? 0}
-          </span>
-        </h1>
-        <h1 className="font-bold my-1">
           Posted Date:
           <span className="pl-0 font-normal text-gray-800">
-            {singleJob?.createdAt?.split("T")[0]}
+            {singleJob?.createdAt.split("T")[0]}
           </span>
         </h1>
       </div>

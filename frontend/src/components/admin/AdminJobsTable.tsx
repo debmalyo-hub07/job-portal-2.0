@@ -11,12 +11,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Edit2, Eye, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { LegacyJob } from "@jobportal/shared";
+import type { JobDto } from "@jobportal/shared";
 import { useAppSelector } from "@/redux/store";
 
 const AdminJobsTable = () => {
   const { allAdminJobs, searchJobByText } = useAppSelector((state) => state.job);
-  const [filterJobs, setFilterJobs] = useState<LegacyJob[]>(allAdminJobs);
+  const [filterJobs, setFilterJobs] = useState<JobDto[]>(allAdminJobs);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,10 +47,10 @@ const AdminJobsTable = () => {
         </TableHeader>
         <TableBody>
           {filterJobs.map((job) => (
-            <TableRow key={job._id}>
+            <TableRow key={job.id}>
               <TableCell>{job.company?.name}</TableCell>
               <TableCell>{job.title}</TableCell>
-              <TableCell>{job.createdAt?.split("T")[0]}</TableCell>
+              <TableCell>{job.createdAt.split("T")[0]}</TableCell>
               <TableCell className="text-right cursor-pointer">
                 <Popover>
                   <PopoverTrigger>
@@ -58,14 +58,14 @@ const AdminJobsTable = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-32">
                     <div
-                      onClick={() => navigate(`/admin/companies/${job.company?._id ?? ""}`)}
+                      onClick={() => navigate(`/admin/companies/${job.company?.id ?? ""}`)}
                       className="flex items-center gap-2 w-fit cursor-pointer"
                     >
                       <Edit2 className="w-4" />
                       <span>Edit</span>
                     </div>
                     <div
-                      onClick={() => navigate(`/admin/jobs/${job._id}/applicants`)}
+                      onClick={() => navigate(`/admin/jobs/${job.id}/applicants`)}
                       className="flex items-center w-fit gap-2 cursor-pointer mt-2"
                     >
                       <Eye className="w-4" />

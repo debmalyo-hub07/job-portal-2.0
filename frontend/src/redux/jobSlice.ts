@@ -1,12 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { LegacyApplication, LegacyJob } from "@jobportal/shared";
+import type { AppliedJobDto, JobDto } from "@jobportal/shared";
 
 type JobState = {
-  allJobs: LegacyJob[];
-  allAdminJobs: LegacyJob[];
-  singleJob: LegacyJob | null;
+  allJobs: JobDto[];
+  allAdminJobs: JobDto[];
+  singleJob: JobDto | null;
   searchJobByText: string;
-  allAppliedJobs: LegacyApplication[];
+  allAppliedJobs: AppliedJobDto[];
   searchedQuery: string;
 };
 
@@ -23,19 +23,19 @@ const jobSlice = createSlice({
   name: "job",
   initialState,
   reducers: {
-    setAllJobs: (state, action: PayloadAction<LegacyJob[]>) => {
+    setAllJobs: (state, action: PayloadAction<JobDto[]>) => {
       state.allJobs = action.payload;
     },
-    setSingleJob: (state, action: PayloadAction<LegacyJob | null>) => {
+    setSingleJob: (state, action: PayloadAction<JobDto | null>) => {
       state.singleJob = action.payload;
     },
-    setAllAdminJobs: (state, action: PayloadAction<LegacyJob[]>) => {
+    setAllAdminJobs: (state, action: PayloadAction<JobDto[]>) => {
       state.allAdminJobs = action.payload;
     },
     setSearchJobByText: (state, action: PayloadAction<string>) => {
       state.searchJobByText = action.payload;
     },
-    setAllAppliedJobs: (state, action: PayloadAction<LegacyApplication[]>) => {
+    setAllAppliedJobs: (state, action: PayloadAction<AppliedJobDto[]>) => {
       state.allAppliedJobs = action.payload;
     },
     setSearchedQuery: (state, action: PayloadAction<string>) => {

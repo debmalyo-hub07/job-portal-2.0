@@ -1,13 +1,13 @@
 import { Bookmark } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { LegacyJob } from "@jobportal/shared";
+import type { JobDto } from "@jobportal/shared";
 
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarImage } from "./ui/avatar";
 
 type JobProps = {
-  job: LegacyJob;
+  job: JobDto;
 };
 
 const Job = ({ job }: JobProps) => {
@@ -35,7 +35,7 @@ const Job = ({ job }: JobProps) => {
       <div className="flex items-center gap-2 my-2">
         <Button className="p-6" variant="outline" size="icon">
           <Avatar>
-            <AvatarImage src={job.company?.logo} alt={job.company?.name} />
+            <AvatarImage src={job.company?.logoUrl ?? undefined} alt={job.company?.name} />
           </Avatar>
         </Button>
         <div>
@@ -59,7 +59,7 @@ const Job = ({ job }: JobProps) => {
         </Badge>
       </div>
       <div className="flex items-center gap-4 mt-4">
-        <Button onClick={() => navigate(`/description/${job._id}`)} variant="outline">
+        <Button onClick={() => navigate(`/description/${job.id}`)} variant="outline">
           Details
         </Button>
         <Button className="bg-[#7209b7]">Save For Later</Button>

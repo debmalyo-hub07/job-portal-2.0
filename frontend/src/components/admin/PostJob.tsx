@@ -28,7 +28,7 @@ const PostJob = () => {
     location: "",
     jobType: "",
     experience: "",
-    position: 0,
+    position: "",
     companyId: "",
   });
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ const PostJob = () => {
   const selectChangeEventHandler = (value: string) => {
     const selectedCompany = companies.find((company) => company.name.toLowerCase() === value);
     if (selectedCompany) {
-      setInput({ ...input, companyId: selectedCompany._id });
+      setInput({ ...input, companyId: selectedCompany.id });
     }
   };
 
@@ -50,9 +50,9 @@ const PostJob = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const res = await apiClient.post<{ success: boolean; message: string }>("/job/post", input);
+      const res = await apiClient.post<{ success: boolean }>("/job/post", input);
       if (res.data.success) {
-        toast.success(res.data.message);
+        toast.success("Job posted");
         navigate("/admin/jobs");
       }
     } catch (error) {
@@ -159,7 +159,7 @@ const PostJob = () => {
                 <SelectContent>
                   <SelectGroup>
                     {companies.map((company) => (
-                      <SelectItem key={company._id} value={company.name.toLowerCase()}>
+                      <SelectItem key={company.id} value={company.name.toLowerCase()}>
                         {company.name}
                       </SelectItem>
                     ))}
