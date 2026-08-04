@@ -255,7 +255,11 @@ describe("requireVerified", () => {
 function anyApp(): Express {
   const app = express();
   app.use(cookieParser());
-  app.get("/any", authenticateAny(), (req, res) => res.json({ auth: req.auth }));
+  app.get("/any", authenticateAny(), (req, res) =>
+    // `id` is returned so the assertions below can prove the legacy field is
+    // gone, not merely unused.
+    res.json({ auth: req.auth, id: (req as { id?: string }).id ?? null }),
+  );
   app.get("/opt", optionalAuthenticate(), (req, res) => res.json({ auth: req.auth ?? null }));
   app.use(errorHandler);
   return app;
@@ -263,10 +267,13 @@ function anyApp(): Express {
 
 describe("authenticateAny / optionalAuthenticate", () => {
   it("resolves a seeker session and sets no req.id", async () => {
-    const { access } = await signedUpOn("seeker", "any-seeker@example.com");
-    const res = await request(anyApp()).get("/any").set("Cookie", [`jp_seeker_at=${access}`]);
+    const { access, id } = await signedUpOn("seeker", "any-seeker@example.com");
+    const res = await request(anyApp())
+      .get("/any")
+      .set("Cookie", [`${accessCookieName("seeker")}=${access}`]);
     expect(res.status).toBe(200);
-    expect(res.body.auth.portal).toBe("seeker");
+    expect(res.body.auth).toMatchObject({ id, portal: "seeker", emailVerified: true });
+    expect(res.body.id).toBeNull();
   });
 
   it("401s with no cookie on authenticateAny", async () => {
@@ -281,12 +288,64 @@ describe("authenticateAny / optionalAuthenticate", () => {
     expect(res.body.auth).toBeNull();
   });
 
+  it("optionalAuthenticate resolves a real session when one is present", async () => {
+    const { access, id } = await signedUpOn("recruiter", "opt-real@example.com");
+    const res = await request(anyApp())
+      .get("/opt")
+      .set("Cookie", [`${accessCookieName("recruiter")}=${access}`]);
+    expect(res.body.auth).toMatchObject({ id, portal: "recruiter" });
+  });
+
   it("prefers seeker when both cookies are present (fixed order)", async () => {
     const s = await signedUpOn("seeker", "both-s@example.com");
     const r = await signedUpOn("recruiter", "both-r@example.com");
     const res = await request(anyApp())
       .get("/any")
-      .set("Cookie", [`jp_seeker_at=${s.access}`, `jp_recruiter_at=${r.access}`]);
+      .set("Cookie", [
+        `${accessCookieName("seeker")}=${s.access}`,
+        `${accessCookieName("recruiter")}=${r.access}`,
+      ]);
+    expect(res.status).toBe(200);
+    expect(res.body.auth.id).toBe(s.id);
     expect(res.body.auth.portal).toBe("seeker");
+  });
+
+  // Carried over from bridge.test.ts, which tested the deleted bridgeAuth. The
+  // behaviours themselves still matter; only the middleware under them changed.
+  it("falls through a stale cookie for one portal to the valid other one", async () => {
+    const recruiter = await signedUpOn("recruiter", "mixed@example.com");
+    const res = await request(anyApp())
+      .get("/any")
+      .set("Cookie", [
+        `${accessCookieName("seeker")}=not-a-token`,
+        `${accessCookieName("recruiter")}=${recruiter.access}`,
+      ]);
+    expect(res.status).toBe(200);
+    expect(res.body.auth.portal).toBe("recruiter");
+  });
+
+  it("rejects the inherited token cookie outright", async () => {
+    // Signed with the real access secret, so it would have been accepted while
+    // the legacy fallback existed. No code path reads it now: a browser still
+    // holding one is signed out rather than half-authenticated.
+    const token = jwt.sign({ userId: "68b0f0000000000000000001" }, process.env.JWT_ACCESS_SECRET!);
+    const res = await request(anyApp()).get("/any").set("Cookie", [`token=${token}`]);
+    expect(res.status).toBe(401);
+  });
+
+  it("ignores a legacy cookie sitting alongside a valid session", async () => {
+    const seeker = await signedUpOn("seeker", "both-legacy@example.com");
+    const othersLegacyToken = jwt.sign(
+      { userId: "68b0f0000000000000000002" },
+      process.env.JWT_ACCESS_SECRET!,
+    );
+    const res = await request(anyApp())
+      .get("/any")
+      .set("Cookie", [
+        `${accessCookieName("seeker")}=${seeker.access}`,
+        `token=${othersLegacyToken}`,
+      ]);
+    expect(res.status).toBe(200);
+    expect(res.body.auth.id).toBe(seeker.id);
   });
 });

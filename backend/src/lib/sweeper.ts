@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import type { Portal } from "@jobportal/shared";
 import { env } from "../config/env.js";
 import { logger } from "./logger.js";
@@ -37,7 +38,7 @@ export async function sweepUnverifiedAccounts(): Promise<Record<Portal, number>>
           // clause here. Remove this and the first tick after the migration
           // deletes the entire userbase. `sweeper.test.ts` guards it.
           migratedFromLegacyAt: null,
-          createdAt: { $lt: cutoff },
+          createdAt: mongoose.trusted({ $lt: cutoff }),
         })
         .select({ _id: 1 })
         .limit(BATCH)
@@ -53,14 +54,19 @@ export async function sweepUnverifiedAccounts(): Promise<Record<Portal, number>>
       // that no longer exists, which is the state every "who owns this?" query
       // in Phase 1C would have to defend against.
       await Promise.all([
-        OtpCode.deleteMany({ subjectId: { $in: ids }, subjectType: portal }),
-        OtpBudget.deleteMany({ subjectId: { $in: ids }, subjectType: portal }),
+        OtpCode.deleteMany({ subjectId: mongoose.trusted({ $in: ids }), subjectType: portal }),
+        OtpBudget.deleteMany({ subjectId: mongoose.trusted({ $in: ids }), subjectType: portal }),
         // An unverified account cannot hold a session today. This is here so
         // that stays true if some future flow issues one before verification.
-        RefreshToken.deleteMany({ subjectId: { $in: ids }, subjectType: portal }),
+        RefreshToken.deleteMany({
+          subjectId: mongoose.trusted({ $in: ids }),
+          subjectType: portal,
+        }),
       ]);
 
-      const result = await accountModel(portal).deleteMany({ _id: { $in: ids } });
+      const result = await accountModel(portal).deleteMany({
+        _id: mongoose.trusted({ $in: ids }),
+      });
       deleted[portal] += result.deletedCount ?? 0;
 
       if (doomed.length < BATCH) break;

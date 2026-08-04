@@ -1,4 +1,4 @@
-import { Types, type HydratedDocument } from "mongoose";
+import mongoose, { Types, type HydratedDocument } from "mongoose";
 import type { Portal, RegisterBody, SessionUser } from "@jobportal/shared";
 import { AppError } from "../lib/AppError.js";
 import { env } from "../config/env.js";
@@ -143,10 +143,10 @@ export async function verifyEmail(portal: Portal, email: string, code: string): 
       subjectType: portal, // a seeker code cannot redeem on the recruiter mount
       subjectId, // redundant with the subject-bound hash, and kept anyway
       consumedAt: null,
-      expiresAt: { $gt: new Date() },
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
       // Meters the CORRECT code only (see above); kept as a backstop against
       // pathological replay of a known-good code before consumption lands.
-      attempts: { $lt: env().OTP_MAX_ATTEMPTS },
+      attempts: mongoose.trusted({ $lt: env().OTP_MAX_ATTEMPTS }),
     },
     { $inc: { attempts: 1 } }, // increment in the SAME operation that matches
     { new: true },
@@ -454,8 +454,8 @@ export async function resetPassword(
       subjectType: portal,
       subjectId,
       consumedAt: null,
-      expiresAt: { $gt: new Date() },
-      attempts: { $lt: env().OTP_MAX_ATTEMPTS },
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
+      attempts: mongoose.trusted({ $lt: env().OTP_MAX_ATTEMPTS }),
     },
     { $inc: { attempts: 1 } },
     { new: true },

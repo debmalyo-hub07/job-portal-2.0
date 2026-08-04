@@ -25,6 +25,8 @@ process.env.SWEEP_INTERVAL_MINUTES = "60";
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   process.env.MONGO_URI = mongo.getUri();
+  // Production sets this in src/config/db.ts, which the harness bypasses.
+  mongoose.set("sanitizeFilter", true);
   await mongoose.connect(process.env.MONGO_URI);
 });
 

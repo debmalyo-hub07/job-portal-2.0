@@ -3,14 +3,14 @@ import { Schema } from "mongoose";
 /**
  * NOTE ON QUERY PROJECTION — READ BEFORE QUERYING THESE COLLECTIONS.
  *
- * `mongoose.set("sanitizeFilter", true)` is deliberately OFF: it strips the
- * legitimate `$or` / `$lt` operators the Task 12 bridge and sweeper depend on.
- * The actual defense is Zod validation at the request boundary, which means
- * every query against these collections MUST explicitly project only the fields
- * it reads — a `findOne({ email }, {}, { fields: { passwordHash: 1 } })` that
- * receives a string shaped like an operator matches nothing. Never rely on
- * `select: false` alone. This stays off until the last unvalidated query path
- * (the domain routes behind bridgeAuth) is validated in Phase 1C.
+ * `mongoose.set("sanitizeFilter", true)` is ON (src/config/db.ts), so an
+ * operator-shaped VALUE that reaches a filter through a string field is compared
+ * as a literal rather than executed. A query that deliberately wants an operator
+ * opts in with `mongoose.trusted({ $gt: … })`; grep for it to see every one.
+ *
+ * That is a backstop, not the defense. The defense is still Zod at the request
+ * boundary plus explicit projection: every query against these collections
+ * should project only the fields it reads. Never rely on `select: false` alone.
  */
 
 /**

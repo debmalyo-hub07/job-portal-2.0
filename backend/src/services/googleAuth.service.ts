@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
-import type { HydratedDocument } from "mongoose";
+import mongoose, { type HydratedDocument } from "mongoose";
 import type { Request, Response } from "express";
 import type { Portal } from "@jobportal/shared";
 import { env, googleRedirectUri } from "../config/env.js";
@@ -259,7 +259,7 @@ export async function confirmGoogleLink(portal: Portal, token: string): Promise<
       {
         _id: claims.sub,
         "pendingGoogleLink.googleId": claims.googleId,
-        "pendingGoogleLink.requestedAt": { $gt: cutoff },
+        "pendingGoogleLink.requestedAt": mongoose.trusted({ $gt: cutoff }),
         googleId: null,
       },
       {
