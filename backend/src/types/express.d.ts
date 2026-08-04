@@ -10,8 +10,8 @@ declare global {
       requestId?: string;
 
       /**
-       * Authenticated subject, set by `authenticate(portal)` (Task 6) or
-       * `bridgeAuth` (Task 12).
+       * Authenticated subject, set by `authenticate(portal)` on the auth routes
+       * or `bridgeAuth` on the inherited domain routes.
        *
        * This is the real contract. A bare string id could not express *which
        * collection* it came from, so every downstream check had to carry the
@@ -25,10 +25,12 @@ declare global {
       };
 
       /**
-       * KEPT UNTIL PHASE 1C. The inherited domain controllers
-       * (`updateProfile`, `postJob`, `getAdminJobs`, `applyJob`, …) read this,
-       * and Task 12's bridge keeps populating it from `auth.id` so they keep
-       * working unchanged.
+       * KEPT UNTIL PHASE 1C. Authenticated subject's id, set by `bridgeAuth`
+       * from `req.auth.id`.
+       *
+       * The inherited domain controllers (`updateProfile`, `postJob`,
+       * `getAdminJobs`, `applyJob`, …) read this, so the bridge keeps populating
+       * it and they keep working unchanged.
        *
        * Do not add new readers. It cannot express a portal, which is exactly why
        * `auth` exists; 1C moves those controllers onto `auth` and this goes with

@@ -19,26 +19,6 @@ export type LegacyCompany = {
   updatedAt: string;
 };
 
-export type LegacyUserProfile = {
-  bio?: string;
-  skills?: string[];
-  resume?: string;
-  resumeOriginalName?: string;
-  company?: string;
-  profilePhoto?: string;
-};
-
-export type LegacyUser = {
-  _id: string;
-  fullname: string;
-  email: string;
-  phoneNumber: number;
-  role: "student" | "recruiter";
-  profile?: LegacyUserProfile;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
 export type LegacyJob = {
   _id: string;
   title: string;
