@@ -71,3 +71,52 @@ export function bridgeAuth(scope: BridgeScope) {
     next(AppError.unauthorized("SESSION_MISSING", "Sign in to continue."));
   };
 }
+
+/**
+ * Resolves a portal session if one is present, and does nothing if not.
+ *
+ * For genuinely public reads that still want to know who is asking — the job
+ * board renders for anonymous visitors, but an authenticated seeker also needs
+ * to be told which jobs they have already applied to.
+ *
+ * Deliberately never 401s. A handler behind this middleware MUST treat
+ * `req.auth` as absent-by-default; if it would break without a session, it wants
+ * `bridgeAuth`, not this.
+ */
+export function optionalBridgeAuth() {
+  return async function optionalBridgeAuthMiddleware(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    for (const portal of CANDIDATES) {
+      const token = req.cookies?.[accessCookieName(portal)] as string | undefined;
+      if (!token) continue;
+
+      let claims;
+      try {
+        claims = verifyAccessToken(token, portal);
+      } catch {
+        continue;
+      }
+
+      const account = await findAccountById(portal, claims.sub);
+      if (!account || account.status !== "active") continue;
+
+      const cutoff = account.sessionsInvalidatedAt;
+      if (cutoff && claims.iat !== undefined) {
+        if (claims.iat < Math.floor(cutoff.getTime() / 1000)) continue;
+      }
+
+      req.auth = {
+        id: String(account._id),
+        portal,
+        emailVerified: account.emailVerifiedAt !== null,
+      };
+      req.id = String(account._id);
+      break;
+    }
+
+    next();
+  };
+}

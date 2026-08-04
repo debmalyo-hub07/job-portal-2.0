@@ -69,15 +69,23 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
   });
 };
 
-// student
+// Public: the job board renders for anonymous visitors.
 export const getJobById = async (req: Request, res: Response): Promise<void> => {
   const jobId = req.params.id;
-  const job = await Job.findById(jobId).populate({
-    path: "applications",
-  });
+  // `applications` is excluded at the query, not stripped afterwards. It used to
+  // be *populated* here, and the client read it to decide whether to show
+  // "Already Applied" — which meant every visitor to a job page received that
+  // job's entire applicant list. The client now asks the seeker-scoped
+  // /application/get about its own applications, which is the only question it
+  // ever actually needed answered.
+  const job = await Job.findById(jobId)
+    .select("-applications")
+    .populate({ path: "company" })
+    .lean();
   if (!job) {
     throw AppError.notFound("JOB_NOT_FOUND", "Jobs not found.");
   }
+
   res.status(200).json({ job, success: true });
 };
 
