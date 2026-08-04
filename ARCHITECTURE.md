@@ -134,38 +134,40 @@ Documented because they are deliberate carry-overs, not oversights:
   only reason `applications.applicant`, `jobs.created_by` and `companies.userId`
   resolve after the split. Any future re-migration must preserve it too, and any
   script that mints fresh ids silently dangles the entire object graph.
-- **`sanitizeFilter` is deliberately off.** It strips the legitimate `$or`/`$lt`
-  operators the bridge and the sweeper depend on. The defence is Zod validation
-  at the request boundary plus explicit projection on every query — never
-  `select: false` alone. This flips on in 1C, once the domain routes behind
-  `bridgeAuth` are validated.
+- **`sanitizeFilter` was deliberately off.** It is **on** as of Phase 1C
+  (`src/config/db.ts`), so an operator-shaped value reaching a filter through a
+  string field is compared as a literal. Queries that legitimately want an
+  operator opt in with `mongoose.trusted({ $gt: … })`. That is a backstop; the
+  defence is still Zod at the request boundary plus explicit projection on every
+  query — never `select: false` alone.
 
 ## Authentication and authorization
 
-**Current (Phase 1B):**
+**Current (Phase 1C):**
 
 ```
 Auth routes      authenticate(portal) → requireVerified → csrfProtection (mutations)
-Domain routes    bridgeAuth(portal | "any")          ← transitional
-Target (1C)      authenticate(portal) → requireVerified → requireOwnership(resource)
+Domain routes    authenticate(portal) → service-layer ownership check
+Public reads     optionalAuthenticate()
+Both portals     authenticateAny()                     ← /api/v1/user/profile
 ```
 
-`bridgeAuth` exists because Phase 1B replaced authentication without rewriting
-the domain modules. It accepts a portal-scoped session from either mount (or a
-named one) and populates both `req.auth` and the legacy `req.id` those
-controllers still read. It is functionally `authenticate(portal)` generalised
-over two portals, and it disappears when 1C moves those controllers onto
-`req.auth`.
+`bridgeAuth` and the legacy `req.id` it populated are deleted. `authenticateAny`
+is the generalisation over two portals that the bridge used to provide, minus the
+legacy field; `optionalAuthenticate` resolves a session when one exists and never
+401s, for the public job board.
 
 It briefly also accepted the inherited `token` cookie behind a
 `LEGACY_AUTH_FALLBACK` flag, so that a deploy could be rolled back without
 logging out every signed-in user. Both the flag and that branch are now deleted:
 the only session-issuing endpoints are the portal-scoped ones.
 
-Authentication is fixed; **authorization is not**. There is still no ownership
-check on any route: any authenticated recruiter can edit any company, read any
-job's applicant list, and change any application's status. That is the central
-defect Phase 1C exists to fix.
+Authorization is enforced in the **service layer**, not in middleware: the check
+is a query predicate (`{ _id, userId: callerId }`) rather than a fetch followed
+by a comparison, so there is no window in which an unowned document is in hand.
+A resource that is missing and one that belongs to someone else answer
+identically — 404, same code, same message — because a 403 confirms existence.
+Applications reach their owner transitively: application → job → `created_by`.
 
 There is deliberately no `requireRole` step. With two account collections the
 collection *is* the role: a token issued from the seeker portal cannot address a

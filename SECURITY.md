@@ -56,15 +56,27 @@ data yet.
   which is what made it reachable without a session; the client now asks the
   seeker-scoped `/application/get` about its own applications instead
 
+### Fixed in Phase 1C
+
+| Defect | How it is closed |
+|---|---|
+| **No ownership checks on any route** | Every route touching a user-owned resource resolves it by a predicate that includes the caller (`{ _id, userId }`), in the service layer. Missing and foreign are indistinguishable: both 404, same code and message. Applications reach their owner transitively (application → job → `created_by`) |
+| `getApplicants` returns an unprojected document | Returns `ApplicantDto` — name, email, phone, headline, skills, resume link, status, applied-at. The populate is projected at the query, so nothing else is even loaded |
+| Resumes on public, guessable Cloudinary URLs | Uploaded as `authenticated` raw assets; the DB stores the `public_id`; each read mints a ~10-minute signed URL. Pre-1C rows holding a full URL still resolve, and are the only remaining public links |
+| `$regex` search built from raw query input | Input is escaped before it reaches a `RegExp`, and the filter is a `RegExp` value inside `mongoose.trusted`. Still an unindexed scan — a `$text` index is a Phase 3 decision |
+| `GET /apply/:id` mutates state | Now `POST /application/apply/:id`. Duplicate applies are rejected by a unique `{job, applicant}` index rather than a read-then-write, so two parallel applies cannot both succeed |
+
+Also in 1C: `sanitizeFilter` on globally, `bridgeAuth`/`req.id` deleted, upload
+size and MIME limits, Zod validation on every domain input, pagination on every
+list endpoint, and the legacy `users` collection dropped.
+
 ### Not yet fixed — known and scheduled
 
 | Defect | Impact | Fixed in |
 |---|---|---|
-| **No ownership checks on any route** | Any authenticated recruiter can edit any company, read any job's applicants, change any application's status. Portal scoping does not help: it proves *which kind* of user is calling, never *which* user owns the row | 1C |
-| `getApplicants` returns an unprojected document | Full applicant PII to any recruiter. No longer leaks password hashes — `passwordHash` is `select: false` since 1B | 1C |
-| Resumes on public, guessable Cloudinary URLs | PII (phone, address, employment history) enumerable by anyone | 1C |
-| `$regex` search built from raw query input | Unindexable; ReDoS vector. Reachable **anonymously** since the job board was made public | 1C |
-| `GET /apply/:id` mutates state | Triggerable by an `<img>` tag on any site | 1C |
+| Keyword search is an unindexed regex scan | Full collection scan per search. Injection and ReDoS are closed; this is a performance ceiling, not a vulnerability | 3 |
+| Replacing a company logo orphans the previous Cloudinary asset | Storage growth; the orphan stays publicly readable | unscheduled |
+| An over-size upload surfaces as a 500 | `MulterError` is not mapped to an `AppError`, so the envelope is wrong and the log reads as an unhandled error | unscheduled |
 
 ## Authentication design (Phase 1B, as built)
 
