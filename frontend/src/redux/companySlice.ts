@@ -1,9 +1,9 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { LegacyCompany } from "@jobportal/shared";
+import type { CompanyDto } from "@jobportal/shared";
 
 type CompanyState = {
-  singleCompany: LegacyCompany | null;
-  companies: LegacyCompany[];
+  singleCompany: CompanyDto | null;
+  companies: CompanyDto[];
   searchCompanyByText: string;
 };
 
@@ -17,10 +17,10 @@ const companySlice = createSlice({
   name: "company",
   initialState,
   reducers: {
-    setSingleCompany: (state, action: PayloadAction<LegacyCompany | null>) => {
+    setSingleCompany: (state, action: PayloadAction<CompanyDto | null>) => {
       state.singleCompany = action.payload;
     },
-    setCompanies: (state, action: PayloadAction<LegacyCompany[]>) => {
+    setCompanies: (state, action: PayloadAction<CompanyDto[]>) => {
       state.companies = action.payload;
     },
     setSearchCompanyByText: (state, action: PayloadAction<string>) => {

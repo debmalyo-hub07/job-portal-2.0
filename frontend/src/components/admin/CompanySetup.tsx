@@ -38,22 +38,24 @@ const CompanySetup = () => {
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData();
-    formData.append("name", input.name);
-    formData.append("description", input.description);
-    formData.append("website", input.website);
-    formData.append("location", input.location);
+    // Only non-empty fields are sent: the update schema validates each field it
+    // receives, so an empty `website` is a 400 rather than a no-op.
+    for (const field of ["name", "description", "website", "location"] as const) {
+      const value = input[field].trim();
+      if (value) formData.append(field, value);
+    }
     if (input.file) {
       formData.append("file", input.file);
     }
     try {
       setLoading(true);
-      const res = await apiClient.put<{ success: boolean; message: string }>(
+      const res = await apiClient.put<{ success: boolean }>(
         `/company/update/${params.id}`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
       if (res.data.success) {
-        toast.success(res.data.message);
+        toast.success("Company updated");
         navigate("/admin/companies");
       }
     } catch (error) {

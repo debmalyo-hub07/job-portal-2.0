@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { LegacyCompany } from "@jobportal/shared";
+import type { CompanyDto } from "@jobportal/shared";
 import { apiClient } from "@/lib/apiClient";
 import { setCompanies } from "@/redux/companySlice";
 import { useAppDispatch } from "@/redux/store";
@@ -10,7 +10,8 @@ const useGetAllCompanies = () => {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await apiClient.get<{ success: boolean; companies: LegacyCompany[] }>(
+        // A recruiter's own companies: a plain array, not a paginated envelope.
+        const res = await apiClient.get<{ success: boolean; companies: CompanyDto[] }>(
           "/company/get",
         );
         if (res.data.success) {

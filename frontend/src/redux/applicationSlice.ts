@@ -1,8 +1,8 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { LegacyApplication } from "@jobportal/shared";
+import type { ApplicantDto } from "@jobportal/shared";
 
 type ApplicationState = {
-  applicants: LegacyApplication[];
+  applicants: ApplicantDto[];
 };
 
 const initialState: ApplicationState = {
@@ -13,7 +13,7 @@ const applicationSlice = createSlice({
   name: "application",
   initialState,
   reducers: {
-    setAllApplicants: (state, action: PayloadAction<LegacyApplication[]>) => {
+    setAllApplicants: (state, action: PayloadAction<ApplicantDto[]>) => {
       state.applicants = action.payload;
     },
   },

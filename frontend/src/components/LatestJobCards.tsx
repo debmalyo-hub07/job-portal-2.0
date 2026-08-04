@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import type { LegacyJob } from "@jobportal/shared";
+import type { JobDto } from "@jobportal/shared";
 import { Badge } from "./ui/badge";
 
 type LatestJobCardsProps = {
-  job: LegacyJob;
+  job: JobDto;
 };
 
 const LatestJobCards = ({ job }: LatestJobCardsProps) => {
@@ -11,7 +11,7 @@ const LatestJobCards = ({ job }: LatestJobCardsProps) => {
 
   return (
     <div
-      onClick={() => navigate(`/description/${job._id}`)}
+      onClick={() => navigate(`/description/${job.id}`)}
       className="p-5 rounded-md shadow-xl bg-white border border-gray-100 cursor-pointer"
     >
       <div>

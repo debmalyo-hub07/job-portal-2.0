@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { LegacyCompany } from "@jobportal/shared";
+import type { CompanyDto } from "@jobportal/shared";
 import { apiClient } from "@/lib/apiClient";
 import { setSingleCompany } from "@/redux/companySlice";
 import { useAppDispatch } from "@/redux/store";
@@ -12,7 +12,7 @@ const useGetCompanyById = (companyId: string | undefined) => {
 
     const fetchSingleCompany = async () => {
       try {
-        const res = await apiClient.get<{ success: boolean; company: LegacyCompany }>(
+        const res = await apiClient.get<{ success: boolean; company: CompanyDto }>(
           `/company/get/${companyId}`,
         );
         if (res.data.success) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import type { LegacyJob } from "@jobportal/shared";
+import type { JobDto } from "@jobportal/shared";
 
 import Navbar from "./shared/Navbar";
 import FilterCard from "./FilterCard";
@@ -9,7 +9,7 @@ import { useAppSelector } from "@/redux/store";
 
 const Jobs = () => {
   const { allJobs, searchedQuery } = useAppSelector((state) => state.job);
-  const [filterJobs, setFilterJobs] = useState<LegacyJob[]>(allJobs);
+  const [filterJobs, setFilterJobs] = useState<JobDto[]>(allJobs);
 
   useEffect(() => {
     if (!searchedQuery) {
@@ -49,7 +49,7 @@ const Jobs = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -100 }}
                     transition={{ duration: 0.3 }}
-                    key={job._id}
+                    key={job.id}
                   >
                     <Job job={job} />
                   </motion.div>

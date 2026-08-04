@@ -15,12 +15,12 @@ import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { useAppSelector } from "@/redux/store";
 
-const shortlistingStatus = ["Accepted", "Rejected"];
+const shortlistingStatus = ["accepted", "rejected"] as const;
 
 const ApplicantsTable = () => {
   const { applicants } = useAppSelector((state) => state.application);
 
-  const statusHandler = async (status: string, id: string) => {
+  const statusHandler = async (status: (typeof shortlistingStatus)[number], id: string) => {
     try {
       const res = await apiClient.post<{ success: boolean; message: string }>(
         `/application/status/${id}/update`,
@@ -50,25 +50,25 @@ const ApplicantsTable = () => {
         </TableHeader>
         <TableBody>
           {applicants.map((item) => (
-            <TableRow key={item._id}>
-              <TableCell>{item.applicant?.fullName}</TableCell>
-              <TableCell>{item.applicant?.email}</TableCell>
-              <TableCell>{item.applicant?.phone}</TableCell>
+            <TableRow key={item.applicationId}>
+              <TableCell>{item.fullName}</TableCell>
+              <TableCell>{item.email}</TableCell>
+              <TableCell>{item.phone ?? "NA"}</TableCell>
               <TableCell>
-                {item.applicant?.resume?.storageKey ? (
+                {item.resumeUrl ? (
                   <a
                     className="text-blue-600 cursor-pointer"
-                    href={item.applicant.resume.storageKey}
+                    href={item.resumeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {item.applicant.resume.originalName ?? "Download"}
+                    {item.resumeName ?? "Download"}
                   </a>
                 ) : (
                   <span>NA</span>
                 )}
               </TableCell>
-              <TableCell>{item.applicant?.createdAt?.split("T")[0]}</TableCell>
+              <TableCell>{item.appliedAt.split("T")[0]}</TableCell>
               <TableCell className="float-right cursor-pointer">
                 <Popover>
                   <PopoverTrigger>
@@ -77,9 +77,9 @@ const ApplicantsTable = () => {
                   <PopoverContent className="w-32">
                     {shortlistingStatus.map((status) => (
                       <div
-                        onClick={() => void statusHandler(status, item._id)}
+                        onClick={() => void statusHandler(status, item.applicationId)}
                         key={status}
-                        className="flex w-fit items-center my-2 cursor-pointer"
+                        className="flex w-fit items-center my-2 cursor-pointer capitalize"
                       >
                         <span>{status}</span>
                       </div>
