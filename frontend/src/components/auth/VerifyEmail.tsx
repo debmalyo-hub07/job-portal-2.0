@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { AuthResponse } from "@jobportal/shared";
 
-import Navbar from "../shared/Navbar";
-import { Label } from "../ui/label";
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
@@ -23,6 +24,7 @@ const VerifyEmail = () => {
   const [busy, setBusy] = useState(false);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const copy = AUTH_COPY[portal];
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,7 +37,7 @@ const VerifyEmail = () => {
       // Verification *does* issue a session, unlike registration.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate("/", { replace: true });
+      navigate(portal === "recruiter" ? "/admin/companies" : "/", { replace: true });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "That code did not work"));
     } finally {
@@ -58,50 +60,43 @@ const VerifyEmail = () => {
   };
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <form
-          onSubmit={submitHandler}
-          className="w-1/2 border border-gray-200 rounded-md p-4 my-10"
-        >
-          <h1 className="font-bold text-xl mb-2">Verify your email</h1>
-          <p className="text-sm text-gray-600 mb-5">
-            We sent a 6-digit code to <span className="font-medium">{email}</span>.
-          </p>
-          <div className="my-2">
-            <Label>Code</Label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="123456"
-            />
-          </div>
-          {busy ? (
-            <Button className="w-full my-4">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait
-            </Button>
-          ) : (
-            <Button type="submit" className="w-full my-4">
-              Verify
-            </Button>
-          )}
-          <Button type="button" variant="outline" className="w-full mb-4" onClick={resend}>
-            Resend code
-          </Button>
-          <span className="text-sm">
-            Wrong address?{" "}
-            <Link to="/signup" className="text-signal-text">
-              Sign up again
-            </Link>
-          </span>
-        </form>
-      </div>
-    </div>
+    <AuthLayout portal={portal} title="Verify your email">
+      <p className="-mt-6 mb-8 text-sm text-ink-muted">
+        We sent a 6-digit code to <span className="font-medium text-ink">{email}</span>.
+      </p>
+
+      <form onSubmit={submitHandler} noValidate>
+        <FormField label="Code" htmlFor="code" hint="Six digits, valid for 10 minutes." required>
+          <Input
+            id="code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="123456"
+            className="font-mono tracking-widest"
+          />
+        </FormField>
+
+        <Button type="submit" variant="signal" className="mt-2 w-full" disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : null}
+          {busy ? "Verifying" : "Verify"}
+        </Button>
+
+        <Button type="button" variant="outline" className="mt-3 w-full" onClick={resend}>
+          Resend code
+        </Button>
+
+        <p className="mt-6 text-sm text-ink-muted">
+          Wrong address?{" "}
+          <Link to={copy.signupHref} className="text-signal-text hover:underline">
+            Sign up again
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 
