@@ -74,6 +74,25 @@
   --text-display-xl: 4.209rem;
 }
 
+/* Density — a parameter, not a per-component judgement. Spacious is the
+   marketing and seeker default; compact is the recruiter workspace. Set via
+   data-density on PageShell; components read the vars, never the attribute. */
+:root,
+[data-density="spacious"] {
+  --space-section: 6rem;   /* 96px */
+  --space-card: 1.5rem;    /* 24px */
+  --space-row: 3.5rem;     /* 56px */
+  --space-field: 1.25rem;  /* 20px */
+  --space-page-top: 4rem;  /* 64px */
+}
+[data-density="compact"] {
+  --space-section: 2rem;   /* 32px */
+  --space-card: 1rem;      /* 16px */
+  --space-row: 2.5rem;     /* 40px */
+  --space-field: 0.75rem;  /* 12px */
+  --space-page-top: 2rem;  /* 32px */
+}
+
 :root {
   /* Ink & Signal light — warm neutrals at hue 95 */
   --paper: oklch(0.99 0.004 95);
