@@ -22,6 +22,11 @@ import ConfirmGoogleLink from "./components/auth/ConfirmGoogleLink";
 import AuthError from "./components/auth/AuthError";
 import { useAuthBootstrap } from "./hooks/useAuthBootstrap";
 import { PortalScope } from "./components/theme/PortalScope";
+import { lazy, Suspense } from "react";
+
+const DesignGallery = import.meta.env.DEV
+  ? lazy(() => import("./components/design/DesignGallery"))
+  : null;
 
 function RootLayout() {
   return (
@@ -57,6 +62,20 @@ const appRouter = createBrowserRouter([
       { path: "/admin/jobs", element: <ProtectedRoute><AdminJobs /></ProtectedRoute> },
       { path: "/admin/jobs/create", element: <ProtectedRoute><PostJob /></ProtectedRoute> },
       { path: "/admin/jobs/:id/applicants", element: <ProtectedRoute><Applicants /></ProtectedRoute> },
+      // DEV-only. `import.meta.env.DEV` is statically false in a production
+      // build, so Rollup drops both this route and the dynamic import.
+      ...(import.meta.env.DEV && DesignGallery
+        ? [
+            {
+              path: "/_design",
+              element: (
+                <Suspense fallback={null}>
+                  <DesignGallery />
+                </Suspense>
+              ),
+            },
+          ]
+        : []),
     ],
   },
 ]);
