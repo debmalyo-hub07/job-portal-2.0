@@ -21,7 +21,7 @@ const AuthError = () => {
         <div className="w-1/2 border border-gray-200 rounded-md p-4 my-10">
           <h1 className="font-bold text-xl mb-2">Sign-in failed</h1>
           <p className="text-sm text-gray-600">{message}</p>
-          <Link to="/login" className="text-sm text-blue-600 mt-4 inline-block">
+          <Link to="/login" className="text-sm text-signal-text mt-4 inline-block">
             Back to login
           </Link>
         </div>

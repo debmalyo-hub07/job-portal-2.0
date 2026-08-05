@@ -96,7 +96,7 @@ const Profile = () => {
               target="_blank"
               rel="noopener noreferrer"
               href={resumeUrl}
-              className="text-blue-500 w-full hover:underline cursor-pointer"
+              className="text-signal-text w-full hover:underline cursor-pointer"
             >
               {profile?.seeker?.resumeName ?? "Download resume"}
             </a>

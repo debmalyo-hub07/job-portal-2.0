@@ -57,7 +57,7 @@ const ApplicantsTable = () => {
               <TableCell>
                 {item.resumeUrl ? (
                   <a
-                    className="text-blue-600 cursor-pointer"
+                    className="text-signal-text cursor-pointer"
                     href={item.resumeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
