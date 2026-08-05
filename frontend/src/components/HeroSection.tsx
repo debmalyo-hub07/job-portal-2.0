@@ -1,46 +1,64 @@
 import { Search } from "lucide-react";
-import React, {useState} from "react";
-import { Button } from "./ui/button";
-import { useDispatch } from "react-redux";
-import { setSearchedQuery } from "@/redux/jobSlice";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 
+import { Button } from "./ui/button";
+import { setSearchedQuery } from "@/redux/jobSlice";
+import { FadeIn } from "@/lib/motion";
+
+/**
+ * The hero sits on the page's left axis rather than centred.
+ *
+ * The inherited version centred this block and then left-aligned the section
+ * header directly beneath it, so the page had two competing axes within one
+ * scroll. Everything now reads down one spine.
+ */
 function HeroSection() {
   const [query, setQuery] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const searchJobHandler = () => {
+  const searchJobHandler = (e: FormEvent) => {
+    e.preventDefault();
     dispatch(setSearchedQuery(query));
     navigate("/browse");
-  }
+  };
+
   return (
-    <div className="text-center">
-      <div className="flex flex-col gap-5 my-10">
-        <span className="mx-auto px-4 py-2 rounded-full bg-signal-muted text-signal-text font-medium">
-          No. 1 Job Hunt Website
+    <FadeIn>
+      <div className="flex flex-col items-start gap-5 py-(--space-section)">
+        <span className="rounded-full bg-signal-muted px-4 py-1.5 text-sm font-medium text-signal-text">
+          Hiring is open
         </span>
-        <h1 className="font-display text-display-lg font-bold text-ink">
-          Search, Apply & <br />
-          Get Your <span className="text-signal-text">Dream Job</span>
+        <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
+          Search, apply, and get your next role.
         </h1>
-        <p className="text-ink-muted text-lg">
-          Find the best jobs, internships, and freelance opportunities
-          tailored to your skills and interests.
+        <p className="max-w-xl text-lg text-ink-muted">
+          Find jobs, internships, and contract work matched to your skills.
         </p>
-        <div className="flex w-[40%] border border-line bg-paper-raised pl-3 rounded-full items-center gap-4 mx-auto">
-            <input
+        <form
+          onSubmit={searchJobHandler}
+          className="flex w-full max-w-xl items-center gap-2 rounded-full border border-line bg-paper-raised py-1 pr-1 pl-5"
+        >
+          <label htmlFor="hero-search" className="sr-only">
+            Search for jobs, companies, or skills
+          </label>
+          <input
+            id="hero-search"
             type="text"
             placeholder="Search for jobs, companies, or skills"
+            value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="outline-none border-none w-full bg-transparent text-ink placeholder:text-ink-muted"
-            />
-            <Button onClick={searchJobHandler} variant="signal" className="rounded-r-full">
-                <Search className="h-5 w-5"/>
-            </Button>
-        </div>
+            className="w-full border-none bg-transparent text-ink outline-none placeholder:text-ink-muted"
+          />
+          <Button type="submit" variant="signal" size="icon" className="rounded-full">
+            <Search />
+            <span className="sr-only">Search</span>
+          </Button>
+        </form>
       </div>
-    </div>
+    </FadeIn>
   );
 }
 
