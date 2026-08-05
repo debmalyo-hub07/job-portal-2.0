@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
-import Navbar from "../shared/Navbar";
-import { Label } from "../ui/label";
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
@@ -14,6 +15,7 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const copy = AUTH_COPY[portal];
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,39 +34,37 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <form
-          onSubmit={submitHandler}
-          className="w-1/2 border border-gray-200 rounded-md p-4 my-10"
-        >
-          <h1 className="font-bold text-xl mb-2">Reset your password</h1>
-          <p className="text-sm text-gray-600 mb-5">
-            Enter your email and we will send a reset code if an account exists.
-          </p>
-          <div className="my-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter Your Email"
-            />
-          </div>
-          {busy ? (
-            <Button className="w-full my-4">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait
-            </Button>
-          ) : (
-            <Button type="submit" className="w-full my-4">
-              Send reset code
-            </Button>
-          )}
-        </form>
-      </div>
-    </div>
+    <AuthLayout
+      portal={portal}
+      title="Reset your password"
+      subtitle="We'll email you a code if that address has an account."
+    >
+      <form onSubmit={submitHandler} noValidate>
+        <FormField label="Email" htmlFor="email" required>
+          <Input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+        </FormField>
+
+        <Button type="submit" variant="signal" className="mt-2 w-full" disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : null}
+          {busy ? "Sending" : "Send reset code"}
+        </Button>
+
+        <p className="mt-6 text-sm text-ink-muted">
+          Remembered it?{" "}
+          <Link to={copy.loginHref} className="text-signal-text hover:underline">
+            Back to sign in
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 

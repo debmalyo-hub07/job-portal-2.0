@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import Navbar from "../shared/Navbar";
-import { Label } from "../ui/label";
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
@@ -21,20 +22,25 @@ const ResetPassword = () => {
   });
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const copy = AUTH_COPY[portal];
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       setBusy(true);
       await apiClient.post(`/${portal}/auth/reset-password`, input);
-      // No session is issued after a reset, so none is set here either.
+      // No session is issued after a reset, so none is set here either. The
+      // destination is portal-aware: the inherited version sent everyone to
+      // /login, which drops a recruiter on a form their credentials fail.
       toast.success("Password changed. Sign in with your new password.");
-      navigate("/login", { replace: true });
+      navigate(copy.loginHref, { replace: true });
     } catch (error) {
       // PASSWORD_REUSED is the one code here the user can actually act on, so
       // its own message is worth showing rather than a generic failure.
       if (getApiErrorCode(error) === "PASSWORD_REUSED") {
-        toast.error(getApiErrorMessage(error, "Choose a password you have not used before"));
+        toast.error(
+          getApiErrorMessage(error, "Choose a password you have not used before"),
+        );
         return;
       }
       toast.error(getApiErrorMessage(error, "That code did not work"));
@@ -44,51 +50,56 @@ const ResetPassword = () => {
   };
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <form
-          onSubmit={submitHandler}
-          className="w-1/2 border border-gray-200 rounded-md p-4 my-10"
+    <AuthLayout portal={portal} title="Choose a new password">
+      <p className="-mt-6 mb-8 text-sm text-ink-muted">
+        Enter the code we emailed to{" "}
+        <span className="font-medium text-ink">{input.email}</span>.
+      </p>
+
+      <form onSubmit={submitHandler} noValidate>
+        <FormField label="Code" htmlFor="code" hint="Six digits, valid for 10 minutes." required>
+          <Input
+            id="code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={input.code}
+            onChange={(e) => setInput({ ...input, code: e.target.value })}
+            placeholder="123456"
+            className="font-mono tracking-widest"
+          />
+        </FormField>
+
+        <FormField
+          label="New password"
+          htmlFor="newPassword"
+          hint="At least 12 characters, and not one you have used before."
+          required
         >
-          <h1 className="font-bold text-xl mb-2">Choose a new password</h1>
-          <p className="text-sm text-gray-600 mb-5">
-            Enter the code we emailed to{" "}
-            <span className="font-medium">{input.email}</span>.
-          </p>
-          <div className="my-2">
-            <Label>Code</Label>
-            <Input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={input.code}
-              onChange={(e) => setInput({ ...input, code: e.target.value })}
-              placeholder="123456"
-            />
-          </div>
-          <div className="my-2">
-            <Label>New password</Label>
-            <Input
-              type="password"
-              value={input.newPassword}
-              onChange={(e) => setInput({ ...input, newPassword: e.target.value })}
-              placeholder="At least 12 characters"
-            />
-          </div>
-          {busy ? (
-            <Button className="w-full my-4">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait
-            </Button>
-          ) : (
-            <Button type="submit" className="w-full my-4">
-              Change password
-            </Button>
-          )}
-        </form>
-      </div>
-    </div>
+          <Input
+            id="newPassword"
+            type="password"
+            autoComplete="new-password"
+            value={input.newPassword}
+            onChange={(e) => setInput({ ...input, newPassword: e.target.value })}
+            placeholder="Choose a new password"
+          />
+        </FormField>
+
+        <Button type="submit" variant="signal" className="mt-2 w-full" disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : null}
+          {busy ? "Changing" : "Change password"}
+        </Button>
+
+        <p className="mt-6 text-sm text-ink-muted">
+          Remembered it?{" "}
+          <Link to={copy.loginHref} className="text-signal-text hover:underline">
+            Back to sign in
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 

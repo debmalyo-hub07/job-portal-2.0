@@ -1,5 +1,9 @@
 import { Link, useSearchParams } from "react-router-dom";
-import Navbar from "../shared/Navbar";
+import { AlertTriangle } from "lucide-react";
+
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { usePortalParam } from "@/hooks/usePortalParam";
 
 const MESSAGES: Record<string, string> = {
   GOOGLE_AUTH_FAILED: "Google sign-in could not be completed.",
@@ -7,26 +11,29 @@ const MESSAGES: Record<string, string> = {
 };
 
 const AuthError = () => {
+  const portal = usePortalParam();
   const [params] = useSearchParams();
-  // The *mapped* string only. The raw parameter is attacker-controlled text on
-  // a page of ours, and rendering it turns a bookmarkable URL into a way to put
+  const copy = AUTH_COPY[portal];
+  // The *mapped* string only. The raw parameter is attacker-controlled text on a
+  // page of ours, and rendering it turns a bookmarkable URL into a way to put
   // arbitrary words in our own voice.
   const message =
     MESSAGES[params.get("code") ?? ""] ?? "Something went wrong while signing you in.";
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <div className="w-1/2 border border-gray-200 rounded-md p-4 my-10">
-          <h1 className="font-bold text-xl mb-2">Sign-in failed</h1>
-          <p className="text-sm text-gray-600">{message}</p>
-          <Link to="/login" className="text-sm text-signal-text mt-4 inline-block">
-            Back to login
-          </Link>
-        </div>
-      </div>
-    </div>
+    <AuthLayout portal={portal} title="Sign-in failed">
+      {/* Icon AND label — semantic state is never colour alone. */}
+      <p className="flex items-start gap-2 text-sm text-ink">
+        <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger" />
+        <span>{message}</span>
+      </p>
+      <Link
+        to={copy.loginHref}
+        className="mt-6 inline-block text-sm text-signal-text hover:underline"
+      >
+        Back to sign in
+      </Link>
+    </AuthLayout>
   );
 };
 

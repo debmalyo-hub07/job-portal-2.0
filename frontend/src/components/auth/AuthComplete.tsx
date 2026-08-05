@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AuthResponse } from "@jobportal/shared";
 
-import Navbar from "../shared/Navbar";
+import { AuthLayout } from "./AuthLayout";
 import { apiClient } from "@/lib/apiClient";
 import { setPortalHint } from "@/lib/portal";
 import { setUser } from "@/redux/authSlice";
@@ -26,18 +26,18 @@ const AuthComplete = () => {
         dispatch(setUser(res.data.user));
         // `replace` on both paths: without it, Back returns to a callback URL
         // carrying a spent `code` and `state`, which fails and looks like a bug.
-        navigate("/", { replace: true });
+        //
+        // Portal-aware destination: sending a recruiter to "/" worked only
+        // because Home.tsx bounces them, which flashes the seeker hero first.
+        navigate(portal === "recruiter" ? "/admin/companies" : "/", { replace: true });
       })
       .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));
   }, [portal, dispatch, navigate]);
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <p className="my-20 text-gray-600">Signing you in…</p>
-      </div>
-    </div>
+    <AuthLayout portal={portal} title="Signing you in">
+      <p className="text-sm text-ink-muted">One moment while we finish up.</p>
+    </AuthLayout>
   );
 };
 
