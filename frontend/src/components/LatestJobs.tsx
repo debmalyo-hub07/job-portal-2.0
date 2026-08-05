@@ -7,8 +7,9 @@ import { useAppSelector } from "@/redux/store";
 
 const LatestJobs = () => {
   const { allJobs } = useAppSelector((state) => state.job);
-  // Six, so the 3-column grid fills two complete rows. The inherited version
-  // took whatever arrived and orphaned a lone card beside two empty cells.
+  // At most two full rows of the 3-column grid, so the landing page stays a
+  // fixed height as the job count grows. Carried over from the inherited
+  // component, which capped at the same six.
   const jobs = allJobs.slice(0, 6);
 
   return (
