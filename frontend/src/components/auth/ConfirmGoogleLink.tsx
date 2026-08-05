@@ -43,7 +43,7 @@ const ConfirmGoogleLink = () => {
               <p className="text-sm text-gray-600">
                 Done. You can now use “Continue with Google” to sign in.
               </p>
-              <Link to="/login" className="text-sm text-blue-600 mt-4 inline-block">
+              <Link to="/login" className="text-sm text-signal-text mt-4 inline-block">
                 Go to login
               </Link>
             </>
@@ -53,7 +53,7 @@ const ConfirmGoogleLink = () => {
                 Confirm that you want to connect your Google account to this
                 email address.
               </p>
-              {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+              {error && <p className="text-sm text-danger mb-4">{error}</p>}
               <Button onClick={confirm} disabled={state === "busy" || !token}>
                 {state === "busy" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Confirm

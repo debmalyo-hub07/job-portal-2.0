@@ -95,7 +95,7 @@ const VerifyEmail = () => {
           </Button>
           <span className="text-sm">
             Wrong address?{" "}
-            <Link to="/signup" className="text-blue-600">
+            <Link to="/signup" className="text-signal-text">
               Sign up again
             </Link>
           </span>

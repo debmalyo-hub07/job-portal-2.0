@@ -121,7 +121,7 @@ const Login = () => {
             </RadioGroup>
             <Link
               to={`/forgot-password?portal=${portal}`}
-              className="text-sm text-blue-600"
+              className="text-sm text-signal-text"
             >
               Forgot password?
             </Link>
@@ -152,7 +152,7 @@ const Login = () => {
           </Button>
           <span className="text-sm">
             Don&apos;t have an account?{" "}
-            <Link to="/signup" className="text-blue-600">
+            <Link to="/signup" className="text-signal-text">
               Signup
             </Link>
           </span>

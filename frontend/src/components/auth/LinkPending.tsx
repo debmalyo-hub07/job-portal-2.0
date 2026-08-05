@@ -18,7 +18,7 @@ const LinkPending = () => (
           link to it — open the link to connect your Google sign-in. Until then
           nothing has changed, and you can still sign in with your password.
         </p>
-        <Link to="/login" className="text-sm text-blue-600 mt-4 inline-block">
+        <Link to="/login" className="text-sm text-signal-text mt-4 inline-block">
           Back to login
         </Link>
       </div>

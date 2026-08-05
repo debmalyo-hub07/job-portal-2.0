@@ -150,7 +150,7 @@ const Signup = () => {
           )}
           <span className="text-sm">
             Already have an account?{" "}
-            <Link to="/login" className="text-blue-600">
+            <Link to="/login" className="text-signal-text">
               Login
             </Link>
           </span>

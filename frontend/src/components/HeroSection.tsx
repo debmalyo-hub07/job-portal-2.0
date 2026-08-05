@@ -17,25 +17,25 @@ function HeroSection() {
   return (
     <div className="text-center">
       <div className="flex flex-col gap-5 my-10">
-        <span className="mx-auto px-4 py-2 rounded-full bg-gray-100 text-[#F83002] font-medium">
+        <span className="mx-auto px-4 py-2 rounded-full bg-signal-muted text-signal-text font-medium">
           No. 1 Job Hunt Website
         </span>
-        <h1 className="text-5xl font-bold">
+        <h1 className="font-display text-display-lg font-bold text-ink">
           Search, Apply & <br />
-          Get Your <span className="text-[#6A38C2]">Dream Job</span>
+          Get Your <span className="text-signal-text">Dream Job</span>
         </h1>
-        <p className="text-gray-500 text-lg">
+        <p className="text-ink-muted text-lg">
           Find the best jobs, internships, and freelance opportunities
           tailored to your skills and interests.
         </p>
-        <div className="flex w-[40%] shadow-lg border border-gray-200 pl-3 rounded-full items-center gap-4 mx-auto">
-            <input 
-            type="text" 
+        <div className="flex w-[40%] border border-line bg-paper-raised pl-3 rounded-full items-center gap-4 mx-auto">
+            <input
+            type="text"
             placeholder="Search for jobs, companies, or skills"
             onChange={(e) => setQuery(e.target.value)}
-            className="outline-none border-none w-full"
+            className="outline-none border-none w-full bg-transparent text-ink placeholder:text-ink-muted"
             />
-            <Button onClick={searchJobHandler} className="rounded-r-full bg-[#6A38C2]">
+            <Button onClick={searchJobHandler} variant="signal" className="rounded-r-full">
                 <Search className="h-5 w-5"/>
             </Button>
         </div>

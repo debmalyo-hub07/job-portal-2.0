@@ -179,7 +179,7 @@ const PostJob = () => {
             </Button>
           )}
           {companies.length === 0 && (
-            <p className="text-xs text-red-600 font-bold text-center my-3">
+            <p className="text-xs text-danger font-bold text-center my-3">
               Please register a company to post a job
             </p>
           )}
