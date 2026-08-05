@@ -71,4 +71,13 @@ export default defineConfig([
       ],
     },
   },
+  {
+    // Test files never run through Vite's dev server, so Fast Refresh has no
+    // opinion worth honouring here — a helper module that exports both a render
+    // function and a Probe component is exactly the right shape for a harness.
+    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])
