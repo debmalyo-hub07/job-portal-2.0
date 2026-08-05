@@ -35,6 +35,7 @@ dist/
 
 # Test artifacts
 coverage/
+frontend/tests/visual/shots/
 
 # Scratch space for research agents — never committed
 .research/
