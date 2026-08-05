@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { portalForPath } from "@/components/theme/PortalScope";
+import { portalForPath } from "@/lib/portalRoutes";
 import { Probe, portalOf, renderRoute } from "./helpers/renderRoute";
 
 describe("portalForPath", () => {
