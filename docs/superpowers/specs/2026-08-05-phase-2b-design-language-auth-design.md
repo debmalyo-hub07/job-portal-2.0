@@ -22,7 +22,7 @@ Exit criteria:
 - No auth form contains a portal selector. Portal is a route literal on every
   auth surface that has one.
 - `/hire` exists and is reachable by an anonymous visitor.
-- All four bugs in [Bugs found](#bugs-found) are fixed, each with a regression
+- All three bugs in [Bugs found](#bugs-found) are fixed, each with a regression
   test.- Four layout primitives and two auth primitives exist and are the only way
   these pages express page structure, empty state, and form rhythm.
 - A frontend test runner exists and covers the routing, redirect, and session
@@ -43,26 +43,55 @@ rendering hides several defects.
 
 ### Bugs found
 
-Four defects, each with a regression test in this slice. Bugs 1–3 were visible
-on the auth surfaces; bug 4 was found only by signing in with a seeded account.
+Three defects, each with a regression test in this slice. Bugs 1–2 are visible
+on the auth surfaces; bug 3 was found only by signing in with a seeded account.
 
-1. **`Forgot password?` is unreadable in dark mode.** It renders saturated
-   blue-violet on near-black instead of resolving `--signal-text`, which is a
-   light lavender in the dark theme. Every other token on the page flips
-   correctly. This is a real contrast failure and the clearest argument for
-   scripted auditing over visual review — the light theme hides it completely.
-2. **The portal selector is a native browser control.** `Login.tsx:100` and
+1. **The portal selector is a native browser control.** `Login.tsx:100` and
    `Signup.tsx:118` use `<Input type="radio">` rather than the Radix
    `RadioGroup` 2A rebuilt. The rendered dot is Chrome's `accent-color`: outside
    the token system, unaffected by theme, unaffected by portal signal. It is the
    only control in the app that cannot be styled. This slice deletes the control
    rather than fixing it.
-3. **Two competing primary buttons on one surface.** `--color-primary` maps to
+2. **Two competing primary buttons on one surface.** `--color-primary` maps to
    `--ink`, so a form's submit button is black in light theme and near-white in
    dark, while the navbar's primary is the portal signal colour. The page's main
    action does not look like the application's main action. Observed on
    `/login`, `/signup`, `/admin/companies` ("New Company"), `/admin/jobs`
    ("New Jobs"), and `/admin/jobs/create` ("Post new job").
+3. **The account menu is unreachable, so sign-out is unreachable.**
+   `Navbar.tsx` renders an avatar-triggered popover containing sign-out for a
+   signed-in user, but `Navbar.tsx:88` and `:95` render `AvatarImage` with no
+   `AvatarFallback` sibling. `avatarUrl` is null for every account created
+   through the standard flow, so `AvatarImage` renders nothing, the trigger
+   collapses to an empty circle, and the menu cannot be opened. Observed on both
+   portals. `AvatarFallback` exists and is already token-styled
+   (`components/ui/avatar.tsx:39`) — it is simply never used.
+
+#### Investigated and dismissed: dark-mode link contrast
+
+An earlier review of the dark-theme `/login` screenshot recorded
+`Forgot password?` as a contrast failure. It is not. Measured in-browser, the
+link computes to `rgb(169,170,255)` on `rgb(26,25,24)` — **9.08:1**, well above
+the 4.5:1 floor. `--signal-text` resolves correctly to its dark-theme seeker
+value at both `:root` and the `[data-portal]` scope; the cascade in
+`index.css:135-142` behaves as intended.
+
+All six audited pairings pass:
+
+| Pairing | Ratio |
+|---|---|
+| dark seeker `--signal-text` on `--paper` | 9.08:1 |
+| dark recruiter `--signal-text` on `--paper` | 10.90:1 |
+| light seeker `--signal-text` on `--paper` | 7.18:1 |
+| light recruiter `--signal-text` on `--paper` | 6.51:1 |
+| dark `--ink` on `--paper` | 17.21:1 |
+| dark `--ink-muted` on `--paper` | 6.69:1 |
+
+The false positive came from judging a small-text colour by eye on a large dark
+screenshot. It is recorded here because it is the argument for the scripted
+audit in [Verification](#static-and-visual-checks): visual review produced a
+confident wrong answer about the one thing it is least able to judge, and the
+same mistake in the other direction would have shipped a real failure.
 
 ### Structural defects this slice fixes
 
@@ -259,7 +288,7 @@ The main action on any surface uses the portal signal: `--signal-text` fill with
 `--signal-text` rather than base `--signal`. `--ink` fills drop to secondary and
 neutral use.
 
-This resolves bug 3. A surface has exactly one signal-filled action; everything
+This resolves bug 2. A surface has exactly one signal-filled action; everything
 else is outline, ghost, or link.
 
 #### 2.5 Motion
@@ -342,7 +371,7 @@ not a layout one.
 
 Also in scope:
 
-- **`Navbar` account menu — bug 4.** The popover and its sign-out already exist;
+- **`Navbar` account menu — bug 3.** The popover and its sign-out already exist;
   its avatar trigger renders empty because `AvatarImage` has no `AvatarFallback`
   sibling and `avatarUrl` is null for standard accounts. Adding the fallback
   (initials, over `bg-paper-sunken`) makes the existing menu reachable. This is a
@@ -381,12 +410,14 @@ Behaviour under test:
 
 Regression cases, one per bug:
 
-1. every link and text token pairing on the auth surfaces clears 4.5:1 in both
-   themes (asserted by the contrast audit, not by eye)
-2. no `input[type="radio"]` appears in the DOM of any auth surface
-3. each rebuilt surface renders exactly one signal-filled primary action
-4. the navbar avatar trigger renders non-empty content when `avatarUrl` is
+1. no `input[type="radio"]` appears in the DOM of any auth surface
+2. each rebuilt surface renders exactly one signal-filled primary action
+3. the navbar avatar trigger renders non-empty content when `avatarUrl` is
    null, and the account menu it opens contains a working sign-out
+
+Plus, not tied to a bug but to the language: every link and text token pairing
+on the rebuilt surfaces clears 4.5:1 in both themes, asserted by the contrast
+audit rather than by eye.
 
 #### Static and visual checks
 
@@ -395,8 +426,11 @@ Regression cases, one per bug:
   `grep -rE '(bg|text|border)-\[#|(bg|text|border)-(red|blue|purple|green|yellow|pink|indigo|orange|teal|cyan)-[0-9]' frontend/src`
 - the OKLCH contrast audit extended to cover every new pairing introduced by the
   panels, including any gradient or tinted fill. New pairings are audited by
-  script before review, not eyeballed — bug 1 is precisely what visual review in
-  a single theme misses.
+  script before review, never by eye. The dismissed dark-mode finding above is
+  the argument: visual review produced a confident, wrong verdict on a 9.08:1
+  pairing, and the same error in the opposite direction ships a real failure.
+  The audit must resolve colours through a real colour pipeline — parsing
+  `oklch()` components as if they were sRGB channels yields nonsense.
 - a Playwright pass over each rebuilt route in both themes and both portals,
   asserting no console errors and capturing screenshots for review
 - `/_design` continues to render every primitive and gains the six new
