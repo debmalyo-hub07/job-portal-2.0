@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { AuthResponse, Portal } from "@jobportal/shared";
 
-import Navbar from "../shared/Navbar";
-import { Label } from "../ui/label";
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
-import { RadioGroup } from "../ui/radio-group";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
@@ -15,25 +15,22 @@ import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
-const Login = () => {
-  /**
-   * This radio looks like the defect it replaces, so: it no longer sends a
-   * `role` in the body for the server to trust. It picks which URL to post to.
-   * An account exists in exactly one collection (ADR-0001), so choosing the
-   * wrong portal produces INVALID_CREDENTIALS and nothing else — it cannot
-   * grant a role, because there is no role field left to grant.
-   */
-  const [portal, setPortal] = useState<Portal>("seeker");
+/**
+ * The portal arrives as a prop from the route, never from component state.
+ *
+ * The version this replaces held it in `useState` and rendered a radio pair, so
+ * the endpoint the form posted to and the signal colour PortalScope resolved
+ * from the URL could disagree — /login always looked like the seeker portal even
+ * with "Recruiter" selected. One route, one portal, no control.
+ */
+const Login = ({ portal }: { portal: Portal }) => {
   const [input, setInput] = useState({ email: "", password: "" });
   const { loading, user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-
+  const copy = AUTH_COPY[portal];
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    setInput({
-      ...input,
-      [e.target.name]: e.target.value,
-    });
+    setInput({ ...input, [e.target.name]: e.target.value });
   };
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
@@ -45,7 +42,7 @@ const Login = () => {
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate("/");
+      navigate(portal === "recruiter" ? "/admin/companies" : "/");
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.
@@ -60,105 +57,81 @@ const Login = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
+    if (user) navigate(user.portal === "recruiter" ? "/admin/companies" : "/");
   }, [user, navigate]);
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <form
-          onSubmit={submitHandler}
-          className="w-1/2 border border-gray-200 rounded-md p-4 my-10"
-        >
-          <h1 className="font-bold text-xl mb-5">Login</h1>
-          <div className="my-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={input.email}
-              name="email"
-              onChange={changeEventHandler}
-              placeholder="Enter Your Email"
-            />
-          </div>
-          <div className="my-2">
-            <Label>Password</Label>
-            <Input
-              type="password"
-              value={input.password}
-              name="password"
-              onChange={changeEventHandler}
-              placeholder="Enter Your Password"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <RadioGroup className="flex items-center gap-4 my-5">
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="radio"
-                  name="portal"
-                  value="seeker"
-                  checked={portal === "seeker"}
-                  onChange={() => setPortal("seeker")}
-                  className="cursor-pointer"
-                />
-                <Label>Job seeker</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="radio"
-                  name="portal"
-                  value="recruiter"
-                  checked={portal === "recruiter"}
-                  onChange={() => setPortal("recruiter")}
-                  className="cursor-pointer"
-                />
-                <Label>Recruiter</Label>
-              </div>
-            </RadioGroup>
-            <Link
-              to={`/forgot-password?portal=${portal}`}
-              className="text-sm text-signal-text"
-            >
-              Forgot password?
-            </Link>
-          </div>
-          {loading ? (
-            <Button className="w-full my-4">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait
-            </Button>
-          ) : (
-            <Button type="submit" className="w-full my-4">
-              Login
-            </Button>
-          )}
-          {/*
-            A real navigation, not a fetch: the OAuth flow is a series of
-            top-level redirects and XHR cannot follow them.
-          */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-4"
-            onClick={() => {
-              window.location.href = `${import.meta.env.VITE_API_URL}/${portal}/auth/google`;
-            }}
+    <AuthLayout
+      portal={portal}
+      title="Welcome back"
+      subtitle={
+        portal === "recruiter"
+          ? "Sign in to your hiring account."
+          : "Sign in to pick up where you left off."
+      }
+    >
+      <form onSubmit={submitHandler} noValidate>
+        <FormField label="Email" htmlFor="email" required>
+          <Input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            value={input.email}
+            onChange={changeEventHandler}
+            placeholder="you@example.com"
+          />
+        </FormField>
+
+        <FormField label="Password" htmlFor="password" required>
+          <Input
+            id="password"
+            type="password"
+            name="password"
+            autoComplete="current-password"
+            value={input.password}
+            onChange={changeEventHandler}
+            placeholder="Your password"
+          />
+        </FormField>
+
+        <div className="mb-6 text-right">
+          <Link
+            to={`/forgot-password?portal=${portal}`}
+            className="text-sm text-signal-text hover:underline"
           >
-            Continue with Google
-          </Button>
-          <span className="text-sm">
-            Don&apos;t have an account?{" "}
-            <Link to="/signup" className="text-signal-text">
-              Signup
-            </Link>
-          </span>
-        </form>
-      </div>
-    </div>
+            Forgot password?
+          </Link>
+        </div>
+
+        <Button type="submit" variant="signal" className="w-full" disabled={loading}>
+          {loading ? <Loader2 className="animate-spin" /> : null}
+          {loading ? "Signing in" : "Sign in"}
+        </Button>
+
+        {/*
+          A real navigation, not a fetch: the OAuth flow is a series of top-level
+          redirects and XHR cannot follow them.
+        */}
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 w-full"
+          onClick={() => {
+            window.location.href = `${import.meta.env.VITE_API_URL}/${portal}/auth/google`;
+          }}
+        >
+          Continue with Google
+        </Button>
+
+        <p className="mt-6 text-sm text-ink-muted">
+          Don&apos;t have an account?{" "}
+          <Link to={copy.signupHref} className="text-signal-text hover:underline">
+            Create one
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 
