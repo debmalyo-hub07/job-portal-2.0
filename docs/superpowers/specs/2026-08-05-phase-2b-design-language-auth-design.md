@@ -152,6 +152,11 @@ not rediscovered:
   `main.tsx`. Vite's extension fallback resolves it in dev; this should be
   corrected before it matters in a production build. (housekeeping — may be
   taken opportunistically in this slice, as a one-line fix)
+- `Footer.tsx:5` uses `border-t-gray-200`. The 2A exit grep matches
+  `border-gray-[0-9]` but not the side-specific `border-t-gray-[0-9]`, so this
+  non-token neutral survives a passing grep. This slice rebuilds the footer
+  anyway; the grep pattern itself should be widened to catch side-specific
+  variants (`border-[trbl]-`) so the next one does not hide.
 
 ## Design
 
@@ -422,6 +427,16 @@ audit rather than by eye.
 #### Static and visual checks
 
 - `npm run ci` — build, typecheck, lint, test across workspaces
+- **ESLint must actually cover `.tsx`.** `frontend/eslint.config.js:10` matches
+  `**/*.{js,jsx}` only, so every `.tsx` file in the frontend currently resolves
+  to "File ignored because no matching configuration was supplied" and
+  `npm run lint` exits 0 vacuously. Verified by probe: a file containing an
+  unused variable passes. `typescript-eslint` is already a devDependency and is
+  never wired up. This slice adds a `**/*.{ts,tsx}` block using it, so that
+  "lint passes" is a meaningful claim about the code this slice writes. Expect
+  the newly-linted existing files to surface violations; fixing those is in
+  scope only where they fall in files this slice already touches, and otherwise
+  recorded for a later slice rather than silently disabled.
 - the 2A colour exit grep returns nothing:
   `grep -rE '(bg|text|border)-\[#|(bg|text|border)-(red|blue|purple|green|yellow|pink|indigo|orange|teal|cyan)-[0-9]' frontend/src`
 - the OKLCH contrast audit extended to cover every new pairing introduced by the
