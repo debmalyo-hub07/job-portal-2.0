@@ -1,7 +1,6 @@
 import Login from "./components/auth/Login";
 import Signup from "./components/auth/Signup";
-import Navbar from "./components/shared/Navbar";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import Home from "./components/Home";
 import Jobs from "./components/Jobs";
 import Browse from "./components/Browse";
@@ -22,89 +21,43 @@ import LinkPending from "./components/auth/LinkPending";
 import ConfirmGoogleLink from "./components/auth/ConfirmGoogleLink";
 import AuthError from "./components/auth/AuthError";
 import { useAuthBootstrap } from "./hooks/useAuthBootstrap";
+import { PortalScope } from "./components/theme/PortalScope";
+
+function RootLayout() {
+  return (
+    <PortalScope>
+      <Outlet />
+    </PortalScope>
+  );
+}
 
 const appRouter = createBrowserRouter([
   {
-    path: "/",
-    element: <Home />,
-  },
-  {
-    path: "/login",
-    element: <Login />,
-  },
-  {
-    path: "/signup",
-    element: <Signup />,
-  },
-  // Public auth pages. All of them read `?portal=` and validate it.
-  {
-    path: "/verify-email",
-    element: <VerifyEmail />,
-  },
-  {
-    path: "/forgot-password",
-    element: <ForgotPassword />,
-  },
-  {
-    path: "/reset-password",
-    element: <ResetPassword />,
-  },
-  {
-    path: "/auth/complete",
-    element: <AuthComplete />,
-  },
-  {
-    path: "/auth/link-pending",
-    element: <LinkPending />,
-  },
-  {
-    path: "/auth/confirm-google-link",
-    element: <ConfirmGoogleLink />,
-  },
-  {
-    path: "/auth/error",
-    element: <AuthError />,
-  },
-  {
-    path: "/jobs",
-    element: <Jobs />,
-  },
-  {
-    path: "/description/:id",
-    element: <JobDescription />,
-  },
-  {
-    path: "/browse",
-    element: <Browse />,
-  },
-  {
-    path: "/profile",
-    element: <Profile />,
-  },
-  // for admin
-  {
-    path: "/admin/companies",
-    element: <ProtectedRoute><Companies /></ProtectedRoute>,
-  },
-  {
-    path: "/admin/companies/create",
-    element: <ProtectedRoute><CompanyCreate /></ProtectedRoute>,
-  },
-  {
-    path: "/admin/companies/:id",
-    element: <ProtectedRoute><CompanySetup /></ProtectedRoute>,
-  },
-  {
-    path: "/admin/jobs",
-    element: <ProtectedRoute><AdminJobs /></ProtectedRoute>,
-  },
-  {
-    path: "/admin/jobs/create",
-    element: <ProtectedRoute><PostJob /></ProtectedRoute>,
-  },
-  {
-    path: "/admin/jobs/:id/applicants",
-    element: <ProtectedRoute><Applicants /></ProtectedRoute>,
+    element: <RootLayout />,
+    children: [
+      { path: "/", element: <Home /> },
+      { path: "/login", element: <Login /> },
+      { path: "/signup", element: <Signup /> },
+      // Public auth pages. All of them read `?portal=` and validate it.
+      { path: "/verify-email", element: <VerifyEmail /> },
+      { path: "/forgot-password", element: <ForgotPassword /> },
+      { path: "/reset-password", element: <ResetPassword /> },
+      { path: "/auth/complete", element: <AuthComplete /> },
+      { path: "/auth/link-pending", element: <LinkPending /> },
+      { path: "/auth/confirm-google-link", element: <ConfirmGoogleLink /> },
+      { path: "/auth/error", element: <AuthError /> },
+      { path: "/jobs", element: <Jobs /> },
+      { path: "/description/:id", element: <JobDescription /> },
+      { path: "/browse", element: <Browse /> },
+      { path: "/profile", element: <Profile /> },
+      // for admin
+      { path: "/admin/companies", element: <ProtectedRoute><Companies /></ProtectedRoute> },
+      { path: "/admin/companies/create", element: <ProtectedRoute><CompanyCreate /></ProtectedRoute> },
+      { path: "/admin/companies/:id", element: <ProtectedRoute><CompanySetup /></ProtectedRoute> },
+      { path: "/admin/jobs", element: <ProtectedRoute><AdminJobs /></ProtectedRoute> },
+      { path: "/admin/jobs/create", element: <ProtectedRoute><PostJob /></ProtectedRoute> },
+      { path: "/admin/jobs/:id/applicants", element: <ProtectedRoute><Applicants /></ProtectedRoute> },
+    ],
   },
 ]);
 function App() {
