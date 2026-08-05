@@ -4,41 +4,38 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { Portal } from "@jobportal/shared";
 
-import Navbar from "../shared/Navbar";
-import { Label } from "../ui/label";
+import { AuthLayout } from "./AuthLayout";
+import { AUTH_COPY } from "./authCopy";
+import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
-import { RadioGroup } from "../ui/radio-group";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
-const Signup = () => {
-  const [portal, setPortal] = useState<Portal>("seeker");
-  const [input, setInput] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
-  });
+/**
+ * Portal comes from the route. The inherited form asked for it in a radio pair
+ * placed *below* name, email, phone and password — the first decision presented
+ * last — and that decision is now made by which URL you are on.
+ */
+const Signup = ({ portal }: { portal: Portal }) => {
+  const [input, setInput] = useState({ fullName: "", email: "", phone: "", password: "" });
   const { loading, user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const copy = AUTH_COPY[portal];
 
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    setInput({
-      ...input,
-      [e.target.name]: e.target.value,
-    });
+    setInput({ ...input, [e.target.name]: e.target.value });
   };
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       dispatch(setLoading(true));
-      // JSON, not multipart: the new endpoint takes no file. `phone` is optional
-      // and omitted entirely when blank — an empty string fails E.164.
+      // JSON, not multipart: the endpoint takes no file. `phone` is optional and
+      // omitted entirely when blank — an empty string fails E.164.
       await apiClient.post(`/${portal}/auth/register`, {
         fullName: input.fullName,
         email: input.email,
@@ -57,106 +54,88 @@ const Signup = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
+    if (user) navigate(user.portal === "recruiter" ? "/admin/companies" : "/");
   }, [user, navigate]);
 
   return (
-    <div>
-      <Navbar />
-      <div className="flex items-center justify-center max-w-7xl mx-auto">
-        <form
-          onSubmit={submitHandler}
-          className="w-1/2 border border-gray-200 rounded-md p-4 my-10"
+    <AuthLayout
+      portal={portal}
+      title={portal === "recruiter" ? "Start hiring" : "Create your account"}
+      subtitle={
+        portal === "recruiter"
+          ? "Free to post. No card required."
+          : "Takes a minute. No cover letter required."
+      }
+    >
+      <form onSubmit={submitHandler} noValidate>
+        <FormField label="Full name" htmlFor="fullName" required>
+          <Input
+            id="fullName"
+            name="fullName"
+            autoComplete="name"
+            value={input.fullName}
+            onChange={changeEventHandler}
+            placeholder="Your name"
+          />
+        </FormField>
+
+        <FormField label="Email" htmlFor="email" required>
+          <Input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            value={input.email}
+            onChange={changeEventHandler}
+            placeholder="you@example.com"
+          />
+        </FormField>
+
+        <FormField
+          label="Phone"
+          htmlFor="phone"
+          hint="Optional. Include the country code, e.g. +919876543210."
         >
-          <h1 className="font-bold text-xl mb-5">Sign Up</h1>
-          <div className="my-2">
-            <Label>Full Name</Label>
-            <Input
-              type="text"
-              value={input.fullName}
-              name="fullName"
-              onChange={changeEventHandler}
-              placeholder="Enter Your Name"
-            />
-          </div>
-          <div className="my-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={input.email}
-              name="email"
-              onChange={changeEventHandler}
-              placeholder="Enter Your Email"
-            />
-          </div>
-          <div className="my-2">
-            <Label>Phone Number</Label>
-            <Input
-              type="text"
-              value={input.phone}
-              name="phone"
-              onChange={changeEventHandler}
-              placeholder="Optional, in +919876543210 format"
-            />
-          </div>
-          <div className="my-2">
-            <Label>Password</Label>
-            <Input
-              type="password"
-              value={input.password}
-              name="password"
-              onChange={changeEventHandler}
-              placeholder="Enter Your Password"
-            />
-            <p className="text-xs text-gray-500 mt-1">At least 12 characters.</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <RadioGroup className="flex items-center gap-4 my-5">
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="radio"
-                  name="portal"
-                  value="seeker"
-                  checked={portal === "seeker"}
-                  onChange={() => setPortal("seeker")}
-                  className="cursor-pointer"
-                />
-                <Label>Job seeker</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Input
-                  type="radio"
-                  name="portal"
-                  value="recruiter"
-                  checked={portal === "recruiter"}
-                  onChange={() => setPortal("recruiter")}
-                  className="cursor-pointer"
-                />
-                <Label>Recruiter</Label>
-              </div>
-            </RadioGroup>
-          </div>
-          {loading ? (
-            <Button className="w-full my-4">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Please wait
-            </Button>
-          ) : (
-            <Button type="submit" className="w-full my-4">
-              Sign Up
-            </Button>
-          )}
-          <span className="text-sm">
-            Already have an account?{" "}
-            <Link to="/login" className="text-signal-text">
-              Login
-            </Link>
-          </span>
-        </form>
-      </div>
-    </div>
+          <Input
+            id="phone"
+            name="phone"
+            autoComplete="tel"
+            value={input.phone}
+            onChange={changeEventHandler}
+            placeholder="+919876543210"
+          />
+        </FormField>
+
+        <FormField
+          label="Password"
+          htmlFor="password"
+          hint="At least 12 characters."
+          required
+        >
+          <Input
+            id="password"
+            type="password"
+            name="password"
+            autoComplete="new-password"
+            value={input.password}
+            onChange={changeEventHandler}
+            placeholder="Choose a password"
+          />
+        </FormField>
+
+        <Button type="submit" variant="signal" className="mt-2 w-full" disabled={loading}>
+          {loading ? <Loader2 className="animate-spin" /> : null}
+          {loading ? "Creating account" : "Create account"}
+        </Button>
+
+        <p className="mt-6 text-sm text-ink-muted">
+          Already have an account?{" "}
+          <Link to={copy.loginHref} className="text-signal-text hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </form>
+    </AuthLayout>
   );
 };
 

@@ -1,5 +1,3 @@
-import Login from "./components/auth/Login";
-import Signup from "./components/auth/Signup";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import Home from "./components/Home";
 import Jobs from "./components/Jobs";
@@ -22,6 +20,8 @@ import ConfirmGoogleLink from "./components/auth/ConfirmGoogleLink";
 import AuthError from "./components/auth/AuthError";
 import { useAuthBootstrap } from "./hooks/useAuthBootstrap";
 import { PortalScope } from "./components/theme/PortalScope";
+import { buildAuthRoutes } from "./routes/authRoutes";
+import HireLanding from "./pages/HireLanding";
 import { lazy, Suspense } from "react";
 
 const DesignGallery = import.meta.env.DEV
@@ -41,8 +41,11 @@ const appRouter = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: "/", element: <Home /> },
-      { path: "/login", element: <Login /> },
-      { path: "/signup", element: <Signup /> },
+      // One component set, two mounts. The prefix is the only place a portal is
+      // named on the client, and both call sites pass a literal.
+      ...buildAuthRoutes("seeker", ""),
+      ...buildAuthRoutes("recruiter", "/hire"),
+      { path: "/hire", element: <HireLanding /> },
       // Public auth pages. All of them read `?portal=` and validate it.
       { path: "/verify-email", element: <VerifyEmail /> },
       { path: "/forgot-password", element: <ForgotPassword /> },

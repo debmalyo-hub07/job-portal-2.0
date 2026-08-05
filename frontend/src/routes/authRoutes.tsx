@@ -1,0 +1,25 @@
+import type { RouteObject } from "react-router-dom";
+import type { Portal } from "@jobportal/shared";
+
+import Login from "@/components/auth/Login";
+import Signup from "@/components/auth/Signup";
+
+/**
+ * One component set, mounted twice — the same shape as the API's
+ * `buildAuthRouter(portal)` mounted at /seeker/auth and /recruiter/auth.
+ *
+ * The prefix is the ONLY place a portal is named on the client, and App.tsx
+ * passes it as a literal. That is what keeps Portal a route literal: there is no
+ * code path where a request value reaches this function.
+ *
+ * The seven shared pages (verify-email, forgot-password, reset-password and the
+ * four OAuth landings) are NOT built here. They are reached by redirect from the
+ * Google callback, which targets portal-neutral paths carrying ?portal=, so
+ * duplicating them per portal would require a backend change.
+ */
+export function buildAuthRoutes(portal: Portal, prefix: string): RouteObject[] {
+  return [
+    { path: `${prefix}/login`, element: <Login portal={portal} /> },
+    { path: `${prefix}/signup`, element: <Signup portal={portal} /> },
+  ];
+}

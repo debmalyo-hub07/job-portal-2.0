@@ -16,6 +16,8 @@ export const AUTH_COPY: Record<
     headline: string;
     sub: string;
     fallbackProof: string;
+    /** Three concrete capabilities, shown down the panel's middle. */
+    points: readonly string[];
     /** This portal's own landing page — where the wordmark goes. */
     homeHref: string;
     crossLinkLabel: string;
@@ -31,6 +33,11 @@ export const AUTH_COPY: Record<
     headline: "Find work that fits.",
     sub: "One profile. Every application tracked in one place.",
     fallbackProof: "New roles are posted by verified companies every week.",
+    points: [
+      "Apply with one profile — no re-typing your history per job",
+      "Track every application and its status in one place",
+      "Your resume stays private until you apply",
+    ],
     homeHref: "/",
     crossLinkLabel: "Hiring instead?",
     crossLinkText: "Go to hiring",
@@ -43,6 +50,11 @@ export const AUTH_COPY: Record<
     headline: "Hire without the noise.",
     sub: "Post a role, see every applicant, decide faster.",
     fallbackProof: "Applicants arrive with a profile and a resume, already parsed.",
+    points: [
+      "Post a role in a couple of minutes",
+      "Every applicant's profile and resume in one list",
+      "Accept or reject without leaving the page",
+    ],
     homeHref: "/hire",
     crossLinkLabel: "Looking for a job?",
     crossLinkText: "Browse jobs",
