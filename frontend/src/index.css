@@ -86,9 +86,11 @@
   /* semantics: danger 25 / warn 75 / ok 145 — icon + label always, never colour alone */
   --danger: oklch(0.55 0.19 25);
   --danger-fg: oklch(0.99 0.004 95);
-  --warn: oklch(0.62 0.14 75);
+  /* warn and ok are darkened from their nominal 0.62/0.55 to clear 4.5:1 against
+     --paper; both are used as body-sized badge text. */
+  --warn: oklch(0.56 0.14 75);
   --warn-fg: oklch(0.18 0.008 95);
-  --ok: oklch(0.55 0.14 145);
+  --ok: oklch(0.54 0.14 145);
   --ok-fg: oklch(0.99 0.004 95);
 
   /* motion */

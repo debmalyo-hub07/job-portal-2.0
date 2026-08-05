@@ -58,6 +58,10 @@ Guidance for Claude Code when working in this repository.
   Grep for `mongoose.trusted` to see every deliberate one.
 - **Ownership:** a resource the caller does not own answers exactly as a missing
   one does — 404, same code, same message. Never 403, which confirms existence.
+- **Frontend colour:** every colour comes from a token utility (`bg-paper`,
+  `text-ink`, `text-signal-text`, `border-line`, `text-danger`…). Never a hex
+  literal, never a Tailwind palette colour, never a `dark:` colour override —
+  the tokens flip themselves. See the Current state section for the exit grep.
 
 ## Guardrails
 
@@ -80,10 +84,40 @@ seeker, unrelated recruiter, owner — each asserting its expected status code.
 
 ## Current state
 
-Phases 1A (foundation), 1B (authentication) and 1C (authorization and domain)
-are complete. Phase 2 (design-system and UI rebuild) has not started — the
-frontend is still the inherited layout, updated only enough to speak the current
-API.
+Phases 1A (foundation), 1B (authentication), 1C (authorization and domain) and
+2A (Ink & Signal design foundation) are complete. The design system and its
+primitives are in place; the page layouts are still the inherited structure,
+now reading tokens throughout. Phase 2B (page rebuild) has not started.
+
+What 2A closed:
+
+- All colour, radius, type and motion decisions are CSS custom properties in
+  `frontend/src/index.css`, mapped into Tailwind 4 via `@theme inline`. No
+  component sets a colour outside the token system — the exit grep
+  `grep -rE '(bg|text|border)-\[#|(bg|text|border)-(red|blue|purple|green|yellow|pink|indigo|orange|teal|cyan)-[0-9]' frontend/src`
+  returns nothing, and should stay that way
+- Dark mode works via `ThemeProvider` (next-themes, `attribute="class"`).
+  Components never branch on theme; the tokens flip themselves, so a `dark:`
+  colour override in a component is a bug
+- Signal is portal-scoped: `PortalScope` sets `data-portal` from the route
+  (`/admin/*` → recruiter, else seeker) and the signal tokens re-resolve. It
+  reads the route only — never body, query or cookie, same rule as the API
+- 20 primitives on tokens: the 12 rebuilt (avatar, badge, button, carousel,
+  dialog, input, label, popover, radio-group, select, sonner, table) plus 8 new
+  (card, tabs, dropdown-menu, tooltip, skeleton, separator, sheet, pagination)
+- Semantic state is always icon **and** label, never colour alone. `Badge`
+  variants `ok`/`warn`/`danger` exist, but callers pair them with a lucide icon
+  — see `AppliedJobTable.tsx` for the pattern
+- Filled elements carrying text use `--signal-text` fill with `--signal-fg`
+  text. Base `--signal` is non-text use only (borders, indicators, dots)
+- All 18 token pairings clear WCAG 4.5:1 in both themes and both portals.
+  Light-theme `--warn` and `--ok` are deliberately darker than their nominal
+  values to reach it — if you lighten them, re-audit
+- Fonts self-hosted via `@fontsource-variable` (Fraunces display, Geist sans,
+  Geist Mono). No CDN
+- `/_design` renders every primitive across both themes × both portals. It is
+  DEV-only via `import.meta.env.DEV` + `React.lazy`, so Rollup drops it from
+  production; the build is verified to not contain it
 
 What 1C closed, so these are no longer open questions:
 
@@ -110,8 +144,14 @@ Known gaps, deliberately deferred:
 
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
-- No pagination UI — clients request `limit=50` and show that
-- The frontend still has no test runner
+- No pagination UI — clients request `limit=50` and show that. The `Pagination`
+  primitive exists but is not wired to any list yet (2B)
+- The frontend still has no test runner. 2A was verified by typecheck, lint,
+  build, the exit grep, a scripted OKLCH contrast audit and the gallery
 - Replacing a company logo orphans the previous Cloudinary asset
+- Page layouts still carry inherited non-token neutrals (`text-gray-500`,
+  `bg-white`, `border-gray-200`) and ad-hoc spacing. These are not colour-system
+  violations the exit grep catches, but 2B replaces them as it rebuilds each page
 
-See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`.
+See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md` and
+`docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`.
