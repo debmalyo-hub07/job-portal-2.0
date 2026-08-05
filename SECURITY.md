@@ -8,11 +8,22 @@ have one, a suggested fix.
 
 ## Current status — read before deploying
 
-Phase 1A hardened the foundation and Phase 1B replaced authentication.
-**Neither fixed authorization.** Portal *scoping* now exists — a seeker cannot
-reach a recruiter route — but scoping is not ownership, and no route yet checks
-that the caller owns the resource it names. Do not run this against real user
-data yet.
+Phase 1A hardened the foundation, Phase 1B replaced authentication, and
+**Phase 1C closed authorization**. Portal *scoping* (a seeker cannot reach a
+recruiter route) is backed by ownership: every route touching a user-owned
+resource resolves it by a predicate that includes the caller, and a resource you
+do not own is indistinguishable from one that does not exist.
+
+The remaining known issues are in [Not yet
+fixed](#not-yet-fixed--known-and-scheduled) below. None is an access-control
+defect; the open items are a performance ceiling on search, an orphaned
+Cloudinary asset on logo replacement, and a mis-shaped error envelope on
+over-size uploads. Read them before pointing this at real user data.
+
+Phases 2A and 2B-1 were frontend work and changed no security boundary. The one
+adjacent change: the client no longer holds a portal in component state or
+offers a control to pick one — it is derived from the route, the same rule the
+API applies.
 
 ### Fixed in Phase 1A
 
