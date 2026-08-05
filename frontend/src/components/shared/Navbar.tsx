@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
 import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -68,6 +69,7 @@ const Navbar = () => {
               </>
             )}
           </ul>
+          <ThemeToggle />
           {!user ? (
             <div className="flex items-center gap-2">
               <Link to="/login">
