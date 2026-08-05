@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
-import { Avatar, AvatarImage } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { LogOut, User2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -11,6 +11,22 @@ import { setUser } from "@/redux/authSlice";
 import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+
+/**
+ * Up to two initials from a display name.
+ *
+ * The avatar trigger needs content that survives a null avatarUrl — which is
+ * every account created through the standard flow, since nothing uploads a
+ * picture at registration. Without a fallback the trigger is a zero-content
+ * circle and the sign-out inside it cannot be reached.
+ */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toUpperCase() || "?";
+}
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -36,94 +52,118 @@ const Navbar = () => {
     }
   };
 
+  const isRecruiter = user?.portal === "recruiter";
+
   return (
-    <div className="bg-paper border-b border-line">
-      <div className="flex items-center justify-between mx-auto max-w-7xl h-16">
-        <div>
+    <div className="border-b border-line bg-paper">
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+        <Link to={isRecruiter ? "/hire" : "/"}>
           <h1 className="font-display text-2xl font-bold text-ink">
-            Job<span className="text-signal-text">Portal</span>
+            Job<span className="text-signal-text">{isRecruiter ? "Hire" : "Portal"}</span>
           </h1>
-        </div>
-        <div className="flex items-center gap-12">
-          <ul className="flex font-medium items-center gap-5">
-            {user && user.portal === "recruiter" ? (
+        </Link>
+
+        <div className="flex items-center gap-8">
+          <ul className="flex items-center gap-5 text-sm font-medium">
+            {isRecruiter ? (
               <>
                 <li>
-                  <Link to="/admin/companies">Companies</Link>
+                  <Link to="/admin/companies" className="hover:text-signal-text">
+                    Companies
+                  </Link>
                 </li>
                 <li>
-                  <Link to="/admin/jobs">Jobs</Link>
+                  <Link to="/admin/jobs" className="hover:text-signal-text">
+                    Jobs
+                  </Link>
                 </li>
               </>
             ) : (
               <>
                 <li>
-                  <Link to="/">Home</Link>
+                  <Link to="/" className="hover:text-signal-text">
+                    Home
+                  </Link>
                 </li>
                 <li>
-                  <Link to="/jobs">Jobs</Link>
+                  <Link to="/jobs" className="hover:text-signal-text">
+                    Jobs
+                  </Link>
                 </li>
                 <li>
-                  <Link to="/browse">Browse</Link>
+                  <Link to="/browse" className="hover:text-signal-text">
+                    Browse
+                  </Link>
                 </li>
               </>
             )}
           </ul>
+
           <ThemeToggle />
+
           {!user ? (
             <div className="flex items-center gap-2">
-              <Link to="/login">
-                <Button variant="outline">Login</Button>
-              </Link>
-              <Link to="/signup">
-                <Button variant="signal">Signup</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link to="/login">Sign in</Link>
+              </Button>
+              <Button asChild variant="signal">
+                <Link to="/signup">Get started</Link>
+              </Button>
             </div>
           ) : (
             <Popover>
               <PopoverTrigger asChild>
-                <Avatar className="cursor-pointer">
-                  {/* `?? undefined` because avatarUrl is `string | null` and
-                      AvatarImage's src is `string | undefined`. */}
-                  <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.fullName} />
-                </Avatar>
+                <button
+                  type="button"
+                  aria-label="Account menu"
+                  className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-signal-ring"
+                >
+                  <Avatar className="cursor-pointer">
+                    {/* alt="" because the button already carries the accessible
+                        name; a duplicated name is announced twice. */}
+                    <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
+                    <AvatarFallback>{initialsOf(user.fullName)}</AvatarFallback>
+                  </Avatar>
+                </button>
               </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div>
-                  <div className="flex gap-2 space-y-2">
-                    <Avatar className="cursor-pointer">
-                      <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.fullName} />
-                    </Avatar>
-                    <div>
-                      <h4 className="font-medium">{user?.fullName}</h4>
-                      {/* SessionUser has no bio by design, and the email is the
-                          more useful identifier in a session popover anyway. */}
-                      <p className="text-sm text-muted-foreground">{user?.email}</p>
-                    </div>
+              <PopoverContent className="w-72" align="end">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarImage src={user.avatarUrl ?? undefined} alt="" />
+                    <AvatarFallback>{initialsOf(user.fullName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-ink">{user.fullName}</p>
+                    {/* SessionUser has no bio by design, and the email is the
+                        more useful identifier in a session popover anyway. */}
+                    <p className="truncate text-sm text-ink-muted">{user.email}</p>
                   </div>
-                  <div className="flex flex-col my-2 text-gray-600">
-                    {user && user.portal === "seeker" && (
-                      <div className="flex w-fit items-center gap-2 cursor-pointer">
-                        <User2 />
-                        <Button variant="link">
-                          <Link to="/profile">View Profile</Link>
-                        </Button>
-                      </div>
-                    )}
+                </div>
 
-                    <div className="flex w-fit items-center gap-2 cursor-pointer">
-                      <LogOut />
-                      <Button onClick={logoutHandler} variant="link">
-                        Logout
-                      </Button>
-                    </div>
-                  </div>
+                <div className="mt-4 flex flex-col gap-1 border-t border-line pt-3">
+                  {!isRecruiter && (
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"
+                    >
+                      <User2 className="size-4" />
+                      View profile
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={logoutHandler}
+                    className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-left text-sm text-ink hover:bg-signal-muted"
+                  >
+                    <LogOut className="size-4" />
+                    Sign out
+                  </button>
                 </div>
               </PopoverContent>
             </Popover>
           )}
         </div>
-      </div>
+      </nav>
     </div>
   );
 };

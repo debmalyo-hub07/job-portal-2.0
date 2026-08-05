@@ -1,39 +1,43 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { JobDto } from "@jobportal/shared";
 import { Badge } from "./ui/badge";
+import { HoverLift } from "@/lib/motion";
 
 type LatestJobCardsProps = {
   job: JobDto;
 };
 
 const LatestJobCards = ({ job }: LatestJobCardsProps) => {
-  const navigate = useNavigate();
-
   return (
-    <div
-      onClick={() => navigate(`/description/${job.id}`)}
-      className="p-5 rounded-md shadow-xl bg-white border border-gray-100 cursor-pointer"
-    >
-      <div>
-        <h1 className="font-medium text-lg">{job.company?.name}</h1>
-        <p className="text-sm text-gray-500">{job.location}</p>
-      </div>
-      <div>
-        <h1 className="font-bold text-lg my-2">{job.title}</h1>
-        <p className="text-sm text-gray-600">{job.description}</p>
-      </div>
-      <div className="flex items-center gap-2 mt-4">
-        <Badge className="text-signal-text font-bold" variant="outline">
-          {job.position} Positions
-        </Badge>
-        <Badge className="text-signal-text font-bold" variant="outline">
-          {job.jobType}
-        </Badge>
-        <Badge className="text-signal-text font-bold" variant="outline">
-          {job.salary}LPA
-        </Badge>
-      </div>
-    </div>
+    <HoverLift className="h-full">
+      {/*
+        A real link, not a div with onClick. The inherited card was a clickable
+        div: no keyboard focus, no Enter, nothing for a screen reader to
+        announce as navigable.
+      */}
+      <Link
+        to={`/description/${job.id}`}
+        className="flex h-full flex-col rounded-surface border border-line bg-paper-raised p-(--space-card) transition-colors duration-(--dur-fast) hover:border-signal focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
+      >
+        <p className="font-medium text-ink">{job.company?.name}</p>
+        <p className="text-sm text-ink-muted">{job.location}</p>
+
+        <h3 className="mt-3 font-display text-xl font-semibold text-ink">{job.title}</h3>
+        <p className="mt-2 line-clamp-2 text-sm text-ink-muted">{job.description}</p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {/*
+            `position` is a department string in jobCreateBodySchema, not a
+            count — the inherited card rendered "{position} Positions", which
+            produced "Analytics Positions".
+          */}
+          <Badge variant="outline">{job.position}</Badge>
+          <Badge variant="outline">{job.jobType}</Badge>
+          {/* Geist, not mono: a lone value in a badge is not a column to scan. */}
+          <Badge variant="outline">₹{job.salary} LPA</Badge>
+        </div>
+      </Link>
+    </HoverLift>
   );
 };
 
