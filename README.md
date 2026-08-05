@@ -4,10 +4,11 @@ A job portal for the Indian market — job seekers find and apply to roles,
 recruiters post them and manage applicants. Built with security and access
 control as the starting point rather than an afterthought.
 
-> **Status:** Phase 1A (typed, tested, hardened foundation) and Phase 1B
-> (authentication) are complete. The authorization rebuild is next. Not yet
-> suitable for production use — there are still no ownership checks on any
-> route. See [Roadmap](#roadmap).
+> **Status:** Phases 1A (foundation), 1B (authentication), 1C (authorization),
+> 2A (design system) and 2B-1 (design language and portal-split auth) are
+> complete. Ownership checks are in place on every route touching a user-owned
+> resource. The seeker job pages and the recruiter workspace are still the
+> inherited UI and are next. See [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -15,11 +16,12 @@ control as the starting point rather than an afterthought.
 |---|---|
 | API | Node 20, Express 5, TypeScript, Mongoose 8 |
 | Database | MongoDB (Atlas) |
-| Web | React 19, Vite 7, TypeScript, Redux Toolkit, Tailwind 4, shadcn/ui |
+| Web | React 19, Vite 7, TypeScript, Redux Toolkit, Tailwind 4, Radix primitives |
+| Design | "Ink & Signal" token system — CSS custom properties via `@theme inline`, portal-scoped accent, dark mode, self-hosted Fraunces/Geist |
 | Validation | Zod 4, shared between client and server |
 | Email | Brevo (transactional) |
 | Media | Cloudinary |
-| Testing | Vitest, Supertest, mongodb-memory-server |
+| Testing | Vitest — Supertest + `mongodb-memory-server` on the API, React Testing Library + jsdom on the web, Playwright for the visual and contrast passes |
 | Logging | Pino |
 
 ## Quick start
@@ -100,10 +102,23 @@ backend/                Express API
   tests/
 frontend/               React client
   src/
-    components/         pages and UI
+    components/
+      auth/             login, signup, OAuth/OTP surfaces, AuthLayout, PortalPanel
+      layout/           PageShell, PageHeader, EmptyState, FormField
+      theme/            ThemeProvider, ThemeToggle, PortalScope
+      ui/               20 primitives on design tokens
+      admin/            recruiter workspace
+      shared/           Navbar
+      design/           DEV-only token gallery at /_design
+    pages/              HireLanding
+    routes/             buildAuthRoutes — one auth component set, mounted per portal
     hooks/              data fetching, auth bootstrap
-    lib/                api client, portal hint, error readers
+    lib/                api client, portal hint, error readers, motion composables
     redux/              store and slices
+    index.css           the entire token system
+  tests/                Vitest + Testing Library specs
+    helpers/            renderRoute — real providers, non-persisted store
+    visual/             Playwright contrast audit and screenshot pass
 packages/
   shared/               Zod schemas and types used by both apps
 docs/
@@ -150,17 +165,63 @@ passwords, and signing into one grants nothing on the other. This is the single
 most surprising behaviour for a new reader, and it is deliberate — see
 [ADR-0001](docs/adr/0001-two-account-collections.md).
 
+## Web app
+
+### Two front doors
+
+The portal is a **route literal** on the client exactly as it is on the server.
+One auth component set is mounted twice by `buildAuthRoutes(portal, prefix)`,
+mirroring the API's `buildAuthRouter(portal)`:
+
+| Route | Portal | Notes |
+|---|---|---|
+| `/` | seeker | Job board landing |
+| `/login`, `/signup` | seeker | |
+| `/hire` | recruiter | Employer front door |
+| `/hire/login`, `/hire/signup` | recruiter | |
+| `/admin/*` | recruiter | Companies, jobs, applicants |
+| `/verify-email`, `/forgot-password`, `/reset-password`, OAuth landings | either | Portal-neutral, carried in `?portal=` because the Google callback redirects here |
+
+There is no control anywhere that picks a portal. `PortalScope` derives it from
+`useLocation().pathname` and nothing else — never a body, query or cookie —
+matching on a segment boundary so `/hired` stays a seeker path. A `?portal=`
+query cannot move it.
+
+### Design system — "Ink & Signal"
+
+Every colour, radius, type size and motion duration is a CSS custom property in
+`frontend/src/index.css`, mapped into Tailwind 4 through `@theme inline`. No
+component sets a colour directly, and none branches on the theme — the tokens
+flip themselves, so a `dark:` colour override in a component is a bug.
+
+The accent ("signal") is portal-scoped: `data-portal` on the tree re-resolves it
+to violet for seekers and teal for recruiters. Spacing works the same way —
+`data-density` on `PageShell` resolves `--space-*`, so pages pass a `density`
+prop rather than hand-tuning padding.
+
+All 18 token pairings clear WCAG 4.5:1 in both themes and both portals, verified
+by `frontend/tests/visual/contrast.mjs`, which resolves colours through a real
+browser rather than parsing `oklch()` as if it were sRGB.
+
+In development, `/_design` renders every primitive across both themes × both
+portals. It is DEV-only via `import.meta.env.DEV` + `React.lazy`, so Rollup drops
+it from production builds.
+
 ## Scripts
 
 | Command | Effect |
 |---|---|
 | `npm run dev:api` | API in watch mode via tsx |
-| `npm run dev:web` | Vite dev server |
+| `npm run dev:web` | Vite dev server (use `--port 5173 --strictPort`; CORS is pinned to it) |
 | `npm run build` | Build all workspaces |
 | `npm test` | Test all workspaces |
 | `npm run typecheck` | Typecheck all workspaces |
 | `npm run lint` | Lint all workspaces |
-| `npm run ci` | Everything CI runs, in order |
+| `npm run ci` | Everything CI runs, in order. Takes over two minutes |
+| `npm run audit:prod` | Audit production dependencies only |
+| `npm run lint:colour --workspace @jobportal/web` | Fail on any colour outside the token system |
+| `npm run test:visual --workspace @jobportal/web` | Playwright screenshots + portal assertions, needs a dev server |
+| `npm run migrate:phase1c --workspace @jobportal/api` | Drop the legacy `users` collection. Run once per existing database |
 
 ## Deployment
 
@@ -214,8 +275,11 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 |---|---|---|
 | 1A | Monorepo, TypeScript, config validation, error handling, logging, security middleware, CI, docs | Complete |
 | 1B | Two-collection accounts, Argon2id, Brevo OTP verification, Google OAuth, refresh-token rotation | Complete |
-| 1C | Ownership-based authorization, response DTOs, pagination, private resume storage, migration | Next |
-| 2 | Design system and full UI rebuild, seeker and recruiter portals both | Planned |
+| 1C | Ownership-based authorization, response DTOs, pagination, private resume storage, migration | Complete |
+| 2A | "Ink & Signal" design system: tokens, dark mode, portal-scoped accent, 20 primitives | Complete |
+| 2B-1 | Frontend test runner, layout primitives, density, portal-split auth, `/hire` landing, landing rebuild | Complete |
+| 2B-2 | Seeker pages: job board, job detail, filters, profile | Next |
+| 2B-3 | Recruiter workspace: companies, jobs, applicants | Planned |
 | 3 | Saved jobs, server-side search and filters, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 
@@ -227,8 +291,11 @@ them in `docs/adr/`.
 Please read [SECURITY.md](SECURITY.md) before deploying. It documents the threat
 model, the authentication design, and a credential-rotation runbook.
 
-Do not run this against real user data until Phase 1C is complete — until then
-there are no ownership checks on API routes.
+Phase 1C closed the authorization gap: every route touching a user-owned
+resource now resolves it by a predicate that includes the caller, and a resource
+you do not own answers exactly as a missing one does. The remaining known issues
+are listed in SECURITY.md under "Not yet fixed" — none is an access-control
+defect, but read them before pointing this at real user data.
 
 ## Acknowledgements
 

@@ -11,9 +11,14 @@ Guidance for Claude Code when working in this repository.
 | Run web | `npm run dev:web` |
 | Typecheck all | `npm run typecheck` |
 | Test all | `npm test` |
-| Test one file | `npm test --workspace @jobportal/api -- errors` |
-| Full CI locally | `npm run ci` |
+| Test one API file | `npm test --workspace @jobportal/api -- errors` |
+| Test one web file | `npm test --workspace @jobportal/web -- navbar` |
+| Colour-token check | `npm run lint:colour --workspace @jobportal/web` |
+| Visual pass | `npm run test:visual --workspace @jobportal/web` (needs a dev server on 5173) |
+| Contrast audit | `node frontend/tests/visual/contrast.mjs` |
+| Full CI locally | `npm run ci` (takes >120s — run it in the background) |
 | Audit prod deps | `npm run audit:prod` |
+| 1C migration | `npm run migrate:phase1c --workspace @jobportal/api` |
 
 ## Layout
 
@@ -61,7 +66,21 @@ Guidance for Claude Code when working in this repository.
 - **Frontend colour:** every colour comes from a token utility (`bg-paper`,
   `text-ink`, `text-signal-text`, `border-line`, `text-danger`…). Never a hex
   literal, never a Tailwind palette colour, never a `dark:` colour override —
-  the tokens flip themselves. See the Current state section for the exit grep.
+  the tokens flip themselves. See the Current state section for the check.
+- **Frontend spacing:** pass `density` to `PageShell` and read the resulting
+  custom properties (`p-(--space-card)`, `mt-(--space-section)`). Never
+  hand-tune spacing on a page.
+- **Frontend portal:** a page never holds a portal in state or reads it from a
+  control. It arrives as a prop from the route, the way `buildAuthRoutes` passes
+  a literal. The one exception is the seven shared OAuth/OTP pages, which read
+  `?portal=` because the backend redirects to portal-neutral paths — and even
+  there `PortalScope` ignores the param when resolving the signal colour.
+- **Frontend motion:** go through `lib/motion.tsx`. Never import
+  `framer-motion` in a page — the composables are what honour
+  `prefers-reduced-motion`.
+- **Frontend type:** Fraunces (`font-display`) never below 20px — `text-xl`
+  (1.44rem) is the smallest permitted. Geist Mono only for aligned numeric
+  comparison, never a lone value in a badge.
 
 ## Guardrails
 
@@ -75,33 +94,55 @@ Guidance for Claude Code when working in this repository.
 
 ## Testing
 
-Vitest + Supertest + `mongodb-memory-server`. Mount `buildApp()` directly; never
-start a listener in a test. Collections are cleared between tests by
-`tests/setup.ts`, which also sets every required env var before any import runs.
+**API** — Vitest + Supertest + `mongodb-memory-server`. Mount `buildApp()`
+directly; never start a listener in a test. Collections are cleared between
+tests by `tests/setup.ts`, which also sets every required env var before any
+import runs.
 
 For anything touching authorization, add a case to the matrix: anonymous,
 seeker, unrelated recruiter, owner — each asserting its expected status code.
 
+**Web** — Vitest + React Testing Library + jsdom, config in
+`frontend/vitest.config.ts`, specs in `frontend/tests`. Render through
+`renderRoute` from `tests/helpers/renderRoute.tsx` so a component sits inside
+the real `Provider` and `PortalScope`. Use its `makeStore()` rather than the
+app's `@/redux/store`: the app store is wrapped in redux-persist and rehydrates
+from `localStorage`, so a test that dispatches a signed-in user leaks it into
+every later test and failures start depending on file order.
+
+`tests/setup.ts` stubs `matchMedia`, which jsdom does not implement and both
+next-themes and framer-motion read. Playwright specs live under `tests/visual/`
+and are excluded from the jsdom run — they drive a real browser.
+
 ## Current state
 
-Phases 1A (foundation), 1B (authentication), 1C (authorization and domain) and
-2A (Ink & Signal design foundation) are complete. The design system and its
-primitives are in place; the page layouts are still the inherited structure,
-now reading tokens throughout. Phase 2B (page rebuild) has not started.
+Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
+2A (Ink & Signal design foundation) and 2B-1 (design language and portal-split
+authentication) are complete. The design system, its primitives and the
+compositional layer are all in place, and the auth surfaces plus the landing
+page are rebuilt on them. Phases 2B-2 (seeker pages) and 2B-3 (recruiter
+workspace) have not started — those pages are still the inherited structure.
 
 What 2A closed:
 
 - All colour, radius, type and motion decisions are CSS custom properties in
   `frontend/src/index.css`, mapped into Tailwind 4 via `@theme inline`. No
-  component sets a colour outside the token system — the exit grep
-  `grep -rE '(bg|text|border)-\[#|(bg|text|border)-(red|blue|purple|green|yellow|pink|indigo|orange|teal|cyan)-[0-9]' frontend/src`
-  returns nothing, and should stay that way
+  component sets a colour outside the token system. 2B-1 replaced the raw grep
+  with `npm run lint:colour --workspace @jobportal/web`
+  (`frontend/scripts/check-colour-tokens.mjs`), widened to catch side-specific
+  borders (`border-t-gray-200`) and the full neutral scale. It currently exits
+  **1** with 18 known violations, all in files 2B-2 and 2B-3 own — see the
+  itemised list in commit `abbab3e`. No *new* violation may appear
 - Dark mode works via `ThemeProvider` (next-themes, `attribute="class"`).
   Components never branch on theme; the tokens flip themselves, so a `dark:`
   colour override in a component is a bug
-- Signal is portal-scoped: `PortalScope` sets `data-portal` from the route
-  (`/admin/*` → recruiter, else seeker) and the signal tokens re-resolve. It
-  reads the route only — never body, query or cookie, same rule as the API
+- Signal is portal-scoped: `PortalScope` sets `data-portal` from the route and
+  the signal tokens re-resolve. It reads the route only — never body, query or
+  cookie, same rule as the API. The mapping is `portalForPath` in
+  `src/lib/portalRoutes.ts` (`/hire` and `/admin` → recruiter, else seeker),
+  matching on a segment boundary so `/hired` and `/administrator` stay seeker
+  paths. It sits in its own module because a file exporting both a component
+  and a plain function loses Fast Refresh for the component
 - 20 primitives on tokens: the 12 rebuilt (avatar, badge, button, carousel,
   dialog, input, label, popover, radio-group, select, sonner, table) plus 8 new
   (card, tabs, dropdown-menu, tooltip, skeleton, separator, sheet, pagination)
@@ -118,6 +159,57 @@ What 2A closed:
 - `/_design` renders every primitive across both themes × both portals. It is
   DEV-only via `import.meta.env.DEV` + `React.lazy`, so Rollup drops it from
   production; the build is verified to not contain it
+
+What 2B-1 closed:
+
+- **The frontend has a test runner.** Vitest 3 + React Testing Library + jsdom,
+  51 tests in `frontend/tests`. `renderRoute` (`tests/helpers/renderRoute.tsx`)
+  mounts the real `Provider`/`PortalScope`. It builds a **fresh non-persisted
+  store** per render — never import the app's `@/redux/store` in a test, or
+  redux-persist leaks a signed-in user across files and failures depend on
+  execution order
+- **Authentication is split by portal and the portal selector is gone.** One
+  component set mounted twice by `buildAuthRoutes(portal, prefix)` in
+  `src/routes/authRoutes.tsx` — `/login` + `/signup` and `/hire/login` +
+  `/hire/signup` — mirroring the API's `buildAuthRouter(portal)`. `Login` and
+  `Signup` take `portal` as a **prop from the route**, never component state.
+  The native radio pair is deleted: it let the posted endpoint disagree with the
+  signal colour resolved from the URL
+- The seven shared OAuth/OTP pages (`VerifyEmail`, `ForgotPassword`,
+  `ResetPassword`, `AuthComplete`, `LinkPending`, `ConfirmGoogleLink`,
+  `AuthError`) stay portal-neutral and keep reading `?portal=`, because the
+  Google callback redirects to portal-neutral paths. `PortalScope` still ignores
+  that param — the query never moves the portal
+- `/hire` is the employer front door. Before it, an anonymous visitor wanting to
+  hire was bounced from `/admin/*` to the seeker home and shown "Get Your Dream
+  Job"
+- Four layout primitives in `src/components/layout` — `PageShell`, `PageHeader`,
+  `EmptyState`, `FormField` — plus `AuthLayout`/`PortalPanel` in
+  `src/components/auth`. `FormField` wires `aria-describedby` and `aria-invalid`
+  onto the control it wraps
+- **Density is a parameter, not a per-component judgement.** `PageShell` sets
+  `data-density`, which resolves `--space-section`/`-card`/`-row`/`-field`/
+  `-page-top`, exactly as `data-portal` resolves signal colour. Never hand-tune
+  spacing on a page; pass `density`. It follows the surface's job, not the
+  portal — `/hire` is recruiter-scoped but spacious, because it is marketing
+- `.tsx` files are actually linted now. `eslint.config.js` matched
+  `**/*.{js,jsx}` only, so every `.tsx` resolved to "no matching configuration"
+  and `npm run lint` passed vacuously
+- Motion goes through `src/lib/motion.tsx` (`FadeIn`, `StaggerList`,
+  `StaggerItem`, `HoverLift`, `SharedElement`), each short-circuiting under
+  `prefers-reduced-motion`. Never call `framer-motion` directly in a page
+- Three bugs fixed: the account menu was unreachable (`AvatarImage` with a null
+  `src` renders nothing and had no `AvatarFallback` sibling, so the popover
+  trigger was a zero-content circle — and `avatarUrl` is null for every account
+  created through the standard flow); the login form's primary action was
+  `--ink` while the navbar's was the portal signal; and `index.html` loaded
+  `/src/main.jsx`, which does not exist and only resolved via Vite's dev-only
+  extension fallback
+- `frontend/tests/visual/` holds two Playwright scripts: `contrast.mjs` (18
+  token pairings, all clearing WCAG 4.5:1) and `run.mjs`
+  (`npm run test:visual`, needs a dev server on 5173). The contrast script
+  resolves colours **through the browser**; parsing `oklch()` components as if
+  they were sRGB reported 2.42:1 for a pairing that measures 9.08:1
 
 What 1C closed, so these are no longer open questions:
 
@@ -145,13 +237,24 @@ Known gaps, deliberately deferred:
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
 - No pagination UI — clients request `limit=50` and show that. The `Pagination`
-  primitive exists but is not wired to any list yet (2B)
-- The frontend still has no test runner. 2A was verified by typecheck, lint,
-  build, the exit grep, a scripted OKLCH contrast audit and the gallery
+  primitive exists but is not wired to any list yet
 - Replacing a company logo orphans the previous Cloudinary asset
-- Page layouts still carry inherited non-token neutrals (`text-gray-500`,
-  `bg-white`, `border-gray-200`) and ad-hoc spacing. These are not colour-system
-  violations the exit grep catches, but 2B replaces them as it rebuilds each page
+- The seeker pages (`Job`, `JobDescription`, `FilterCard`, `Profile`,
+  `UpdateProfileDialog`) and the recruiter workspace (`components/admin/*`)
+  still carry inherited non-token neutrals and ad-hoc spacing — 18 occurrences,
+  itemised by file and line in commit `abbab3e`. 2B-2 and 2B-3 replace them as
+  they rebuild each page
+- Two `react-hooks/exhaustive-deps` warnings remain in `AdminJobs.tsx` and
+  `Companies.tsx`. Neither is a live bug (`dispatch` is referentially stable);
+  they are recorded in `docs/superpowers/plans/2026-08-05-phase-2b-lint-debt.md`
+  and belong to 2B-3, whose rebuild will likely replace those effects outright
+- `CategoryCarousel` is still centred while the rebuilt landing around it runs
+  on one left axis. Same two-axis problem 2B-1 fixed in the hero; the file
+  belongs to 2B-2
+- `packages/shared/src/legacy-dto.ts` is vestigial. 1C replaced the endpoints it
+  described with projected DTOs, and nothing imports the `Legacy*` types any
+  more
 
-See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md` and
-`docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`.
+See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`,
+`docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md` and
+`docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md`.
