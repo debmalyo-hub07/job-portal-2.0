@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 
 import applicationRoute from "./routes/application.route.js";
 import companyRoute from "./routes/company.route.js";
+import adminRoute from "./routes/admin.route.js";
 import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
@@ -31,6 +32,9 @@ export function buildApp(): Express {
   app.use("/api/v1/seeker/auth", buildAuthRouter("seeker"));
   app.use("/api/v1/recruiter/auth", buildAuthRouter("recruiter"));
   app.use("/api/v1/admin/auth", buildAuthRouter("admin"));
+  // After the auth mount: Express matches in registration order, and this
+  // router must not shadow /api/v1/admin/auth/*.
+  app.use("/api/v1/admin", adminRoute);
   app.use("/api/v1/company", companyRoute);
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);

@@ -55,3 +55,14 @@ export function renderOtpBudgetEmail(hours: number): Rendered {
     text: `Code entry paused for ${hours} hours after too many incorrect codes. Password sign-in is unaffected.`,
   };
 }
+
+/** Sent when an admin approves a pending recruiter (Phase 3A). */
+export function renderRecruiterApprovedEmail(): Rendered {
+  return {
+    subject: "Your recruiter account is approved",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">You're approved</h1><p>An admin has approved your recruiter account. You can now create a company profile and post roles.</p>`,
+    ),
+    text: `You're approved\n\nAn admin has approved your recruiter account. You can now create a company profile and post roles.`,
+  };
+}
