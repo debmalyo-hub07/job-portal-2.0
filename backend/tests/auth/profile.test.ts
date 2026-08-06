@@ -42,7 +42,7 @@ describe("updateProfile on the account collections", () => {
     expect(res.status).toBe(200);
     // Explicit DTO all the way down: SessionUser inside, no hash anywhere.
     expect(Object.keys(res.body.profile.user).sort())
-      .toEqual(["avatarUrl", "email", "emailVerified", "fullName", "id", "portal"]);
+      .toEqual(["avatarUrl", "email", "emailVerified", "fullName", "id", "portal", "status"]);
     expect(res.body.profile.recruiter).toBeNull();
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|\$argon2id\$/);
 

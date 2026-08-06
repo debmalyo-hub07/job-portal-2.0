@@ -1,5 +1,14 @@
 import type { Portal } from "./auth.js";
 
+/**
+ * The account status that crosses the wire.
+ *
+ * `suspended` never does in practice — a suspended session is refused at the
+ * identity layer before any DTO is built — but the union matches the schema so
+ * the client needs no impossible-case handling.
+ */
+export type AccountStatus = "pending" | "active" | "suspended";
+
 /** The only account shape that ever crosses the wire. */
 export interface SessionUser {
   id: string;
@@ -8,6 +17,7 @@ export interface SessionUser {
   email: string;
   emailVerified: boolean;
   avatarUrl: string | null;
+  status: AccountStatus;
 }
 
 export interface AuthResponse {

@@ -90,4 +90,32 @@ describe("pending recruiters", () => {
       .set("Cookie", [`jp_seeker_at=${access}`])
       .expect(401);
   });
+
+  // The status has to cross the wire, or the client has a session it cannot
+  // explain: a pending recruiter would see an empty workspace with no reason.
+  it("/me reports the pending status so the client can explain it", async () => {
+    await registerAndVerify("recruiter", "pending3@example.com");
+    const login = await request(app)
+      .post("/api/v1/recruiter/auth/login")
+      .send({ email: "pending3@example.com", password: PASSWORD });
+    const access = cookieValue(login, "jp_recruiter_at")!;
+
+    const me = await request(app)
+      .get("/api/v1/recruiter/auth/me")
+      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .expect(200);
+
+    // Both surfaces, because the client reads whichever it saw first.
+    expect(me.body.user.status).toBe("pending");
+    expect(login.body.user.status).toBe("pending");
+  });
+
+  it("a seeker reports active", async () => {
+    await registerAndVerify("seeker", "s-status@example.com");
+    const login = await request(app)
+      .post("/api/v1/seeker/auth/login")
+      .send({ email: "s-status@example.com", password: PASSWORD })
+      .expect(200);
+    expect(login.body.user.status).toBe("active");
+  });
 });

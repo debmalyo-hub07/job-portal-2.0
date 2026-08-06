@@ -1,5 +1,5 @@
 import mongoose, { Types, type HydratedDocument } from "mongoose";
-import type { Portal, RegisterBody, SessionUser } from "@jobportal/shared";
+import type { AccountStatus, Portal, RegisterBody, SessionUser } from "@jobportal/shared";
 import { AppError } from "../lib/AppError.js";
 import { env } from "../config/env.js";
 import { burnPasswordTime, hashPassword, needsRehash, verifyPassword } from "../lib/password.js";
@@ -533,5 +533,9 @@ export function toSessionUser(portal: Portal, account: AccountDoc): SessionUser 
     email: account.email,
     emailVerified: account.emailVerifiedAt !== null,
     avatarUrl: account.avatarUrl ?? null,
+    // A pending recruiter holds a valid session but may do no recruiter work.
+    // Without this the client has a session it cannot explain — an empty
+    // workspace and no reason for it.
+    status: account.status as AccountStatus,
   };
 }
