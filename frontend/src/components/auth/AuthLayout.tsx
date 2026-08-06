@@ -45,12 +45,16 @@ export function AuthLayout({
 
           <div className="mt-8">{children}</div>
 
-          <p className="mt-10 border-t border-line pt-6 text-sm text-ink-muted">
-            {copy.crossLinkLabel}{" "}
-            <Link to={copy.crossLinkHref} className="text-signal-text hover:underline">
-              {copy.crossLinkText}
-            </Link>
-          </p>
+          {/* Admin has no sibling portal to advertise, so the whole rule-and-
+              link block goes rather than leaving a bordered empty paragraph. */}
+          {copy.crossLinkHref && copy.crossLinkLabel && copy.crossLinkText ? (
+            <p className="mt-10 border-t border-line pt-6 text-sm text-ink-muted">
+              {copy.crossLinkLabel}{" "}
+              <Link to={copy.crossLinkHref} className="text-signal-text hover:underline">
+                {copy.crossLinkText}
+              </Link>
+            </p>
+          ) : null}
         </FadeIn>
       </div>
 

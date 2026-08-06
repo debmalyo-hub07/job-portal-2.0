@@ -1,3 +1,4 @@
+import { PORTALS } from "@jobportal/shared";
 import { Schema, type InferSchemaType, type Model } from "mongoose";
 import { defineModel } from "./defineModel.js";
 
@@ -14,7 +15,7 @@ import { defineModel } from "./defineModel.js";
 const otpBudgetSchema = new Schema(
   {
     subjectId: { type: Schema.Types.ObjectId, required: true },
-    subjectType: { type: String, enum: ["seeker", "recruiter"], required: true },
+    subjectType: { type: String, enum: PORTALS, required: true },
     purpose: { type: String, enum: ["verify_email", "reset_password"], required: true },
     failures: { type: Number, default: 0 },
     windowStartedAt: { type: Date, required: true },

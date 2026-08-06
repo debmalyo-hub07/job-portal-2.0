@@ -2,8 +2,9 @@ import type { Model } from "mongoose";
 import type { Portal } from "@jobportal/shared";
 import { Seeker, type SeekerDocument } from "../models/seeker.model.js";
 import { Recruiter, type RecruiterDocument } from "../models/recruiter.model.js";
+import { Admin, type AdminDocument } from "../models/admin.model.js";
 
-export type AccountDocument = SeekerDocument | RecruiterDocument;
+export type AccountDocument = SeekerDocument | RecruiterDocument | AdminDocument;
 
 /**
  * Resolves the portal to its collection.
@@ -15,6 +16,7 @@ export type AccountDocument = SeekerDocument | RecruiterDocument;
 const MODELS = {
   seeker: Seeker,
   recruiter: Recruiter,
+  admin: Admin,
 } as const;
 
 export function accountModel(portal: Portal): Model<AccountDocument> {

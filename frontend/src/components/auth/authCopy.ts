@@ -20,12 +20,18 @@ export const AUTH_COPY: Record<
     points: readonly string[];
     /** This portal's own landing page — where the wordmark goes. */
     homeHref: string;
-    crossLinkLabel: string;
-    crossLinkText: string;
-    /** The *other* portal's landing page. */
-    crossLinkHref: string;
+    /**
+     * The sibling portal to advertise. `null` on admin: it has no public
+     * counterpart, and a cross-link from an internal console door to a
+     * marketing page is a dead end. Nullable rather than absent so the
+     * consumers guard on a value instead of branching on the portal.
+     */
+    crossLinkLabel: string | null;
+    crossLinkText: string | null;
+    crossLinkHref: string | null;
     loginHref: string;
-    signupHref: string;
+    /** `null` where no self-service registration exists — see the admin entry. */
+    signupHref: string | null;
   }
 > = {
   seeker: {
@@ -61,5 +67,27 @@ export const AUTH_COPY: Record<
     crossLinkHref: "/",
     loginHref: "/hire/login",
     signupHref: "/hire/signup",
+  },
+  admin: {
+    wordmarkSuffix: "Admin",
+    headline: "Manage the platform.",
+    sub: "Approve recruiters and moderate content.",
+    fallbackProof: "Internal console — not publicly advertised.",
+    points: [
+      "Review and approve pending recruiter accounts",
+      "Monitor platform activity",
+      "Moderate jobs and maintain quality",
+    ],
+    homeHref: "/admin",
+    // No public counterpart to cross-link to — an internal door linking out to
+    // a marketing page is a dead end. Nullable rather than absent so consumers
+    // guard on a value instead of branching on the portal.
+    crossLinkLabel: null,
+    crossLinkText: null,
+    crossLinkHref: null,
+    loginHref: "/admin/login",
+    // No self-service admin registration — admins are seeded and then created
+    // by an existing admin.
+    signupHref: null,
   },
 };

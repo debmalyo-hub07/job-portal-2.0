@@ -1,3 +1,4 @@
+import { PORTALS } from "@jobportal/shared";
 import { Schema, type InferSchemaType, type Model } from "mongoose";
 import { defineModel } from "./defineModel.js";
 
@@ -8,7 +9,7 @@ const refreshTokenSchema = new Schema(
     subjectId: { type: Schema.Types.ObjectId, required: true },
     /** The authoritative portal for this session. The refresh handler reads it
      *  from here — never from the request URL. See spec amendment, finding 5. */
-    subjectType: { type: String, enum: ["seeker", "recruiter"], required: true },
+    subjectType: { type: String, enum: PORTALS, required: true },
     familyId: { type: String, required: true },
     userAgent: { type: String, default: null },
     ip: { type: String, default: null },

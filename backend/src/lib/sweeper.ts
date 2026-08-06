@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import type { Portal } from "@jobportal/shared";
+import { PORTALS, type Portal } from "@jobportal/shared";
 import { env } from "../config/env.js";
 import { logger } from "./logger.js";
 import { accountModel } from "../services/account.service.js";
@@ -7,7 +7,14 @@ import { OtpCode } from "../models/otpCode.model.js";
 import { OtpBudget } from "../models/otpBudget.model.js";
 import { RefreshToken } from "../models/refreshToken.model.js";
 
-const PORTALS: readonly Portal[] = ["seeker", "recruiter"];
+/**
+ * Every portal, derived from the schema rather than listed here, so a fourth
+ * portal cannot be added without being swept. Admins are included deliberately:
+ * an unverified admin row squats the unique email index exactly as any other
+ * account does, and `seed:admin` creates admins already verified, so a sweepable
+ * admin is by definition an abandoned one.
+ */
+const SWEEP_PORTALS: readonly Portal[] = PORTALS;
 const BATCH = 500;
 
 /**
@@ -23,9 +30,11 @@ const BATCH = 500;
  */
 export async function sweepUnverifiedAccounts(): Promise<Record<Portal, number>> {
   const cutoff = new Date(Date.now() - env().UNVERIFIED_ACCOUNT_TTL_HOURS * 3_600_000);
-  const deleted: Record<Portal, number> = { seeker: 0, recruiter: 0 };
+  // Built from the same list the loop walks, so a new portal cannot be swept
+  // without appearing in the returned counts (or vice versa).
+  const deleted = Object.fromEntries(SWEEP_PORTALS.map((p) => [p, 0])) as Record<Portal, number>;
 
-  for (const portal of PORTALS) {
+  for (const portal of SWEEP_PORTALS) {
     // Batched rather than one unbounded deleteMany: the first run after a long
     // outage could match a very large set, and a single delete of that size
     // holds locks and blows out the oplog. Loop until a short batch comes back.
@@ -93,7 +102,10 @@ export function startSweeper(): () => void {
   const tick = (): void => {
     void sweepUnverifiedAccounts()
       .then((deleted) => {
-        if (deleted.seeker + deleted.recruiter > 0) {
+        // Summed across every portal rather than naming two, so an admin sweep
+        // is not silently dropped from the log.
+        const total = Object.values(deleted).reduce((sum, n) => sum + n, 0);
+        if (total > 0) {
           logger.info({ deleted }, "swept unverified accounts");
         }
       })

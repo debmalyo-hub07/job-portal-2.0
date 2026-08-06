@@ -4,6 +4,9 @@ import mongoose from "mongoose";
 import { Seeker } from "../src/models/seeker.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { defineModel } from "../src/models/defineModel.js";
+import { Admin } from "../src/models/admin.model.js";
+import { accountModel } from "../src/services/account.service.js";
+import { PORTALS, portalSchema } from "@jobportal/shared";
 
 /**
  * Stands in for `applications`, carrying the `ref` that Task 12 will repoint at
@@ -156,5 +159,50 @@ describe("sanitizeFilter", () => {
       createdAt: mongoose.trusted({ $lt: new Date(Date.now() + 60_000) }),
     });
     expect(hit).not.toBeNull();
+  });
+});
+
+/**
+ * Phase 3A: the admin portal. `Portal` widening to three values is what makes
+ * every site needing a third case a compile error — these pin the runtime half.
+ */
+describe("admin portal", () => {
+  it("portalSchema accepts all three portals", () => {
+    expect(portalSchema.parse("seeker")).toBe("seeker");
+    expect(portalSchema.parse("recruiter")).toBe("recruiter");
+    expect(portalSchema.parse("admin")).toBe("admin");
+  });
+
+  it("rejects an unknown portal", () => {
+    expect(portalSchema.safeParse("root").success).toBe(false);
+  });
+
+  it("derives PORTALS from the schema, so it carries all three", () => {
+    expect([...PORTALS]).toEqual(["seeker", "recruiter", "admin"]);
+  });
+
+  it("resolves the admin portal to the admins collection", () => {
+    expect(accountModel("admin")).toBe(Admin);
+    expect(Admin.collection.name).toBe("admins");
+  });
+
+  it("an admin carries the shared auth fields", async () => {
+    const admin = await Admin.create({
+      email: "Root@Example.com",
+      fullName: "Root Admin",
+      passwordHash: null,
+      emailVerifiedAt: new Date(),
+    });
+    expect(admin.email).toBe("root@example.com");
+    expect(admin.status).toBe("active");
+    expect(admin.googleId).toBeNull();
+  });
+
+  it("keeps the admin email index unique, like the other two collections", async () => {
+    await Admin.init();
+    await Admin.create({ email: "dupe@example.com", fullName: "First Admin" });
+    await expect(Admin.create({ email: "dupe@example.com", fullName: "Second Admin" })).rejects.toThrow(
+      /duplicate key/i,
+    );
   });
 });

@@ -89,12 +89,15 @@ const VerifyEmail = () => {
           Resend code
         </Button>
 
-        <p className="mt-6 text-sm text-ink-muted">
-          Wrong address?{" "}
-          <Link to={copy.signupHref} className="text-signal-text hover:underline">
-            Sign up again
-          </Link>
-        </p>
+        {/* Only where self-service registration exists — see authCopy. */}
+        {copy.signupHref ? (
+          <p className="mt-6 text-sm text-ink-muted">
+            Wrong address?{" "}
+            <Link to={copy.signupHref} className="text-signal-text hover:underline">
+              Sign up again
+            </Link>
+          </p>
+        ) : null}
       </form>
     </AuthLayout>
   );

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { sweepUnverifiedAccounts } from "../../src/lib/sweeper.js";
 import { Seeker } from "../../src/models/seeker.model.js";
+import { Admin } from "../../src/models/admin.model.js";
 import { OtpCode } from "../../src/models/otpCode.model.js";
 
 const hoursAgo = (n: number) => new Date(Date.now() - n * 3_600_000);
@@ -56,5 +57,32 @@ describe("sweepUnverifiedAccounts", () => {
     })));
     const deleted = await sweepUnverifiedAccounts();
     expect(deleted.seeker).toBe(505);   // BATCH is 500 — proves the loop
+  });
+
+  // Phase 3A. The portal list is derived from the schema, so a new portal is
+  // swept automatically — these pin that, because every case above is
+  // seeker-only and would still pass if admins were silently skipped.
+  it("sweeps an unverified admin, and reports it in the counts", async () => {
+    await Admin.create({
+      email: "stale-admin@x.test", fullName: "Stale Admin", passwordHash: "x",
+      emailVerifiedAt: null, createdAt: hoursAgo(48),
+    });
+    const deleted = await sweepUnverifiedAccounts();
+    expect(await Admin.countDocuments({ email: "stale-admin@x.test" })).toBe(0);
+    expect(deleted.admin).toBe(1);
+  });
+
+  it("keeps a verified admin — seed:admin creates them verified", async () => {
+    await Admin.create({
+      email: "real-admin@x.test", fullName: "Real Admin", passwordHash: "x",
+      emailVerifiedAt: hoursAgo(500), createdAt: hoursAgo(9000),
+    });
+    await sweepUnverifiedAccounts();
+    expect(await Admin.countDocuments({ email: "real-admin@x.test" })).toBe(1);
+  });
+
+  it("returns a count for every portal, not just the ones that matched", async () => {
+    const deleted = await sweepUnverifiedAccounts();
+    expect(Object.keys(deleted).sort()).toEqual(["admin", "recruiter", "seeker"]);
   });
 });

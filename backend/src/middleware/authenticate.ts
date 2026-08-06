@@ -86,6 +86,16 @@ export function requireVerified(req: Request, _res: Response, next: NextFunction
   next();
 }
 
+/**
+ * Ambient-identity portals for `authenticateAny` / `optionalAuthenticate`.
+ *
+ * Deliberately excludes "admin", and is a literal list rather than the shared
+ * `PORTALS` for that reason. These two resolve whoever the browser happens to
+ * be on domain routes (jobs, applications). An admin is an authority over the
+ * domain, not a participant in it, so an admin cookie must never silently
+ * satisfy a route that meant "some signed-in user". Admin-only routes name
+ * their portal with `authenticate("admin")`.
+ */
 const CANDIDATES: readonly Portal[] = ["seeker", "recruiter"];
 
 async function resolveSession(req: Request, portal: Portal): Promise<boolean> {

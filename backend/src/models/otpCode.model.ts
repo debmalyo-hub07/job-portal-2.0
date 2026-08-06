@@ -1,3 +1,4 @@
+import { PORTALS } from "@jobportal/shared";
 import { Schema, type InferSchemaType, type Model } from "mongoose";
 import { defineModel } from "./defineModel.js";
 
@@ -16,7 +17,7 @@ const otpCodeSchema = new Schema(
     codeHash: { type: String, required: true },
     purpose: { type: String, enum: ["verify_email", "reset_password"], required: true },
     subjectId: { type: Schema.Types.ObjectId, required: true },
-    subjectType: { type: String, enum: ["seeker", "recruiter"], required: true },
+    subjectType: { type: String, enum: PORTALS, required: true },
     attempts: { type: Number, default: 0 },
     expiresAt: { type: Date, required: true },
     consumedAt: { type: Date, default: null },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const portalSchema = z.enum(["seeker", "recruiter"]);
+export const portalSchema = z.enum(["seeker", "recruiter", "admin"]);
 export type Portal = z.infer<typeof portalSchema>;
 
 /**

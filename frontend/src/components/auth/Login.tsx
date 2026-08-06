@@ -124,12 +124,16 @@ const Login = ({ portal }: { portal: Portal }) => {
           Continue with Google
         </Button>
 
-        <p className="mt-6 text-sm text-ink-muted">
-          Don&apos;t have an account?{" "}
-          <Link to={copy.signupHref} className="text-signal-text hover:underline">
-            Create one
-          </Link>
-        </p>
+        {/* No self-service registration on admin — admins are seeded, then
+            created by an existing admin. */}
+        {copy.signupHref ? (
+          <p className="mt-6 text-sm text-ink-muted">
+            Don&apos;t have an account?{" "}
+            <Link to={copy.signupHref} className="text-signal-text hover:underline">
+              Create one
+            </Link>
+          </p>
+        ) : null}
       </form>
     </AuthLayout>
   );
