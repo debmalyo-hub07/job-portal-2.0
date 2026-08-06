@@ -49,7 +49,12 @@ export function buildAuthRouter(portal: Portal): Router {
   const rlRedeem = rateLimit({ windowMs: 3_600_000, max: 10 });
   const rlGoogle = rateLimit({ windowMs: 3_600_000, max: 10 });
 
-  router.post("/register", rlRegister, registerHandler(portal));
+  // Admins are never self-served. There is no registration surface to attack,
+  // rate-limit or reason about; the first admin comes from `seed:admin` and the
+  // rest are created by an existing admin.
+  if (portal !== "admin") {
+    router.post("/register", rlRegister, registerHandler(portal));
+  }
   router.post("/verify-email", rlRedeem, verifyEmailHandler(portal));
   router.post("/resend-code", rlOtpRequest, resendCodeHandler(portal));
   router.post("/login", rlLogin, loginHandler(portal));
@@ -62,12 +67,18 @@ export function buildAuthRouter(portal: Portal): Router {
   router.post("/refresh", csrfProtection, refreshHandler(portal));
   router.post("/logout", csrfProtection, logoutHandler(portal));
 
-  router.get("/google", rlGoogle, googleStartHandler(portal));
-  // No CSRF on the callback: a top-level GET navigation Google initiates, to
-  // which no header can be attached. Its protections are the signed lax
-  // transaction cookie, state, and nonce (Task 9).
-  router.get("/google/callback", googleCallbackHandler(portal));
-  router.post("/google/confirm-link", rlRedeem, confirmGoogleLinkHandler(portal));
+  // No Google on the admin portal: the highest-privilege portal gains nothing
+  // from a third-party identity path, and `resolveIdentity` would refuse to
+  // create there anyway. The routes do not exist rather than existing and
+  // refusing — a 404 tells a prober less than a uniform failure redirect.
+  if (portal !== "admin") {
+    router.get("/google", rlGoogle, googleStartHandler(portal));
+    // No CSRF on the callback: a top-level GET navigation Google initiates, to
+    // which no header can be attached. Its protections are the signed lax
+    // transaction cookie, state, and nonce (Task 9).
+    router.get("/google/callback", googleCallbackHandler(portal));
+    router.post("/google/confirm-link", rlRedeem, confirmGoogleLinkHandler(portal));
+  }
 
   router.get("/me", authenticate(portal), meHandler(portal));
 

@@ -30,6 +30,7 @@ export function buildApp(): Express {
   app.use("/api/v1/user", userRoute);
   app.use("/api/v1/seeker/auth", buildAuthRouter("seeker"));
   app.use("/api/v1/recruiter/auth", buildAuthRouter("recruiter"));
+  app.use("/api/v1/admin/auth", buildAuthRouter("admin"));
   app.use("/api/v1/company", companyRoute);
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);
