@@ -151,6 +151,17 @@
   --signal-muted: oklch(0.6 0.13 185 / 12%);
   --signal-ring: oklch(0.6 0.13 185 / 45%);
 }
+/* Admin. Hue 330 sits clear of warn, ok and danger, and is unmistakable
+   against seeker violet (282) and recruiter teal (185). --signal-text is
+   deliberately darker than --signal to clear 4.5:1 on paper, the same
+   treatment --warn and --ok already receive. */
+[data-portal="admin"] {
+  --signal: oklch(0.58 0.19 330);
+  --signal-text: oklch(0.45 0.19 330);
+  --signal-fg: oklch(0.99 0.004 95);
+  --signal-muted: oklch(0.58 0.19 330 / 12%);
+  --signal-ring: oklch(0.58 0.19 330 / 45%);
+}
 .dark,
 .dark [data-portal="seeker"] {
   --signal: oklch(0.72 0.17 282);
@@ -165,6 +176,13 @@
   --signal-fg: oklch(0.165 0.006 95);
   --signal-muted: oklch(0.74 0.13 185 / 18%);
   --signal-ring: oklch(0.74 0.13 185 / 55%);
+}
+.dark [data-portal="admin"] {
+  --signal: oklch(0.72 0.17 330);
+  --signal-text: oklch(0.8 0.15 330);
+  --signal-fg: oklch(0.165 0.006 95);
+  --signal-muted: oklch(0.72 0.17 330 / 18%);
+  --signal-ring: oklch(0.72 0.17 330 / 55%);
 }
 
 @layer base {

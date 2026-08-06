@@ -27,6 +27,15 @@ const PAIRINGS = [
   ["dark --ink on recruiter panel", "oklch(0.96 0.004 95)", "color-mix(in oklch, oklch(0.74 0.13 185) 18%, oklch(0.165 0.006 95))"],
   ["light --ink-muted on recruiter panel", "oklch(0.52 0.008 95)", "color-mix(in oklch, oklch(0.60 0.13 185) 12%, oklch(0.99 0.004 95))"],
   ["dark --ink-muted on recruiter panel", "oklch(0.68 0.006 95)", "color-mix(in oklch, oklch(0.74 0.13 185) 18%, oklch(0.165 0.006 95))"],
+  // Admin (hue 330), added in Phase 3A. Same six shapes as recruiter.
+  ["light admin --signal-text on --paper", "oklch(0.45 0.19 330)", "oklch(0.99 0.004 95)"],
+  ["dark admin --signal-text on --paper", "oklch(0.80 0.15 330)", "oklch(0.165 0.006 95)"],
+  ["light --signal-fg on --signal-text (admin)", "oklch(0.99 0.004 95)", "oklch(0.45 0.19 330)"],
+  ["dark --signal-fg on --signal-text (admin)", "oklch(0.165 0.006 95)", "oklch(0.80 0.15 330)"],
+  ["light --ink on admin panel", "oklch(0.18 0.008 95)", "color-mix(in oklch, oklch(0.58 0.19 330) 12%, oklch(0.99 0.004 95))"],
+  ["dark --ink on admin panel", "oklch(0.96 0.004 95)", "color-mix(in oklch, oklch(0.72 0.17 330) 18%, oklch(0.165 0.006 95))"],
+  ["light --ink-muted on admin panel", "oklch(0.52 0.008 95)", "color-mix(in oklch, oklch(0.58 0.19 330) 12%, oklch(0.99 0.004 95))"],
+  ["dark --ink-muted on admin panel", "oklch(0.68 0.006 95)", "color-mix(in oklch, oklch(0.72 0.17 330) 18%, oklch(0.165 0.006 95))"],
 ];
 
 const browser = await chromium.launch({ channel: "chrome" });

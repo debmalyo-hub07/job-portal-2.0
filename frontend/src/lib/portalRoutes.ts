@@ -1,23 +1,25 @@
 import type { Portal } from "@jobportal/shared";
 
-/** Route prefixes that resolve to the recruiter portal. */
-const RECRUITER_PREFIXES = ["/hire", "/admin"] as const;
-
 /**
- * The portal a pathname belongs to.
+ * Route prefix → portal.
  *
- * In its own module rather than beside `PortalScope`, because a file that
- * exports both a component and a plain function loses Fast Refresh for the
- * component — and this mapping is imported by the router and the tests, so it
- * has more consumers than the component does.
+ * The prefixes are disjoint, so order is not significant, but the
+ * segment-boundary match is: a bare `startsWith("/hire")` would claim "/hired",
+ * and `startsWith("/admin")` would claim "/administrator". Getting that wrong
+ * silently renders one portal's signal colour on another portal's page.
  *
- * Matches on a segment boundary, not a bare prefix: "/hired" and
- * "/administrator" are seeker paths, and `startsWith("/hire")` would claim both.
+ * `/admin` belongs to the admin portal as of Phase 3A. The recruiter workspace
+ * that used to live there moved to `/hire/*`, so the whole recruiter surface —
+ * marketing, auth and workspace — now sits under one prefix.
  */
+const PREFIXES: ReadonlyArray<readonly [string, Portal]> = [
+  ["/admin", "admin"],
+  ["/hire", "recruiter"],
+];
+
 export function portalForPath(pathname: string): Portal {
-  return RECRUITER_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
-    ? "recruiter"
-    : "seeker";
+  for (const [prefix, portal] of PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return portal;
+  }
+  return "seeker";
 }

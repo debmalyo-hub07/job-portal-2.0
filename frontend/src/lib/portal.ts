@@ -18,7 +18,7 @@ const KEY = "jp.portal";
  */
 export function getPortalHint(): Portal | null {
   const raw = localStorage.getItem(KEY);
-  return raw === "seeker" || raw === "recruiter" ? raw : null;
+  return raw === "seeker" || raw === "recruiter" || raw === "admin" ? raw : null;
 }
 
 export function setPortalHint(portal: Portal): void {

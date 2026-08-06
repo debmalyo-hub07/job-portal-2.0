@@ -17,8 +17,19 @@ describe("portalForPath", () => {
     ["/hire", "recruiter"],
     ["/hire/login", "recruiter"],
     ["/hire/signup", "recruiter"],
-    ["/admin/companies", "recruiter"],
-    ["/admin/jobs/create", "recruiter"],
+    // The workspace moved off /admin in Phase 3A — /admin is the admin portal
+    // now, and these live under /hire with the rest of the recruiter surface.
+    ["/hire/companies", "recruiter"],
+    ["/hire/jobs/create", "recruiter"],
+    ["/hire/jobs/123/applicants", "recruiter"],
+  ])("%s -> %s", (path, expected) => {
+    expect(portalForPath(path)).toBe(expected);
+  });
+
+  it.each([
+    ["/admin", "admin"],
+    ["/admin/login", "admin"],
+    ["/admin/console/recruiters", "admin"],
   ])("%s -> %s", (path, expected) => {
     expect(portalForPath(path)).toBe(expected);
   });
@@ -29,6 +40,7 @@ describe("portalForPath", () => {
     expect(portalForPath("/hired")).toBe("seeker");
     expect(portalForPath("/hiring-guide")).toBe("seeker");
     expect(portalForPath("/administrator")).toBe("seeker");
+    expect(portalForPath("/admins")).toBe("seeker");
   });
 
   it("ignores a ?portal= query param", () => {
