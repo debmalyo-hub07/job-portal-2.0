@@ -153,36 +153,65 @@ Two problems listed here before Phase 1C are now closed:
 
 ## Authentication and authorization
 
-**Current (Phase 1C):**
+**Current (Phase 3A):**
 
 ```
 Auth routes      authenticate(portal) → requireVerified → csrfProtection (mutations)
+Recruiter work   authenticate("recruiter") → requireApproved → ownership check
 Domain routes    authenticate(portal) → service-layer ownership check
+Admin routes     authenticate("admin")
 Public reads     optionalAuthenticate()
-Both portals     authenticateAny()                     ← /api/v1/user/profile
+Seeker+recruiter authenticateAny()                     ← /api/v1/user/profile
 ```
 
 `bridgeAuth` and the legacy `req.id` it populated are deleted. `authenticateAny`
-is the generalisation over two portals that the bridge used to provide, minus the
-legacy field; `optionalAuthenticate` resolves a session when one exists and never
-401s, for the public job board.
+is the generalisation the bridge used to provide, minus the legacy field;
+`optionalAuthenticate` resolves a session when one exists and never 401s, for the
+public job board.
+
+Both of those resolve **seeker and recruiter only** — a literal list, not the
+shared `PORTALS`. They answer "whoever the browser happens to be" on domain
+routes, and an admin is an authority over the domain rather than a participant in
+it, so an admin cookie must never silently satisfy a route that meant "some
+signed-in user". Admin-only routes name their portal.
 
 It briefly also accepted the inherited `token` cookie behind a
 `LEGACY_AUTH_FALLBACK` flag, so that a deploy could be rolled back without
 logging out every signed-in user. Both the flag and that branch are now deleted:
 the only session-issuing endpoints are the portal-scoped ones.
 
-Authorization is enforced in the **service layer**, not in middleware: the check
-is a query predicate (`{ _id, userId: callerId }`) rather than a fetch followed
-by a comparison, so there is no window in which an unowned document is in hand.
-A resource that is missing and one that belongs to someone else answer
+### Identity and permission are separate steps
+
+`authenticate("recruiter")` admits a **pending** recruiter deliberately. It
+establishes who the caller is, which is what lets them reach `/me` and be told
+why they are blocked. `requireApproved` then decides what they may do, and is
+mounted on every recruiter-owned mutation: job posting, both company mutations,
+and the two applicant routes.
+
+It re-reads the account rather than trusting a claim in the access token.
+Approval happens while the recruiter is signed in, and a status baked into a
+15-minute token would either lock them out for the rest of its life or — worse —
+leave a revoked recruiter working until it expired.
+
+`requireApproved` answers **403 `RECRUITER_PENDING_APPROVAL`**, and is the one
+deliberate exception to the 404 rule below. That rule exists so a foreign
+recruiter cannot prove a resource exists; this refusal is about the caller's own
+account state and discloses nothing about any resource. A 404 here would also be
+a lie, since the call being refused is usually the one that would have created
+the resource.
+
+Authorization is otherwise enforced in the **service layer**, not in middleware:
+the check is a query predicate (`{ _id, userId: callerId }`) rather than a fetch
+followed by a comparison, so there is no window in which an unowned document is
+in hand. A resource that is missing and one that belongs to someone else answer
 identically — 404, same code, same message — because a 403 confirms existence.
 Applications reach their owner transitively: application → job → `created_by`.
 
-There is deliberately no `requireRole` step. With two account collections the
+There is deliberately no `requireRole` step. With three account collections the
 collection *is* the role: a token issued from the seeker portal cannot address a
 recruiter route, so a separate role field would be redundant state able to drift
-out of sync with the collection describing it.
+out of sync with the collection describing it. See
+`docs/adr/0006-three-account-collections.md`.
 
 `requireOwnership` resolves per resource — company edits check `ownerId`, job
 edits check `postedBy`, application status changes check that the application's
@@ -202,15 +231,19 @@ Auth pages take `portal` as a **prop from the route**, supplied by
 `buildAuthRoutes(portal, prefix)`:
 
 ```
-buildAuthRoutes("seeker", "")        →  /login       /signup
-buildAuthRoutes("recruiter", "/hire") →  /hire/login  /hire/signup
+buildAuthRoutes("seeker", "")                          →  /login       /signup
+buildAuthRoutes("recruiter", "/hire")                  →  /hire/login  /hire/signup
+buildAuthRoutes("admin", "/admin", {withSignup:false}) →  /admin/login
 ```
 
 That is deliberately the same shape as the server's `buildAuthRouter(portal)`
-mounted at `/seeker/auth` and `/recruiter/auth`: one component set, two mounts,
-the portal named only at the mount site. Before this, `Login` held the portal in
-`useState` behind a radio pair, so the endpoint the form posted to and the
-accent colour the URL resolved could disagree.
+mounted at `/seeker/auth`, `/recruiter/auth` and `/admin/auth`: one component
+set, three mounts, the portal named only at the mount site. Before this, `Login`
+held the portal in `useState` behind a radio pair, so the endpoint the form
+posted to and the accent colour the URL resolved could disagree.
+
+Admin has no signup **route**, not merely a hidden link — the API's admin router
+mounts no `/register`, so a typed URL must not reach a form that cannot post.
 
 The seven shared OAuth/OTP surfaces are the one exception. They read `?portal=`
 because the Google callback redirects to portal-neutral paths — but even there
@@ -220,6 +253,22 @@ and never the resolved portal.
 `localStorage["jp.portal"]` is a **hint, not a credential**: it decides which
 mount `/refresh` and `/me` are sent to. Authority lives in the `httpOnly` cookie,
 whose key is derived per portal, so a tampered hint can only produce a 401.
+
+### Three prefixes, three portals
+
+`/admin` belongs to the **admin** portal as of Phase 3A. The recruiter workspace
+that lived there through 2B-1 moved to `/hire/*`, so the whole recruiter surface
+— marketing, auth and workspace — sits under one prefix and resolves one signal
+colour.
+
+Pre-3A URLs redirect via a prefix swap (`WorkspaceRedirect`) rather than a list
+of literal targets: the workspace paths most worth bookmarking are the
+parameterised ones, and enumerating literals drops exactly those.
+
+Both client gates compose in one place (`appRoutes.tsx`), in the order the API
+applies them — `ProtectedRoute portal="recruiter"` then `RequireApproved` — so a
+new workspace page cannot ship with one of them missing. `RequireApproved` is
+presentation only; the API is what actually refuses the write.
 
 ### Tokens resolve, components do not branch
 

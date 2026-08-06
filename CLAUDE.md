@@ -19,6 +19,8 @@ Guidance for Claude Code when working in this repository.
 | Full CI locally | `npm run ci` (takes >120s — run it in the background) |
 | Audit prod deps | `npm run audit:prod` |
 | 1C migration | `npm run migrate:phase1c --workspace @jobportal/api` |
+| Seed first admin | `npm run seed:admin --workspace @jobportal/api -- --email <a> --name "<n>"` |
+| 3A migration | `npm run migrate:phase3a --workspace @jobportal/api` |
 
 ## Layout
 
@@ -52,9 +54,21 @@ Guidance for Claude Code when working in this repository.
   `findAccountByEmail`/`findAccountById`. The schema marks it `select: false`, so
   a plain read silently yields `undefined` and every password check fails open
   into the dummy-verify branch.
-- **Portals:** `Portal` is `"seeker" | "recruiter"` and always arrives as a route
-  literal, never from a request body, query or cookie. A function that takes a
-  portal from user input is a bug regardless of what it does with it.
+- **Portals:** `Portal` is `"seeker" | "recruiter" | "admin"` and always arrives
+  as a route literal, never from a request body, query or cookie. A function
+  that takes a portal from user input is a bug regardless of what it does with
+  it. `authenticateAny` and `optionalAuthenticate` resolve **seeker and
+  recruiter only** — an admin is an authority over the domain, not a participant
+  in it, so an admin cookie must never satisfy a route that meant "some
+  signed-in user". Admin routes name their portal.
+- **Approval:** recruiters register `pending`. `authenticate("recruiter")`
+  admits them — that is identity, and they need it to reach `/me` and learn why
+  they are blocked. `requireApproved` is what refuses the work, and belongs on
+  every recruiter-owned mutation. It answers **403
+  `RECRUITER_PENDING_APPROVAL`**, the one deliberate exception to the 404
+  ownership rule below: it discloses nothing about a resource, only about the
+  caller's own account. It re-reads the account rather than trusting the token,
+  because approval happens mid-session.
 - **OTPs:** never log a code, and never resolve the account to mutate from a
   request body — it comes from the matched OTP row's `subjectId`.
 - **Operator queries:** `sanitizeFilter` is on globally, so a `$`-operator in a
@@ -72,9 +86,16 @@ Guidance for Claude Code when working in this repository.
   hand-tune spacing on a page.
 - **Frontend portal:** a page never holds a portal in state or reads it from a
   control. It arrives as a prop from the route, the way `buildAuthRoutes` passes
-  a literal. The one exception is the seven shared OAuth/OTP pages, which read
-  `?portal=` because the backend redirects to portal-neutral paths — and even
-  there `PortalScope` ignores the param when resolving the signal colour.
+  a literal. `ProtectedRoute` takes it as a required prop for the same reason —
+  with three portals, an assumed one admits the wrong portal's user. The
+  exception is the seven shared OAuth/OTP pages, which read `?portal=` because
+  the backend redirects to portal-neutral paths — and even there `PortalScope`
+  ignores the param when resolving the signal colour.
+- **Frontend route prefixes:** `/hire/*` is the whole recruiter surface
+  (marketing, auth, workspace) and `/admin/*` is the admin console. The
+  workspace lived under `/admin/*` before 3A; those URLs redirect. A workspace
+  page must go through the `workspace()` helper in `appRoutes.tsx`, which
+  composes both gates in the order the API applies them.
 - **Frontend motion:** go through `lib/motion.tsx`. Never import
   `framer-motion` in a page — the composables are what honour
   `prefers-reduced-motion`.
@@ -114,14 +135,49 @@ every later test and failures start depending on file order.
 next-themes and framer-motion read. Playwright specs live under `tests/visual/`
 and are excluded from the jsdom run — they drive a real browser.
 
+For a routing assertion use `renderAppAt` from the same helper: it mounts the
+real route table via `useRoutes` under a plain `MemoryRouter`. Not
+`createMemoryRouter` — the data router builds a `Request` per navigation, and
+jsdom's `AbortSignal` is not the type undici checks against, so every redirect
+throws before it resolves.
+
+A test that scans the source tree must assert it read something. The first
+version of `workspaceRoutes.test.tsx` resolved its root to a nonexistent
+directory and passed over zero files.
+
 ## Current state
 
 Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
-2A (Ink & Signal design foundation) and 2B-1 (design language and portal-split
-authentication) are complete. The design system, its primitives and the
-compositional layer are all in place, and the auth surfaces plus the landing
-page are rebuilt on them. Phases 2B-2 (seeker pages) and 2B-3 (recruiter
-workspace) have not started — those pages are still the inherited structure.
+2A (Ink & Signal design foundation), 2B-1 (design language and portal-split
+authentication) and 3A (three-portal foundation) are complete. The design
+system, its primitives and the compositional layer are all in place, and the
+auth surfaces plus the landing page are rebuilt on them. Phases 2B-2 (seeker
+pages) and 2B-3 (recruiter workspace) have not started — those pages are still
+the inherited structure.
+
+What 3A closed:
+
+- **Anyone could self-register as a recruiter** and immediately post jobs, edit
+  companies and read applicant PII for a job they invented. Recruiters now
+  register `pending` and an admin approves them; `requireApproved` gates every
+  recruiter-owned mutation. Google sign-in may sign in an existing recruiter but
+  never create one, so registration is the only way a recruiter account begins
+- `Portal` is three values, backed by three account collections — the collection
+  *is* the role, so there is still no `requireRole`. See
+  `docs/adr/0006-three-account-collections.md`
+- The admin portal has no self-service registration anywhere: its auth router
+  mounts no `/register` and no `/google`, and the client mounts no
+  `/admin/signup` route (not merely a hidden link — a typed URL must not reach a
+  form that cannot post). The first admin comes from `npm run seed:admin`
+- The recruiter workspace moved to `/hire/*`; `/admin/*` is the admin console.
+  Pre-3A URLs redirect via a prefix swap, so parameterised paths survive
+- `npm run migrate:phase3a` grandfathers existing **verified** recruiters to
+  `active`, so the migration does not lock out people who were already working.
+  Unverified rows stay `pending`; suspended rows are untouched, because the
+  filter matches `status: "pending"` only
+- `status` gained `pending`, and `/me` reports it — which is what lets the client
+  render the awaiting-approval state instead of a workspace whose every action
+  would 403
 
 What 2A closed:
 
@@ -139,10 +195,11 @@ What 2A closed:
 - Signal is portal-scoped: `PortalScope` sets `data-portal` from the route and
   the signal tokens re-resolve. It reads the route only — never body, query or
   cookie, same rule as the API. The mapping is `portalForPath` in
-  `src/lib/portalRoutes.ts` (`/hire` and `/admin` → recruiter, else seeker),
-  matching on a segment boundary so `/hired` and `/administrator` stay seeker
-  paths. It sits in its own module because a file exporting both a component
-  and a plain function loses Fast Refresh for the component
+  `src/lib/portalRoutes.ts` — since 3A, `/hire` → recruiter, `/admin` → admin,
+  else seeker — matching on a segment boundary so `/hired` and `/administrator`
+  stay seeker paths. It sits in its own module because a file exporting both a
+  component and a plain function loses Fast Refresh for the component; the route
+  table's components live in `src/routes/routeElements.tsx` for the same reason
 - 20 primitives on tokens: the 12 rebuilt (avatar, badge, button, carousel,
   dialog, input, label, popover, radio-group, select, sonner, table) plus 8 new
   (card, tabs, dropdown-menu, tooltip, skeleton, separator, sheet, pagination)
@@ -169,20 +226,19 @@ What 2B-1 closed:
   redux-persist leaks a signed-in user across files and failures depend on
   execution order
 - **Authentication is split by portal and the portal selector is gone.** One
-  component set mounted twice by `buildAuthRoutes(portal, prefix)` in
-  `src/routes/authRoutes.tsx` — `/login` + `/signup` and `/hire/login` +
-  `/hire/signup` — mirroring the API's `buildAuthRouter(portal)`. `Login` and
-  `Signup` take `portal` as a **prop from the route**, never component state.
-  The native radio pair is deleted: it let the posted endpoint disagree with the
-  signal colour resolved from the URL
+  component set mounted by `buildAuthRoutes(portal, prefix)` in
+  `src/routes/authRoutes.tsx` — `/login` + `/signup`, `/hire/login` +
+  `/hire/signup`, and since 3A `/admin/login` (no signup) — mirroring the API's
+  `buildAuthRouter(portal)`. `Login` and `Signup` take `portal` as a **prop from
+  the route**, never component state. The native radio pair is deleted: it let
+  the posted endpoint disagree with the signal colour resolved from the URL
 - The seven shared OAuth/OTP pages (`VerifyEmail`, `ForgotPassword`,
   `ResetPassword`, `AuthComplete`, `LinkPending`, `ConfirmGoogleLink`,
   `AuthError`) stay portal-neutral and keep reading `?portal=`, because the
   Google callback redirects to portal-neutral paths. `PortalScope` still ignores
   that param — the query never moves the portal
 - `/hire` is the employer front door. Before it, an anonymous visitor wanting to
-  hire was bounced from `/admin/*` to the seeker home and shown "Get Your Dream
-  Job"
+  hire was bounced to the seeker home and shown "Get Your Dream Job"
 - Four layout primitives in `src/components/layout` — `PageShell`, `PageHeader`,
   `EmptyState`, `FormField` — plus `AuthLayout`/`PortalPanel` in
   `src/components/auth`. `FormField` wires `aria-describedby` and `aria-invalid`
@@ -234,6 +290,14 @@ What 1C closed, so these are no longer open questions:
 
 Known gaps, deliberately deferred:
 
+- **There is no admin console UI.** 3A built the admin portal's foundation —
+  the collection, the auth router, `seed:admin`, and the two approval endpoints
+  (`GET /admin/recruiters/pending`, `POST /admin/recruiters/:id/approve`) — but
+  no page that calls them. Approval currently has to be driven against the API
+  directly. Worse, `Login.tsx` sends any non-recruiter to `/`, so an admin who
+  signs in lands on the **seeker job board**. Both belong to 3B, which builds
+  the console; the post-login destination should move with it rather than being
+  patched to point at a page that does not exist yet
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
 - No pagination UI — clients request `limit=50` and show that. The `Pagination`
@@ -256,5 +320,6 @@ Known gaps, deliberately deferred:
   more
 
 See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`,
-`docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md` and
-`docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md`.
+`docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`,
+`docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md` and
+`docs/superpowers/plans/2026-08-06-phase-3a-three-portal-foundation.md`.

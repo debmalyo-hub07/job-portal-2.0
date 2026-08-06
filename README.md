@@ -59,6 +59,32 @@ curl http://localhost:8000/health
 If a variable is missing or malformed, the API refuses to start and names it
 exactly — it will not boot with a broken config.
 
+### Create the first admin
+
+Recruiters register as `pending` and cannot post a job until an admin approves
+them, so a fresh database needs one admin before the recruiter flow works end to
+end. There is no self-service admin registration — the admin router mounts no
+`/register`:
+
+```bash
+npm run seed:admin --workspace @jobportal/api -- \
+  --email you@example.com --name "Your Name"
+```
+
+No password is accepted as an argument — a CLI argument lands in shell history,
+process listings and CI logs. The account is created without one and a
+set-password code is mailed, the same path forgot-password uses; redeem it and
+sign in at `/admin/login`. The script refuses if an admin already exists, so a
+stray re-run during deployment cannot quietly mint a second authority (`--force`
+overrides).
+
+Later admins are created by an existing admin. On a database that predates Phase
+3A, run `npm run migrate:phase3a --workspace @jobportal/api` once as well: it
+grandfathers existing **verified** recruiters to `active`, so the migration does
+not lock out people who were already working. An unverified pre-existing row is
+left `pending` — it never completed registration, so it has no claim to be
+grandfathered.
+
 ## Environment
 
 | Variable | How to obtain |
@@ -140,9 +166,13 @@ VITE_API_URL=http://localhost:8000/api/v1
 
 ## Authentication
 
-Every endpoint below exists twice, once per portal — `/api/v1/seeker/auth/...`
-and `/api/v1/recruiter/auth/...` — from the same router mounted with a different
-portal literal.
+Every endpoint below exists once per portal — `/api/v1/seeker/auth/...`,
+`/api/v1/recruiter/auth/...` and `/api/v1/admin/auth/...` — from the same router
+mounted with a different portal literal.
+
+The admin mount omits `/register` and both `/google` routes: there is no
+self-service admin registration, so the routes do not exist rather than being
+guarded. See [Create the first admin](#create-the-first-admin).
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -163,14 +193,29 @@ portal literal.
 account.** They are separate rows in separate collections with separate
 passwords, and signing into one grants nothing on the other. This is the single
 most surprising behaviour for a new reader, and it is deliberate — see
-[ADR-0001](docs/adr/0001-two-account-collections.md).
+[ADR-0001](docs/adr/0001-two-account-collections.md), extended to a third
+collection for admins in
+[ADR-0006](docs/adr/0006-three-account-collections.md).
+
+### Recruiters need approval
+
+A recruiter registers as `pending` and can sign in, but every recruiter-owned
+mutation — posting a job, creating or editing a company, reading or deciding on
+applicants — answers **403 `RECRUITER_PENDING_APPROVAL`** until an admin
+approves the account. Signing in is deliberately allowed while pending: it is
+what lets them reach `/me` and be told why they are blocked rather than
+bouncing off a login that refuses them for no stated reason.
+
+Google sign-in may sign in an existing recruiter but never creates one, so
+registration is the only way a recruiter account can begin — and therefore the
+only state it can begin in is `pending`.
 
 ## Web app
 
-### Two front doors
+### Three front doors
 
 The portal is a **route literal** on the client exactly as it is on the server.
-One auth component set is mounted twice by `buildAuthRoutes(portal, prefix)`,
+One auth component set is mounted three times by `buildAuthRoutes(portal, prefix)`,
 mirroring the API's `buildAuthRouter(portal)`:
 
 | Route | Portal | Notes |
@@ -179,13 +224,17 @@ mirroring the API's `buildAuthRouter(portal)`:
 | `/login`, `/signup` | seeker | |
 | `/hire` | recruiter | Employer front door |
 | `/hire/login`, `/hire/signup` | recruiter | |
-| `/admin/*` | recruiter | Companies, jobs, applicants |
+| `/hire/companies`, `/hire/jobs`, applicants | recruiter | The workspace. Gated on admin approval |
+| `/admin`, `/admin/login` | admin | Internal console. No signup route — admins are seeded, then created by an admin |
 | `/verify-email`, `/forgot-password`, `/reset-password`, OAuth landings | either | Portal-neutral, carried in `?portal=` because the Google callback redirects here |
+
+The workspace lived under `/admin/*` before Phase 3A. Those URLs redirect to
+their `/hire` equivalent, parameters and query intact.
 
 There is no control anywhere that picks a portal. `PortalScope` derives it from
 `useLocation().pathname` and nothing else — never a body, query or cookie —
-matching on a segment boundary so `/hired` stays a seeker path. A `?portal=`
-query cannot move it.
+matching on a segment boundary so `/hired` and `/administrator` stay seeker
+paths. A `?portal=` query cannot move it.
 
 ### Design system — "Ink & Signal"
 
@@ -222,6 +271,8 @@ it from production builds.
 | `npm run lint:colour --workspace @jobportal/web` | Fail on any colour outside the token system |
 | `npm run test:visual --workspace @jobportal/web` | Playwright screenshots + portal assertions, needs a dev server |
 | `npm run migrate:phase1c --workspace @jobportal/api` | Drop the legacy `users` collection. Run once per existing database |
+| `npm run seed:admin --workspace @jobportal/api` | Create the first admin: `-- --email <address> --name "<name>"`. Mails a set-password code; refuses if an admin exists |
+| `npm run migrate:phase3a --workspace @jobportal/api` | Grandfather existing recruiters to `active`. Run once per existing database |
 
 ## Deployment
 
@@ -278,10 +329,17 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 1C | Ownership-based authorization, response DTOs, pagination, private resume storage, migration | Complete |
 | 2A | "Ink & Signal" design system: tokens, dark mode, portal-scoped accent, 20 primitives | Complete |
 | 2B-1 | Frontend test runner, layout primitives, density, portal-split auth, `/hire` landing, landing rebuild | Complete |
-| 2B-2 | Seeker pages: job board, job detail, filters, profile | Next |
+| 3A | Three portals, admin collection, recruiter approval gate, `seed:admin`, workspace moved to `/hire/*` | Complete |
+| 3B | Admin console UI: pending-recruiter list and approval, admin post-login destination | Next |
+| 2B-2 | Seeker pages: job board, job detail, filters, profile | Planned |
 | 2B-3 | Recruiter workspace: companies, jobs, applicants | Planned |
 | 3 | Saved jobs, server-side search and filters, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
+
+Approval is enforced end to end, but 3A deliberately stopped at the API for the
+admin side: `GET /admin/recruiters/pending` and
+`POST /admin/recruiters/:id/approve` exist and are tested, and no page calls
+them yet. Until 3B, approve a recruiter against the API directly.
 
 Design documents live in `docs/superpowers/specs/`, and the decisions behind
 them in `docs/adr/`.

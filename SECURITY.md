@@ -8,11 +8,17 @@ have one, a suggested fix.
 
 ## Current status — read before deploying
 
-Phase 1A hardened the foundation, Phase 1B replaced authentication, and
-**Phase 1C closed authorization**. Portal *scoping* (a seeker cannot reach a
-recruiter route) is backed by ownership: every route touching a user-owned
-resource resolves it by a predicate that includes the caller, and a resource you
-do not own is indistinguishable from one that does not exist.
+Phase 1A hardened the foundation, Phase 1B replaced authentication,
+**Phase 1C closed authorization**, and **Phase 3A closed recruiter
+self-provisioning**. Portal *scoping* (a seeker cannot reach a recruiter route)
+is backed by ownership: every route touching a user-owned resource resolves it by
+a predicate that includes the caller, and a resource you do not own is
+indistinguishable from one that does not exist.
+
+Until 3A, ownership was the *only* gate on the recruiter surface — and anyone
+could become a recruiter by filling in a form. The checks worked as designed;
+the flaw was that the caller they authorised was self-appointed. Recruiter
+accounts now start `pending` and an admin approves them.
 
 The remaining known issues are in [Not yet
 fixed](#not-yet-fixed--known-and-scheduled) below. None is an access-control
@@ -80,6 +86,29 @@ API applies.
 Also in 1C: `sanitizeFilter` on globally, `bridgeAuth`/`req.id` deleted, upload
 size and MIME limits, Zod validation on every domain input, pagination on every
 list endpoint, and the legacy `users` collection dropped.
+
+### Fixed in Phase 3A
+
+| Defect | How it is closed |
+|---|---|
+| **Anyone could self-register as a recruiter** and immediately post jobs, edit companies and read applicant PII — name, email, phone and a signed resume link for every applicant to a job they invented | Recruiter registration now lands `pending`. `requireApproved` gates every recruiter-owned mutation (job posting, both company mutations, both applicant routes) with 403 `RECRUITER_PENDING_APPROVAL` until an admin approves the account |
+| **Google sign-in self-provisioned a recruiter**, routing around registration entirely | The stranger branch is portal-aware: Google may sign in an existing recruiter but never create one. A recruiter account can only begin at `/recruiter/auth/register`, and therefore only as `pending` |
+
+`requireApproved` re-reads the account rather than trusting a claim in the access
+token: approval happens while the recruiter is signed in, and a status baked into
+a 15-minute token would either lock them out for its remaining life or leave a
+revoked recruiter working until it expired.
+
+It answers **403, not 404** — the one deliberate exception to the ownership rule.
+That rule hides whether a resource exists from a caller who does not own it; this
+refusal is about the caller's own account state and reveals nothing about any
+resource.
+
+Admin is a third account collection with no self-service registration path at
+all: the admin router mounts no `/register` and no `/google`. The first admin
+comes from `npm run seed:admin`, and later ones from an existing admin.
+`authenticateAny` and `optionalAuthenticate` deliberately exclude admin, so an
+admin cookie can never satisfy a domain route that meant "some signed-in user".
 
 ### Not yet fixed — known and scheduled
 
