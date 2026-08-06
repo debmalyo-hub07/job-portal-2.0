@@ -31,3 +31,15 @@ export function WorkspaceRedirect() {
   const { pathname, search, hash } = useLocation();
   return <Navigate to={`${pathname.replace(/^\/admin/, "/hire")}${search}${hash}`} replace />;
 }
+
+/**
+ * The admin console's front door.
+ *
+ * There is no admin marketing page and there will not be one — it is an
+ * internal surface. But AuthLayout links every portal's wordmark at its own
+ * home, so /admin has to resolve to something. The sign-in is the only door
+ * the console has.
+ */
+export function AdminHomeRedirect() {
+  return <Navigate to="/admin/login" replace />;
+}

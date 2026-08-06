@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { type RouteObject } from "react-router-dom";
 
 import Home from "@/components/Home";
@@ -13,6 +13,7 @@ import AdminJobs from "@/components/admin/AdminJobs";
 import PostJob from "@/components/admin/PostJob";
 import Applicants from "@/components/admin/Applicants";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
+import RequireApproved from "@/components/admin/RequireApproved";
 import VerifyEmail from "@/components/auth/VerifyEmail";
 import ForgotPassword from "@/components/auth/ForgotPassword";
 import ResetPassword from "@/components/auth/ResetPassword";
@@ -21,12 +22,25 @@ import LinkPending from "@/components/auth/LinkPending";
 import ConfirmGoogleLink from "@/components/auth/ConfirmGoogleLink";
 import AuthError from "@/components/auth/AuthError";
 import { buildAuthRoutes } from "@/routes/authRoutes";
-import { RootLayout, WorkspaceRedirect } from "@/routes/routeElements";
+import { AdminHomeRedirect, RootLayout, WorkspaceRedirect } from "@/routes/routeElements";
 import HireLanding from "@/pages/HireLanding";
 
 const DesignGallery = import.meta.env.DEV
   ? lazy(() => import("@/components/design/DesignGallery"))
   : null;
+
+/**
+ * Every recruiter workspace page carries the same two gates, in the same order
+ * the API applies them: the portal check first (`authenticate("recruiter")`),
+ * then the approval check (`requireApproved`). Composing them here rather than
+ * per route is what keeps a new workspace page from shipping with one of them
+ * missing.
+ */
+const workspace = (page: ReactNode) => (
+  <ProtectedRoute portal="recruiter">
+    <RequireApproved>{page}</RequireApproved>
+  </ProtectedRoute>
+);
 
 /**
  * The route table, extracted from App.tsx so tests can assert against it
@@ -42,7 +56,12 @@ export const appRoutes: RouteObject[] = [
       // named on the client, and every call site passes a literal.
       ...buildAuthRoutes("seeker", ""),
       ...buildAuthRoutes("recruiter", "/hire"),
+      // No signup on admin: the API's admin router mounts no /register either.
+      ...buildAuthRoutes("admin", "/admin", { withSignup: false }),
       { path: "/hire", element: <HireLanding /> },
+      // The admin console has no marketing page, but AuthLayout links its
+      // wordmark at the portal's own home. Send it to the only door there is.
+      { path: "/admin", element: <AdminHomeRedirect /> },
       // Public auth pages. All of them read `?portal=` and validate it.
       { path: "/verify-email", element: <VerifyEmail /> },
       { path: "/forgot-password", element: <ForgotPassword /> },
@@ -58,54 +77,12 @@ export const appRoutes: RouteObject[] = [
       // The recruiter workspace. Under /hire since Phase 3A — /admin belongs to
       // the admin portal now, so the whole recruiter surface (marketing, auth,
       // workspace) sits under one prefix and resolves one signal colour.
-      {
-        path: "/hire/companies",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <Companies />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/hire/companies/create",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <CompanyCreate />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/hire/companies/:id",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <CompanySetup />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/hire/jobs",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <AdminJobs />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/hire/jobs/create",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <PostJob />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/hire/jobs/:id/applicants",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <Applicants />
-          </ProtectedRoute>
-        ),
-      },
+      { path: "/hire/companies", element: workspace(<Companies />) },
+      { path: "/hire/companies/create", element: workspace(<CompanyCreate />) },
+      { path: "/hire/companies/:id", element: workspace(<CompanySetup />) },
+      { path: "/hire/jobs", element: workspace(<AdminJobs />) },
+      { path: "/hire/jobs/create", element: workspace(<PostJob />) },
+      { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
       // Pre-3A workspace URLs. The workspace lived under /admin through 2B-1, so
       // a recruiter's bookmarks and any shared link still point there — and /admin
       // now resolves to the ADMIN portal, which would show them a console door

@@ -89,15 +89,16 @@ describe("workspace route table", () => {
   });
 
   /**
-   * /admin is the admin portal's own prefix now. The only thing the table may
-   * mount there is a redirect back out to /hire — never a workspace page, which
-   * would render recruiter UI under the admin signal colour.
+   * /admin is the admin portal's own prefix now, so it does mount the admin
+   * sign-in and its front door. What it must never mount is a workspace page:
+   * that would render recruiter UI under the admin signal colour. The only
+   * workspace paths allowed here are the two that redirect back out to /hire.
    */
-  it("mounts nothing under /admin but the workspace redirects", () => {
-    expect(paths.filter((p) => p?.startsWith("/admin"))).toEqual([
-      "/admin/companies/*",
-      "/admin/jobs/*",
-    ]);
+  it("mounts no workspace page under /admin", () => {
+    const workspacePaths = paths.filter(
+      (p) => p?.startsWith("/admin/companies") || p?.startsWith("/admin/jobs"),
+    );
+    expect(workspacePaths).toEqual(["/admin/companies/*", "/admin/jobs/*"]);
   });
 });
 

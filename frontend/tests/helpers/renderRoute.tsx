@@ -1,8 +1,10 @@
 import type { ReactElement, ReactNode } from "react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useRoutes } from "react-router-dom";
 import { render } from "@testing-library/react";
+
+import { appRoutes } from "@/routes/appRoutes";
 
 import authReducer from "@/redux/authSlice";
 import jobReducer from "@/redux/jobSlice";
@@ -56,6 +58,44 @@ export function renderRoute(
       </MemoryRouter>
     </Provider>,
   );
+}
+
+function RouteTable() {
+  return useRoutes(appRoutes);
+}
+
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <div data-testid="loc" data-pathname={pathname} data-search={search} />;
+}
+
+/**
+ * Mounts the app's real route table at `entry`.
+ *
+ * Use this when the assertion is about routing itself — that a path is mounted,
+ * that it redirects, that a guard intercepts it. For a single component's
+ * behaviour, `renderRoute` is lighter.
+ *
+ * `useRoutes` under a plain MemoryRouter rather than `createMemoryRouter`: the
+ * data router builds a `Request` per navigation, and jsdom's `AbortSignal` is
+ * not the type undici checks against, so every redirect throws before it
+ * resolves. The route table is the same object either way.
+ */
+export function renderAppAt(entry: string, { store = makeStore() } = {}) {
+  const view = render(
+    <Provider store={store}>
+      <MemoryRouter initialEntries={[entry]}>
+        <RouteTable />
+        <LocationProbe />
+      </MemoryRouter>
+    </Provider>,
+  );
+  const probe = () => view.getByTestId("loc");
+  return {
+    ...view,
+    pathname: () => probe().getAttribute("data-pathname"),
+    search: () => probe().getAttribute("data-search"),
+  };
 }
 
 /** Reads the resolved portal from the nearest PortalScope wrapper. */

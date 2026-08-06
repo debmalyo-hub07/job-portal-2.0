@@ -16,10 +16,22 @@ import Signup from "@/components/auth/Signup";
  * four OAuth landings) are NOT built here. They are reached by redirect from the
  * Google callback, which targets portal-neutral paths carrying ?portal=, so
  * duplicating them per portal would require a backend change.
+ *
+ * `withSignup` is false for admin, mirroring the API: `buildAuthRouter("admin")`
+ * mounts no /register, so a signup page here would post to an endpoint that does
+ * not exist. Omitting the route rather than hiding the link means a typed URL
+ * cannot reach it either.
  */
-export function buildAuthRoutes(portal: Portal, prefix: string): RouteObject[] {
-  return [
+export function buildAuthRoutes(
+  portal: Portal,
+  prefix: string,
+  { withSignup = true }: { withSignup?: boolean } = {},
+): RouteObject[] {
+  const routes: RouteObject[] = [
     { path: `${prefix}/login`, element: <Login portal={portal} /> },
-    { path: `${prefix}/signup`, element: <Signup portal={portal} /> },
   ];
+  if (withSignup) {
+    routes.push({ path: `${prefix}/signup`, element: <Signup portal={portal} /> });
+  }
+  return routes;
 }
