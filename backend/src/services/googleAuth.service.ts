@@ -130,6 +130,16 @@ async function resolveIdentity(
   // password at all.
   const byEmail = await findAccountByEmail(portal, identity.email, { withSecret: true });
 
+  // Branch 3 is account CREATION, and only the seeker portal may reach it.
+  // Recruiter access is granted by an admin, never by arriving with a Google
+  // identity — otherwise "Continue with Google" on /hire/signup is a
+  // self-service recruiter factory that bypasses both the register route and
+  // the approval gate. Existing recruiters are unaffected: branches 1, 2a, 2b
+  // and 2c above already handled every account that exists, so sign-in and
+  // linking still work. Admins never reach here at all — the admin router
+  // mounts no Google routes.
+  if (!byEmail && portal !== "seeker") return { kind: "failed" };
+
   // Branch 3: complete stranger → create, already verified (Google attested
   // the mailbox and we independently required email_verified above).
   if (!byEmail) {

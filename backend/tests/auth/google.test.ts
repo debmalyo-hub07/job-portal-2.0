@@ -3,6 +3,7 @@ import request from "supertest";
 import type { Express } from "express";
 import type { Portal } from "@jobportal/shared";
 import { Seeker } from "../../src/models/seeker.model.js";
+import { Recruiter } from "../../src/models/recruiter.model.js";
 import {
   resetGoogleOAuth,
   setGoogleOAuth,
@@ -254,5 +255,81 @@ describe("google oauth", () => {
       .query({ code: "fake-code", state: issued.state })
       .set("Cookie", [`jp_gtxn=${encodeURIComponent(txn ?? "")}`]);
     expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+  });
+});
+
+/**
+ * The second self-provisioning hole. Branch 3 of `resolveIdentity` creates an
+ * account for an unknown Google identity, and it ran on whichever portal the
+ * callback was mounted at — so "Continue with Google" on /hire/signup was a
+ * self-service recruiter factory, bypassing both the register route and the
+ * approval gate.
+ *
+ * Creation is now seeker-only. Sign-in and linking for accounts that already
+ * exist are untouched, which is what the last two cases pin.
+ */
+describe("google cannot create a recruiter", () => {
+  it("refuses an unknown identity on the recruiter portal and creates no row", async () => {
+    const before = await Recruiter.countDocuments({});
+
+    const res = await completeFlow("recruiter", {
+      sub: "google-stranger-1",
+      email: "stranger@x.test",
+    });
+
+    // Uniform failure landing — never a distinct code that maps the defences.
+    expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+    expect(setCookieNames(res)).not.toEqual(
+      expect.arrayContaining(["jp_recruiter_at", "jp_recruiter_rt"]),
+    );
+    expect(await Recruiter.countDocuments({})).toBe(before);
+  });
+
+  it("still creates a seeker for an unknown identity", async () => {
+    const before = await Seeker.countDocuments({});
+    const res = await completeFlow("seeker", {
+      sub: "google-stranger-2",
+      email: "stranger2@x.test",
+    });
+    expect(res.headers.location).toContain("/auth/complete?portal=seeker");
+    expect(await Seeker.countDocuments({})).toBe(before + 1);
+  });
+
+  it("still signs in a recruiter whose googleId is already known", async () => {
+    await Recruiter.create({
+      email: "known@x.test",
+      fullName: "Known Rec",
+      googleId: "google-known-1",
+      passwordHash: null,
+      emailVerifiedAt: new Date(),
+      status: "active",
+    });
+
+    const res = await completeFlow("recruiter", {
+      sub: "google-known-1",
+      email: "known@x.test",
+    });
+    expect(res.headers.location).toContain("/auth/complete?portal=recruiter");
+    expect(setCookieNames(res)).toEqual(
+      expect.arrayContaining(["jp_recruiter_at", "jp_recruiter_rt"]),
+    );
+  });
+
+  it("still links Google to an existing passwordless recruiter (branch 2a)", async () => {
+    const rec = await Recruiter.create({
+      email: "nopass@x.test",
+      fullName: "No Password Rec",
+      googleId: null,
+      passwordHash: null,
+      emailVerifiedAt: new Date(),
+      status: "active",
+    });
+
+    const res = await completeFlow("recruiter", {
+      sub: "google-link-1",
+      email: "nopass@x.test",
+    });
+    expect(res.headers.location).toContain("/auth/complete?portal=recruiter");
+    expect((await Recruiter.findById(rec._id))?.googleId).toBe("google-link-1");
   });
 });
