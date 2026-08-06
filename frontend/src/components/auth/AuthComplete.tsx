@@ -29,7 +29,7 @@ const AuthComplete = () => {
         //
         // Portal-aware destination: sending a recruiter to "/" worked only
         // because Home.tsx bounces them, which flashes the seeker hero first.
-        navigate(portal === "recruiter" ? "/admin/companies" : "/", { replace: true });
+        navigate(portal === "recruiter" ? "/hire/companies" : "/", { replace: true });
       })
       .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));
   }, [portal, dispatch, navigate]);

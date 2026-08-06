@@ -42,7 +42,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate(portal === "recruiter" ? "/admin/companies" : "/");
+      navigate(portal === "recruiter" ? "/hire/companies" : "/");
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.
@@ -57,7 +57,7 @@ const Login = ({ portal }: { portal: Portal }) => {
   };
 
   useEffect(() => {
-    if (user) navigate(user.portal === "recruiter" ? "/admin/companies" : "/");
+    if (user) navigate(user.portal === "recruiter" ? "/hire/companies" : "/");
   }, [user, navigate]);
 
   return (

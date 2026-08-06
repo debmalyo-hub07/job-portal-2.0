@@ -37,7 +37,7 @@ const VerifyEmail = () => {
       // Verification *does* issue a session, unlike registration.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate(portal === "recruiter" ? "/admin/companies" : "/", { replace: true });
+      navigate(portal === "recruiter" ? "/hire/companies" : "/", { replace: true });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "That code did not work"));
     } finally {

@@ -54,7 +54,7 @@ const Signup = ({ portal }: { portal: Portal }) => {
   };
 
   useEffect(() => {
-    if (user) navigate(user.portal === "recruiter" ? "/admin/companies" : "/");
+    if (user) navigate(user.portal === "recruiter" ? "/hire/companies" : "/");
   }, [user, navigate]);
 
   return (

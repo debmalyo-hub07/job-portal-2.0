@@ -16,7 +16,7 @@ const Home = () => {
 
   useEffect(() => {
     if (user?.portal === "recruiter") {
-      navigate("/admin/companies", { replace: true });
+      navigate("/hire/companies", { replace: true });
     }
   }, [user?.portal, navigate]);
 

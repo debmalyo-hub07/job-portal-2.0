@@ -29,8 +29,8 @@ const STEPS = [
  * The employer front door.
  *
  * Before this page existed, an anonymous visitor who wanted to hire had nowhere
- * to land: /admin/* redirects them to the seeker home, so someone arriving to
- * post a job was shown "Get Your Dream Job".
+ * to land: the workspace bounced them to the seeker home, so someone arriving
+ * to post a job was shown "Get Your Dream Job".
  *
  * Marketing surface, so it runs spacious density even though the portal is
  * recruiter — density follows the surface's job, not the portal.
@@ -40,7 +40,7 @@ export default function HireLanding() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.portal === "recruiter") navigate("/admin/companies", { replace: true });
+    if (user?.portal === "recruiter") navigate("/hire/companies", { replace: true });
   }, [user?.portal, navigate]);
 
   return (

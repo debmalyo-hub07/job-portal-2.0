@@ -53,7 +53,7 @@ const PostJob = () => {
       const res = await apiClient.post<{ success: boolean }>("/job/post", input);
       if (res.data.success) {
         toast.success("Job posted");
-        navigate("/admin/jobs");
+        navigate("/hire/jobs");
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not post job"));

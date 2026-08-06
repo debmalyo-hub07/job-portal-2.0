@@ -58,14 +58,14 @@ const AdminJobsTable = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-32">
                     <div
-                      onClick={() => navigate(`/admin/companies/${job.company?.id ?? ""}`)}
+                      onClick={() => navigate(`/hire/companies/${job.company?.id ?? ""}`)}
                       className="flex items-center gap-2 w-fit cursor-pointer"
                     >
                       <Edit2 className="w-4" />
                       <span>Edit</span>
                     </div>
                     <div
-                      onClick={() => navigate(`/admin/jobs/${job.id}/applicants`)}
+                      onClick={() => navigate(`/hire/jobs/${job.id}/applicants`)}
                       className="flex items-center w-fit gap-2 cursor-pointer mt-2"
                     >
                       <Eye className="w-4" />

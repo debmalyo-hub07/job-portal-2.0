@@ -56,7 +56,7 @@ const CompanySetup = () => {
       );
       if (res.data.success) {
         toast.success("Company updated");
-        navigate("/admin/companies");
+        navigate("/hire/companies");
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not update company"));
@@ -86,7 +86,7 @@ const CompanySetup = () => {
           <div className="flex items-center gap-5 p-8">
             <Button
               type="button"
-              onClick={() => navigate("/admin/companies")}
+              onClick={() => navigate("/hire/companies")}
               variant="outline"
               className="flex items-center gap-2 text-gray-500 font-semibold"
             >

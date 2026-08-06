@@ -59,7 +59,7 @@ const CompaniesTable = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-32">
                     <div
-                      onClick={() => navigate(`/admin/companies/${company.id}`)}
+                      onClick={() => navigate(`/hire/companies/${company.id}`)}
                       className="flex items-center gap-2 w-fit cursor-pointer"
                     >
                       <Edit2 className="w-4" />

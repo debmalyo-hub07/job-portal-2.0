@@ -68,12 +68,12 @@ const Navbar = () => {
             {isRecruiter ? (
               <>
                 <li>
-                  <Link to="/admin/companies" className="hover:text-signal-text">
+                  <Link to="/hire/companies" className="hover:text-signal-text">
                     Companies
                   </Link>
                 </li>
                 <li>
-                  <Link to="/admin/jobs" className="hover:text-signal-text">
+                  <Link to="/hire/jobs" className="hover:text-signal-text">
                     Jobs
                   </Link>
                 </li>

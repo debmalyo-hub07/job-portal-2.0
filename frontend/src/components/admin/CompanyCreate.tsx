@@ -26,7 +26,7 @@ const CompanyCreate = () => {
       if (res.data.success) {
         dispatch(setSingleCompany(res.data.company));
         toast.success("Company created");
-        navigate(`/admin/companies/${res.data.company.id}`);
+        navigate(`/hire/companies/${res.data.company.id}`);
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not create company"));
@@ -54,7 +54,7 @@ const CompanyCreate = () => {
         />
         <div className="flex items-center gap-2 my-10">
           <Button onClick={registerNewCompany}>Continue</Button>
-          <Button variant="outline" onClick={() => navigate("/admin/companies")}>
+          <Button variant="outline" onClick={() => navigate("/hire/companies")}>
             Cancel
           </Button>
         </div>
