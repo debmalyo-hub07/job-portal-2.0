@@ -7,6 +7,7 @@ import { setMailer } from "../../src/lib/mailer.js";
 import { errorHandler } from "../../src/middleware/error.js";
 import { notFound } from "../../src/middleware/notFound.js";
 import { buildApp } from "../../src/app.js";
+import { accountModel } from "../../src/services/account.service.js";
 import request from "supertest";
 
 export interface CapturedMail {
@@ -111,6 +112,18 @@ export function linkTokenFor(email: string, subjectPattern: RegExp): string {
 
 const sharedApp = buildApp();
 
+/**
+ * Registers, verifies and logs in an account, returning its session material.
+ *
+ * Recruiters are APPROVED by default. Phase 3A made recruiter registration
+ * land in `status: "pending"`, and every suite that uses this helper is testing
+ * something else — ownership, pagination, CSRF — so leaving them pending would
+ * make `requireApproved` the thing 34 unrelated tests actually assert.
+ *
+ * Pass `{ approved: false }` to keep a recruiter pending; `approval.test.ts`
+ * builds its own pending recruiters directly and is the suite that covers the
+ * gate itself.
+ */
 export async function signedUpOn(
   portal: Portal,
   email: string,
@@ -118,15 +131,22 @@ export async function signedUpOn(
 ): Promise<{ id: string; access: string; refresh: string; csrf: string }> {
   const password = "correct horse battery staple";
   const fullName = overrides?.fullName ?? "Signed Up";
+  const approved = overrides?.approved ?? true;
+  // Not a schema field — strip it so it cannot reach the register body.
+  const { approved: _approved, ...registerOverrides } = overrides ?? {};
 
   await request(sharedApp)
     .post(`/api/v1/${portal}/auth/register`)
-    .send({ fullName, email, password, ...overrides });
+    .send({ fullName, email, password, ...registerOverrides });
 
   const code = await lastCodeFor(email);
   await request(sharedApp)
     .post(`/api/v1/${portal}/auth/verify-email`)
     .send({ email, code });
+
+  if (portal === "recruiter" && approved) {
+    await accountModel("recruiter").updateOne({ email }, { $set: { status: "active" } });
+  }
 
   const res = await request(sharedApp)
     .post(`/api/v1/${portal}/auth/login`)

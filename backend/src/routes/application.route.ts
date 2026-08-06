@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticate } from "../middleware/authenticate.js";
+import { requireApproved } from "../middleware/requireApproved.js";
 import {
   applyJob,
   getAppliedJobs,
@@ -13,7 +14,9 @@ const router = express.Router();
 // any crawler, prefetch or <img> tag, and forgeable cross-site.
 router.route("/apply/:id").post(authenticate("seeker"), applyJob);
 router.route("/get").get(authenticate("seeker"), getAppliedJobs);
-router.route("/:id/applicants").get(authenticate("recruiter"), getApplicants);
-router.route("/status/:id/update").post(authenticate("recruiter"), updateStatus);
+// Applicant data is the thing an unapproved recruiter most wants and least
+// deserves — a seeker's name, email, phone and resume link.
+router.route("/:id/applicants").get(authenticate("recruiter"), requireApproved, getApplicants);
+router.route("/status/:id/update").post(authenticate("recruiter"), requireApproved, updateStatus);
 
 export default router;
