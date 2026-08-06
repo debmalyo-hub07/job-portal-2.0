@@ -437,6 +437,26 @@ export async function forgotPassword(portal: Portal, email: string): Promise<voi
 }
 
 /**
+ * Mails a `reset_password` code to an account that has no password yet.
+ *
+ * The seed:admin script's entry point into the OTP machinery. A thin wrapper
+ * over `issueOtp` rather than a second implementation: the code generation,
+ * peppered hashing, supersede-the-previous-code and budget rules must not
+ * exist twice. Exported because the script lives outside this module and
+ * `issueOtp` is deliberately private.
+ *
+ * Distinct from `forgotPassword`, which resolves the account from an email and
+ * burns uniform time to avoid being an existence oracle. Here the caller
+ * already holds the account and there is no untrusted input to protect.
+ */
+export async function issuePasswordSetupCode(
+  portal: Portal,
+  account: AccountDoc,
+): Promise<void> {
+  await issueOtp(portal, account, "reset_password");
+}
+
+/**
  * Redeems a reset_password code and rotates the credential.
  *
  * No session is issued afterwards. The resetter proved mailbox control, not

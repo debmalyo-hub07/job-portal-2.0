@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "lint": "eslint src",
-    "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts"
+    "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts",
+    "seed:admin": "tsx src/scripts/seed-admin.ts"
   },
   "author": "",
   "license": "ISC",
