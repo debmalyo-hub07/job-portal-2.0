@@ -11,7 +11,8 @@
     "test": "vitest run",
     "lint": "eslint src",
     "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts",
-    "seed:admin": "tsx src/scripts/seed-admin.ts"
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "migrate:phase3a": "tsx src/scripts/migrate-phase3a.ts"
   },
   "author": "",
   "license": "ISC",
