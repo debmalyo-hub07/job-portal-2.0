@@ -15,9 +15,27 @@ const ROUTES = [
   ["hire", "/hire"],
   ["hire-login", "/hire/login"],
   ["hire-signup", "/hire/signup"],
+  ["admin-login", "/admin/login"],
   ["verify-email", "/verify-email?portal=seeker&email=demo%40example.test"],
   ["forgot-password", "/forgot-password?portal=seeker"],
 ];
+
+// Pre-3A workspace URLs. Anonymous, so the chain is two hops: the redirect
+// rewrites /admin/* onto /hire/*, then ProtectedRoute bounces a signed-out
+// visitor home. The end state is "/" — what matters here is that the browser
+// does not REST on an /admin/* URL under the admin portal, which is what a
+// missing redirect would look like. The intermediate /hire hop is asserted in
+// tests/workspaceRoutes.test.tsx, where the guard is inert because
+// useAuthBootstrap sits above the router.
+const REDIRECTS = ["/admin/companies", "/admin/jobs/j1/applicants"];
+
+/** The same three-way mapping portalForPath applies, on a segment boundary. */
+function expectedPortal(path) {
+  const pathname = path.split("?")[0];
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return "admin";
+  if (pathname === "/hire" || pathname.startsWith("/hire/")) return "recruiter";
+  return "seeker";
+}
 
 const browser = await chromium.launch({ channel: "chrome" });
 let failures = 0;
@@ -39,7 +57,7 @@ for (const theme of ["light", "dark"]) {
 
     // The portal the page resolved to, asserted against the URL it is on.
     const portal = await page.getAttribute("[data-portal]", "data-portal");
-    const expected = path === "/hire" || path.startsWith("/hire/") ? "recruiter" : "seeker";
+    const expected = expectedPortal(path);
     if (portal !== expected) {
       console.log(`FAIL  ${theme}/${name}: portal=${portal}, expected ${expected}`);
       failures++;
@@ -49,6 +67,22 @@ for (const theme of ["light", "dark"]) {
     const radios = await page.locator('input[type="radio"]').count();
     if (radios > 0) {
       console.log(`FAIL  ${theme}/${name}: ${radios} native radio(s) present`);
+      failures++;
+    }
+  }
+
+  for (const from of REDIRECTS) {
+    await page.goto(BASE + from, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(700);
+    const landed = new URL(page.url()).pathname;
+    if (landed.startsWith("/admin")) {
+      console.log(`FAIL  ${theme}: ${from} stayed on ${landed} — the redirect did not fire`);
+      failures++;
+    }
+    // Whatever it lands on, it must not still be resolving the admin portal.
+    const portal = await page.getAttribute("[data-portal]", "data-portal");
+    if (portal === "admin") {
+      console.log(`FAIL  ${theme}: ${from} rested on the admin portal at ${landed}`);
       failures++;
     }
   }

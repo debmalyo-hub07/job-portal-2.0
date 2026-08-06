@@ -248,7 +248,8 @@ to violet for seekers and teal for recruiters. Spacing works the same way —
 `data-density` on `PageShell` resolves `--space-*`, so pages pass a `density`
 prop rather than hand-tuning padding.
 
-All 18 token pairings clear WCAG 4.5:1 in both themes and both portals, verified
+All 26 token pairings clear WCAG 4.5:1 in both themes and all three portals,
+verified
 by `frontend/tests/visual/contrast.mjs`, which resolves colours through a real
 browser rather than parsing `oklch()` as if it were sRGB.
 

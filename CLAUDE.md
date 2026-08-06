@@ -208,7 +208,8 @@ What 2A closed:
   — see `AppliedJobTable.tsx` for the pattern
 - Filled elements carrying text use `--signal-text` fill with `--signal-fg`
   text. Base `--signal` is non-text use only (borders, indicators, dots)
-- All 18 token pairings clear WCAG 4.5:1 in both themes and both portals.
+- All 26 token pairings clear WCAG 4.5:1 in both themes and all three portals
+  (18 from 2A, plus 8 for the admin signal added in 3A).
   Light-theme `--warn` and `--ok` are deliberately darker than their nominal
   values to reach it — if you lighten them, re-audit
 - Fonts self-hosted via `@fontsource-variable` (Fraunces display, Geist sans,
