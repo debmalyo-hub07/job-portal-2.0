@@ -120,7 +120,9 @@ async function resolveIdentity(
   // can move between Google accounts; a `sub` cannot.
   const bySub = await model.findOne({ googleId: identity.sub });
   if (bySub) {
-    if (bySub.status !== "active") return { kind: "failed" };
+    // Suspended only — a pending recruiter signs in and meets the approval gate
+    // at the routes that matter, same as the password path.
+    if (bySub.status === "suspended") return { kind: "failed" };
     return { kind: "signed-in", account: bySub };
   }
 
@@ -155,7 +157,7 @@ async function resolveIdentity(
     }
   }
 
-  if (byEmail.status !== "active") return { kind: "failed" };
+  if (byEmail.status === "suspended") return { kind: "failed" };
 
   // Branch 2a: local account with NO password → there are no credentials to
   // steal, so linking is takeover-proof. Guarded update so a raced link loses.

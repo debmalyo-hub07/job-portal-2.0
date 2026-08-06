@@ -8,6 +8,8 @@ import {
   verifyEmailHandler,
 } from "../../src/controllers/auth.controller.js";
 import { findAccountByEmail } from "../../src/services/account.service.js";
+import { Recruiter } from "../../src/models/recruiter.model.js";
+import { Seeker } from "../../src/models/seeker.model.js";
 import { authTestApp, installCaptureMailer, lastCodeFor, setCookieNames } from "./helpers.js";
 
 const app: Express = authTestApp((portal, r) => {
@@ -82,5 +84,29 @@ describe("register", () => {
       password: "correct horse battery staple",
     });
     expect(res.status).toBe(409);
+  });
+});
+
+describe("recruiter registration is gated", () => {
+  it("creates a recruiter as pending", async () => {
+    await post("/api/v1/recruiter/auth/register", {
+      fullName: "New Rec",
+      email: "rec@example.com",
+      password: "correct horse battery staple",
+    }).expect(201);
+
+    const rec = await Recruiter.findOne({ email: "rec@example.com" });
+    expect(rec?.status).toBe("pending");
+  });
+
+  it("still creates a seeker as active", async () => {
+    await post("/api/v1/seeker/auth/register", {
+      fullName: "New Seek",
+      email: "seek@example.com",
+      password: "correct horse battery staple",
+    }).expect(201);
+
+    const seek = await Seeker.findOne({ email: "seek@example.com" });
+    expect(seek?.status).toBe("active");
   });
 });

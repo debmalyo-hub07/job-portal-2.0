@@ -56,6 +56,11 @@ export async function register(portal: Portal, input: RegisterBody): Promise<voi
       phone: input.phone ?? null,
       passwordHash,
       emailVerifiedAt: null,
+      // Recruiters land pending and are useless until an admin approves them:
+      // registration alone must not confer the ability to post jobs or read
+      // applicants. Seekers and admins are unaffected — admins never reach
+      // this path at all, because the admin router omits /register.
+      status: portal === "recruiter" ? "pending" : "active",
     });
   } catch (error) {
     // The findOne above is a fast path, not the guarantee — two concurrent
@@ -347,9 +352,13 @@ export async function login(portal: Portal, email: string, password: string): Pr
     throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
   }
 
-  if (account.status !== "active") {
+  if (account.status === "suspended") {
     // Suspended reads exactly like a bad credential — account state is not
     // for strangers. The owner finds out through support, not through probes.
+    //
+    // Pending logs in normally. It has to: the pending recruiter needs a
+    // session to see the "awaiting approval" screen, and refusing here would
+    // leave them with a correct password and no way to learn why it failed.
     throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
   }
 

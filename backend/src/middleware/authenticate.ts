@@ -31,10 +31,14 @@ export function authenticate(portal: Portal) {
     const claims = verifyAccessToken(token, portal);
 
     const account = await findAccountById(portal, claims.sub);
-    if (!account || account.status !== "active") {
+    if (!account || account.status === "suspended") {
       // Deleted or suspended between minting and use. Same code as a bad token:
       // a suspended user learning that they are suspended from a 403 on every
       // route is worse than a uniform "sign in again".
+      //
+      // Pending is deliberately NOT refused here: identity and authorization
+      // are separate layers, and a pending recruiter must be able to reach /me
+      // to learn why they are blocked. `requireApproved` is what refuses them.
       next(AppError.unauthorized("SESSION_INVALID", "Sign in to continue."));
       return;
     }
@@ -110,7 +114,9 @@ async function resolveSession(req: Request, portal: Portal): Promise<boolean> {
     return false;
   }
   const account = await findAccountById(portal, claims.sub);
-  if (!account || account.status !== "active") return false;
+  // Suspended only, matching `authenticate` above — pending is an authorization
+  // question, and this function answers an identity one.
+  if (!account || account.status === "suspended") return false;
   const cutoff = account.sessionsInvalidatedAt;
   if (cutoff && claims.iat !== undefined && claims.iat < Math.floor(cutoff.getTime() / 1000)) {
     return false;

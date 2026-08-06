@@ -30,7 +30,7 @@ export const authFields = {
   fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
   phone: { type: String, default: null },
   avatarUrl: { type: String, default: null },
-  status: { type: String, enum: ["active", "suspended"], default: "active" },
+  status: { type: String, enum: ["pending", "active", "suspended"], default: "active" },
   failedLoginCount: { type: Number, default: 0 },
   lockedUntil: { type: Date, default: null },
   /**
