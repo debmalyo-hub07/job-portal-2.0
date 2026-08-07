@@ -1,5 +1,5 @@
 import { Bookmark } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { JobDto } from "@jobportal/shared";
 
 import { Button } from "./ui/button";

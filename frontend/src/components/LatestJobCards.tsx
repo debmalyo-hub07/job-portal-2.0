@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { JobDto } from "@jobportal/shared";
 import { Badge } from "./ui/badge";
 import { HoverLift } from "@/lib/motion";

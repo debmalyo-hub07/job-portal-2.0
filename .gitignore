@@ -39,6 +39,9 @@ frontend/tests/visual/shots/
 
 # Scratch space for research agents — never committed
 .research/
+.agents/
+.claude/
+skills-lock.json
 .brevo-probe/
 *-registry.json
 .mvfinal/

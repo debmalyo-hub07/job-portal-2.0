@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { AlertTriangle } from "lucide-react";
 
 import { AuthLayout } from "./AuthLayout";

@@ -3,7 +3,7 @@ import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
-import { MemoryRouter, useLocation, useRoutes } from "react-router-dom";
+import { MemoryRouter, useLocation, useRoutes } from "react-router";
 
 import { appRoutes } from "@/routes/appRoutes";
 import { portalForPath } from "@/lib/portalRoutes";

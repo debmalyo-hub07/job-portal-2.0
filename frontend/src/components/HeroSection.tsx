@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useDispatch } from "react-redux";
 
 import { Button } from "./ui/button";

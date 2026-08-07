@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router";
 import { useAuthBootstrap } from "./hooks/useAuthBootstrap";
 import { appRoutes } from "./routes/appRoutes";
 

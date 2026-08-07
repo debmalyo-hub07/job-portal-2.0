@@ -10,7 +10,7 @@ import {
 } from "../ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Edit2, Eye, MoreHorizontal } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { JobDto } from "@jobportal/shared";
 import { useAppSelector } from "@/redux/store";
 

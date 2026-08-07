@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { type RouteObject } from "react-router-dom";
+import { type RouteObject } from "react-router";
 
 import Home from "@/components/Home";
 import Jobs from "@/components/Jobs";

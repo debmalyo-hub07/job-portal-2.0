@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { Portal } from "@jobportal/shared";
 import { useAppSelector } from "@/redux/store";
 

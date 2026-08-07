@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { render } from "@testing-library/react";
 
 import { AuthLayout } from "@/components/auth/AuthLayout";

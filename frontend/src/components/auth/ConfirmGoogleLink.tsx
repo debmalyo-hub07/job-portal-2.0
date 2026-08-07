@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { AuthLayout } from "./AuthLayout";

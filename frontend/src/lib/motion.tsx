@@ -1,7 +1,7 @@
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 
-// Mirrors --ease-out-quint / --dur-* from index.css. framer-motion takes
+// Mirrors --ease-out-quint / --dur-* from index.css. motion takes
 // seconds and a bezier array, so the CSS custom properties can't be read
 // directly; keep these in sync with index.css.
 export const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { AuthLayout } from "./AuthLayout";
 import { AUTH_COPY } from "./authCopy";

@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
-import { MemoryRouter, Route, Routes, useLocation, useRoutes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useRoutes } from "react-router";
 import { render } from "@testing-library/react";
 
 import { appRoutes } from "@/routes/appRoutes";

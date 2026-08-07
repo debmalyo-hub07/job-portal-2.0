@@ -3,8 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["backend", "frontend", "packages/*"],
-  "engines": { "node": "^22.22.2 || >=24.15" },
+  "workspaces": [
+    "backend",
+    "frontend",
+    "packages/*"
+  ],
+  "engines": {
+    "node": "^22.22.2 || >=24.15"
+  },
   "scripts": {
     "dev:api": "npm run dev --workspace @jobportal/api",
     "dev:web": "npm run dev --workspace @jobportal/web",
