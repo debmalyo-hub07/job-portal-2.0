@@ -74,6 +74,32 @@
   --text-display-xl: 4.209rem;
 }
 
+/* Motion tiers — a parameter, not a per-component judgement. data-motion is a
+   sibling to data-density: PageShell sets it, components read the resolved
+   custom properties and never branch on the attribute. The three tiers map to
+   the spec's vocabulary: ambient (marketing), standard (browse/detail),
+   response (workspace). Tier 3 (`--motion-feedback-scale`) is feedback and
+   survives every tier; Tier 1+2 are what reduced-motion collapses. */
+
+/* The vocabulary: distance + three switches. Notice there is no reveal-opacity
+   variable. A richer reveal uses max(0, 1 − progress × N) with N already in the
+   quadratic-safe range, and N itself comes from the easing library rather than
+   a token. The variables here are the four genuinely-variable quantities. */
+:root {
+  --motion-distance: 24px;
+  --motion-parallax: 0;
+  --motion-ambient: 0;
+  --motion-feedback-scale: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-distance: 0px;
+    --motion-parallax: 0;
+    --motion-ambient: 0;
+  }
+}
+
 /* Density — a parameter, not a per-component judgement. Spacious is the
    marketing and seeker default; compact is the recruiter workspace. Set via
    data-density on PageShell; components read the vars, never the attribute. */

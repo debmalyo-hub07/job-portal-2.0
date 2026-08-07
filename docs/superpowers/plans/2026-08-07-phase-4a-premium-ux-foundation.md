@@ -98,3 +98,45 @@ Carried from prior plans plus spec maintenance contract:
 
 Each sub-phase brief is expanded in this file before work begins on it; tasks use `- [ ]` with failing test → implement → typecheck → commit.
 
+---
+
+## Sub-phase 4A.1 — Motion clock + scroll primitives
+
+**Goal:** give the app a parametric, reduced-motion-aware motion vocabulary driven by `data-motion` on `PageShell`, and one unified rAF clock all consumers share. Spec §1.
+
+**Key decisions (from the spec):**
+- `data-motion` is a sibling to `data-density`, set by `PageShell`, never component state. Values: `ambient` (Tier 1+2+3), `standard` (Tier 2+3), `response` (Tier 3 only). Workspace fits `response`; browse/detail `standard`; marketing `ambient`.
+- Tier 3 is never optional. Under `prefers-reduced-motion`, Tier 1+2 collapse to nothing and Tier 3 stays.
+- One clock: shader, canvas, scroll handler, counters all subscribe to the same rAF loop — success criterion 1.
+- Composables, never raw library imports in pages (CLAUDE.md).
+
+**Files:**
+- Create `frontend/src/lib/motion/clock.ts` — `subscribe(cb) → unsubscribe`, single rAF loop, pauses on `document.hidden` and when subscriber count is 0 (manager pattern).
+- Create `frontend/src/lib/motion/reducedMotion.ts` — `prefersReduced()` + `onReducedMotionChange(cb)` over the jsdom-stubbed `matchMedia`.
+- Create `frontend/src/lib/motion/scroll.ts` — `useInViewOnce(ref)`, `useScrollProgress(ref)` returning a mutable ref (no re-render per frame), built on motion@13's `useScroll`/`useTransform`/`useInView`.
+- Create `frontend/src/lib/motion/dataset.ts` — `motionAllows(scope, tier)` predicate: reads `data-motion` + reduced-motion.
+- Modify `frontend/src/components/layout/PageShell.tsx` — add optional `motion?: MotionTier` prop that sets `data-motion`; default preserves current behaviour.
+- Modify `frontend/src/index.css` — add the motion-tier custom property resolver block (`[data-motion=...]` + `@media (prefers-reduced-motion: reduce)`).
+- Create `frontend/tests/motionTiers.test.tsx` — PageShell emits `data-motion`; reduced-motion collapses Tier 1+2 params; `response` emits Tier 3 only.
+
+**Interfaces produced:**
+- `subscribe(cb: (dt: number, elapsed: number) => void): () => void`
+- `prefersReduced(): boolean`, `onReducedMotionChange(cb): () => void`
+- `useInViewOnce<T extends Element>(): { ref, inView }`
+- `useScrollProgress<T extends Element>(): { ref, progress }` (MutableRefObject<number>)
+- `type MotionTier = "ambient" | "standard" | "response"`
+- CSS resolution: `[data-motion]` → `--motion-reveal-opacity`, `--motion-reveal-distance`, `--motion-parallax`, `--motion-ambient`, `--motion-feedback-duration-scale`
+
+**Tasks:**
+- [x] **T1: failing test** — `motionTiers.test.tsx` asserts (a) PageShell sets `data-motion` from prop, default absent; (b) under stubbed reduced-motion the resolver sets Tier 1+2 params to their collapsed values and Tier 3 keeps 1; (c) a `response`-scoped element reads `--motion-reveal-distance: 0` via `getComputedStyle`.
+- [x] **T2: clock.ts** — subscribe/unsubscribe, coalesce to one rAF, dt clamped to 50ms, pause when hidden, dispose at 0 subscribers. Vitest: fake `requestAnimationFrame`.
+- [x] **T3: reducedMotion.ts** — live query listener; default `false` when `matchMedia` absent.
+- [x] **T4: index.css tier tokens** — the `data-motion` resolver + reduced-motion override block, mirroring the `data-density` pattern.
+- [x] **T5: PageShell prop** — typed `motion?: MotionTier`, renders `data-motion` only when set; JSDoc mirrors density rule.
+- [x] **T6: scroll.ts composables** — motion@13-backed, reduced-motion short-circuit, mutable ref for progress.
+- [x] **T7: green the T1 tests**; run `makeStore-free` render (no Provider needed for PageShell).
+- [x] **T8: gate** — `npm run typecheck` clean, `frontend` test suite green, colour lint 18/exit-1, then commit `feat(web): motion tiers + unified clock (Phase 4A.1)`.
+
+**Status (4A.1):** complete — 96/96 web tests green (was 85, +11 motion), typecheck clean, colour lint 18/exit-1, production build green. Delivered: unified rAF `clock.ts` (one frame, dt clamped, pauses hidden/empty), `reducedMotion.ts` (live query), `scroll.ts` (`useInViewOnce`/`useScrollProgress`, mutable progress ref), `dataset.ts` (`motionAllows`), `data-motion` prop on `PageShell` with inline `--motion-*` resolver (index.css owns the reduced-motion collapse; jsdom can't process Tailwind-4 CSS so tokens are inline for testability), and `motion.tsx` gained `useMotionBudget`/`useReveal`/`useParallax` layered on the intact Tier-3 primitives.
+
+
