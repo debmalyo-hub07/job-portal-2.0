@@ -25,6 +25,9 @@ function toProfileView(
       skills: seeker.profile!.skills ?? [],
       experienceYears: seeker.profile!.experienceYears ?? null,
       location: seeker.profile!.location ?? null,
+      salaryMin: seeker.profile!.salaryMin ?? null,
+      salaryMax: seeker.profile!.salaryMax ?? null,
+      openToRemote: seeker.profile!.openToRemote ?? null,
       resumeUrl: signedResumeUrl(seeker.resume!.storageKey),
       resumeName: seeker.resume!.originalName ?? null,
     },
@@ -56,6 +59,9 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     if (body.bio !== undefined) seeker.profile!.bio = body.bio;
     // Already split, trimmed and de-blanked by the schema's transform.
     if (body.skills !== undefined) seeker.profile!.skills = body.skills;
+    if (body.salaryMin !== undefined) seeker.profile!.salaryMin = body.salaryMin;
+    if (body.salaryMax !== undefined) seeker.profile!.salaryMax = body.salaryMax;
+    if (body.openToRemote !== undefined) seeker.profile!.openToRemote = body.openToRemote;
 
     const file = req.file as Express.Multer.File | undefined;
     if (file) {

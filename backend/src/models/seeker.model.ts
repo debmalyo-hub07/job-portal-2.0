@@ -11,6 +11,12 @@ const seekerSchema = new Schema(
       skills: { type: [String], default: [] },
       experienceYears: { type: Number, default: null, min: 0, max: 60 },
       location: { type: String, default: null },
+      // 4A.3 — self-reported fit signals the matching pipeline reads. Absent on
+      // legacy docs; the pipeline treats unknowns as no-penalty (returns 1), so
+      // an unbackfilled profile scores high rather than zeroing on these fields.
+      salaryMin: { type: Number, default: null, min: 0 },
+      salaryMax: { type: Number, default: null, min: 0 },
+      openToRemote: { type: Boolean, default: null },
     },
     resume: {
       storageKey: { type: String, default: null },

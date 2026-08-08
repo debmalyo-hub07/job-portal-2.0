@@ -63,6 +63,9 @@ describe("the public job board", () => {
       expect(res.status).toBe(200);
       expect(res.body.job.applications).toBeUndefined();
       // The DTO is an allowlist: anything not named here cannot be returned.
+      // `remote` was added to the public allowlist in 4A.3 — it is the fit
+      // pipeline's on-site/remote signal and is surfaced deliberately to drive
+      // the faceted search rail and the fit explanation, not an accident.
       expect(Object.keys(res.body.job).sort()).toEqual([
         "company",
         "createdAt",
@@ -72,6 +75,7 @@ describe("the public job board", () => {
         "jobType",
         "location",
         "position",
+        "remote",
         "requirements",
         "salary",
         "title",

@@ -58,6 +58,11 @@ export interface ProfileView {
     skills: string[];
     experienceYears: number | null;
     location: string | null;
+    /** 4A.3: self-reported salary band; feeds the fit pipeline's salary factor. */
+    salaryMin: number | null;
+    salaryMax: number | null;
+    /** 4A.3: whether the seeker is open to remote; feeds the fit pipeline's remote factor. */
+    openToRemote: boolean | null;
     resumeUrl: string | null;
     resumeName: string | null;
   } | null;

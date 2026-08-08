@@ -141,7 +141,59 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 
 ---
 
-## Sub-phase 4A.5 — Fit-scoring pipeline (shared)
+## Sub-phase 4A.4 — Backend indexes
+
+**Goal:** give the faceted-search and fit-scoring queries indexes to walk, so 4B's filters and 4A.3's projection do not collection-scan. Spec §4A.4, ARCHITECTURE.md §158. Scripts never reach for a scan when an index exists (CLAUDE.md authority rule).
+
+**From the spec (§4A.4 authoritative text):**
+- **Compound** on the filter fields 4B filters by.
+- **`$text`** on the searchable fields 4B's keyword box searches.
+
+**What the queries actually need (grounded in job.service's real filter, `keyword` + `location`):**
+- `$text` on `{ title, description, requirements }` — the keyword path today scans via regex (`escapeRegex` + `$regex`); a text index replaces the scan and feeds fit ranking.
+- A compound on the filter tuple 4B's left-rail facets select: `{ location, jobType, experienceLevel, salary }` (respects `sanitizeFilter`; all four are direct equality/range fields on the doc).
+- The company-join, ownership, and status paths come from 4C/4D; the recruiter/workspace listing indexes (`{ createdBy }`) land with that sub-phase when that query shape exists.
+
+**Key correction discovered during B1:** the keyword path is *behaviourally significant* — `.*` is escaped and must match exactly one job ("Literal .* match"). A `$text` index cannot reproduce that (it tokenises, `.*` matches nothing). Swapping regex→`$text` silently breaks a pinned contract. So the text index is **deferred, not added**; it lands only when keyword-query semantics get a deliberate exact-vs-ranked decision (4B). The compound index is the scan-elimination this sub-phase actually ships.
+
+**Files:**
+- Modify `backend/src/models/job.model.ts` — add the compound index; text index held back (see above). Field set unchanged — 4A.3 adds fields separately.
+- ~~Modify `backend/tests/job.test.ts`~~ — no test change: the compound index changes query *execution*, not *results*; the existing suite (including the `.*` literal contract) already pins behaviour and stays green.
+
+**Tasks:**
+- [x] **B1: scope correction** — confirmed regex→`$text` breaks the escaped-literal contract (`.*` → exactly 1 hit today, becomes 0 under text indexing). Text index deferred; compound index is the real scan elimination.
+- [x] **B2: jobs indexes** — compound `{ location: 1, jobType: 1, experienceLevel: 1, salary: 1 }` on the schema. Field set unchanged.
+- [x] **B3: backend suite green** — 7/7 job tests, typecheck clean. No behavioural regression.
+- [ ] **B4: commit** — pending, will batch with 4A.3 (model fields) or commit alone; decision at gate.
+
+---
+
+## Sub-phase 4A.3 — Backend fit data model
+
+**Goal:** persist the fields the fit pipeline reads, so 4A.4's aggregation and the UI's (4B/4D) scores run on real data, not `undefined`. This is the schema half of closing the spec's "five gaps fit scoring can't read."
+
+**What already exists:** `seeker.profile.{headline,bio,skills,experienceYears,location}`. `job.{title,description,requirements,salary,experienceLevel,location,jobType,position,company,created_by}`. The shared pipeline consumes `FitSeekerInput`/`FitJobInput` with the missing fields as *optional*.
+
+**Decisions:**
+- **Additive, non-destructive.** Add `profile.salaryMin`, `profile.salaryMax`, `profile.openToRemote` to `seeker`; add `remote: Boolean` to `job`. All default `null`/absent so existing documents stay valid and the pipeline's unknown→no-penalty rule (return 1) covers them until backfilled.
+- **`job.workMode` vs `job.remote`.** The matching pipeline reads `workMode` (a `WorkMode` enum: `onsite|hybrid|remote`). The job model stores the flat flag `remote: Boolean` (per ARCHITECTURE.md §156). The backend projection derives `workMode` from `remote + location`: `remote ? "remote" : "onsite"`. Hybrid is a future refinement, not persisted now.
+- **Skills alias map is already in shared** (`canonicalSkill`, 4A.5). Backend reuses it; no second alias table.
+- **Location normalisation** lives in the projection: trim + lowercase on read, not a stored normalised copy (the stored value stays human-written).
+- **Migration script** backfills nothing that isn't derivable — it just confirms the new optional fields exist; `remote` derives from `location === "remote"` on legacy docs as a one-time backfill.
+
+**Files:**
+- Modify `backend/src/models/seeker.model.ts` — `profile.salaryMin`, `profile.salaryMax` (Number, default null, min 0), `profile.openToRemote` (Boolean, default null).
+- Modify `backend/src/models/job.model.ts` — `remote: { type: Boolean, default: false }`.
+- Modify `packages/shared/src/domain.ts` — extend `jobCreateBodySchema` with `remote` (coerced boolean), `JobDto` with `remote: boolean`; extend profile update schema with `salaryMin`, `salaryMax`, `openToRemote`.
+- Create `backend/src/services/matching.pipeline.ts` — `toFitJobInput(doc)`, `toFitSeekerInput(doc)` projection helpers + `scoreJobsForSeeker(seeker, jobs)` returning `[{job, fit}]`.
+- Create `backend/tests/matching.pipeline.test.ts` — projection + scoring wired to the shared pipeline.
+
+**Tasks:**
+- [ ] **A1: failing test** — `matching.pipeline.test.ts` builds a seeker + job doc, runs `scoreJobsForSeeker`, asserts a populated `ScoreBreakdown` and that `remote:false` + seeker not remote → present but low. Red: module doesn't exist.
+- [ ] **A2: models** — add the additive fields to seeker + job.
+- [ ] **A3: shared DTO** — extend schemas/`JobDto`; keep legacy fields valid.
+- [ ] **A4: matching.pipeline.ts** — projections + scorer; derive `workMode`, normalise location, canonicalise skills from the shared module.
+- [ ] **A5: typecheck + backend suite** — `npm run build --workspace @jobportal/shared`, `npm run typecheck`, backend tests green, commit `feat(api): fit data model + matching pipeline (Phase 4A.3)`.
 
 **Goal:** a pure, explainable two-sided fit score in `packages/shared`, consumed by the backend aggregation (4A.3/4A.4) and the UI (4B/4D). Spec §Success criterion 4: the UI shows *why*.
 
@@ -167,13 +219,15 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 - `explain(b: ScoreBreakdown): string[]`
 
 **Tasks:**
-- [ ] **S1: failing test** — `matching.test.ts` imports from `@/matching` and asserts: perfect fit → 100; missing skills → skills factor partial; remote mismatch on an on-site-only job → remote factor 0; factor `earned ≤ max`; `explain` returns human strings mentioning the dominant factor. Red: module doesn't exist.
-- [ ] **S2: factors.ts** — normalise skill aliases (lowercase, trim, canonical map), salary overlap, remote/openToRemote boolean, experience-years, location token match. Pure.
-- [ ] **S3: weights.ts** — the weight numbers; `FACTOR_KEYS` + `WEIGHTS.job` and `WEIGHTS.seeker` totalling 100 each.
-- [ ] **S4: compute.ts** — build `ScoreBreakdown` for each direction; clamp `earned` to factor max; produce reasons.
-- [ ] **S5: explain.ts** — order factors by weight, emit human-readable reason lines.
-- [ ] **S6: barrel + typecheck** — wire into `index.ts`; run `npm run build --workspace @jobportal/shared` + full `npm run typecheck`.
-- [ ] **S7: green + commit** — `feat(shared): explainable two-sided fit pipeline (Phase 4A.5)`.
+- [x] **S1: failing test** — `matching.test.ts` imports from `@/matching` and asserts: perfect fit → 100; missing skills → skills factor partial; remote mismatch on an on-site-only job → remote factor 0; factor `earned ≤ max`; `explain` returns human strings mentioning the dominant factor. Red: module didn't exist.
+- [x] **S2: factors.ts** — `canonicalSkill(s)` (lowercase/trim/whitespace-collapse + alias map: `React.js`→`react`, `ts`→`typescript`, …); `skillCoverage`, `salaryFit` (band with 30% soft tolerance), `remoteFit` (remote job needs `openToRemote`, on-site/hybrid never penalises), `experienceFit` (25%/yr short), `locationFit` (token match). Unknown optional fields → no penalty (return 1), so the pipeline stays honest over partially-migrated data.
+- [x] **S3: weights.ts** — `FACTOR_KEYS`, per-direction `WEIGHTS.job`/`.seeker` each totalling 100, `Factor`/`ScoreBreakdown` types. One file owns every number.
+- [x] **S4: compute.ts** — `computeJobFit`/`computeSeekerFit`, each returns `{score, factors}`, `earned` clamped ≤ max, reasons built per factor.
+- [x] **S5: explain.ts** — orders factors by shortfall (ceiling − earned), emits "Key: reason" lines.
+- [x] **S6: barrel + typecheck** — `matching/index.ts` re-exported from `index.ts`; `npm run build --workspace @jobportal/shared` + root `npm run typecheck` clean.
+- [x] **S7: green + commit** — `8a71c30` — 19/19 shared tests (8 new matching), typecheck clean.
+
+**Status (4A.5):** complete — pure explainable two-sided pipeline. Public API: `computeJobFit`/`computeSeekerFit`/`explain` over `FitSeekerInput`/`FitJobInput` + `Factor`/`ScoreBreakdown`/`WEIGHTS`/`FACTOR_KEYS`. The inputs carry the spec-fit deltas as optional fields (`salaryMin/Max`, `openToRemote`, `experienceYears`, `experienceLevel`, `workMode`); backend aggregation (4A.4) projects Mongo docs into them and persists the fields, and the UI (4B/4D) reads `explain(breakdown)` for the fit badge. `FitJobInput.workMode` is the `WorkMode` enum already live in shared.
 
 
 

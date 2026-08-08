@@ -30,6 +30,7 @@ export function toJobDto(doc: PopulatedJob): JobDto {
     location: doc.location,
     jobType: doc.jobType,
     position: doc.position,
+    remote: doc.remote ?? false,
     company: doc.company ? toCompanyDto(doc.company) : null,
     createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? "",
   };

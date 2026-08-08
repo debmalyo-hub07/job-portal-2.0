@@ -72,6 +72,29 @@ describe("updateProfile on the account collections", () => {
     expect((await request(app).get("/api/v1/user/profile")).status).toBe(401);
   });
 
+  it("persists the fit fields and returns them on the profile view", async () => {
+    const seeker = await signedUpOn("seeker", "fit@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .field("salaryMin", "80000")
+      .field("salaryMax", "120000")
+      .field("openToRemote", "true");
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.seeker).toMatchObject({
+      salaryMin: 80000,
+      salaryMax: 120000,
+      openToRemote: true,
+    });
+
+    // The fields survive a fresh read, so the fit pipeline can read them.
+    const account = await Seeker.findById(seeker.id);
+    expect(account!.profile!.salaryMin).toBe(80000);
+    expect(account!.profile!.salaryMax).toBe(120000);
+    expect(account!.profile!.openToRemote).toBe(true);
+  });
+
   it("ignores an attempt to change the email", async () => {
     const seeker = await signedUpOn("seeker", "keep@x.test");
     const res = await request(app)

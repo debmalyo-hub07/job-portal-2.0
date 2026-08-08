@@ -32,6 +32,11 @@ export const jobCreateBodySchema = z.object({
   location: z.string().trim().min(2).max(120),
   jobType: z.string().trim().min(2).max(40),
   position: z.string().trim().min(1).max(120),
+  /** Flat remote flag (4A.3). A `true`-ish form string coerces to true; absent → false. */
+  remote: z
+    .enum(["true", "false", "1", "0", "on"])
+    .transform((v) => v === "true" || v === "1" || v === "on")
+    .optional(),
   companyId: objectIdSchema,
 });
 
@@ -70,6 +75,8 @@ export type JobDto = {
   location: string;
   jobType: string;
   position: string;
+  /** 4A.3: whether the role is remote. Drives the fit pipeline's remote factor. */
+  remote: boolean;
   company: CompanyDto | null;
   createdAt: string;
 };
@@ -108,6 +115,14 @@ export const profileUpdateBodySchema = z.object({
     .string()
     .max(500)
     .transform((s) => s.split(",").map((t) => t.trim()).filter(Boolean))
+    .optional(),
+  /** 4A.3: self-reported salary band in `job.salary`'s unit. Form strings coerce. */
+  salaryMin: z.coerce.number().int().min(0).optional(),
+  salaryMax: z.coerce.number().int().min(0).optional(),
+  /** 4A.3: drives the pipeline's remote factor. "true"/"1"/"on" → true. */
+  openToRemote: z
+    .enum(["true", "false", "1", "0", "on"])
+    .transform((v) => v === "true" || v === "1" || v === "on")
     .optional(),
 });
 
