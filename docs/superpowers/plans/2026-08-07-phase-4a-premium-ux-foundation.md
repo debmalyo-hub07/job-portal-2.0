@@ -139,4 +139,41 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 
 **Status (4A.1):** complete — 96/96 web tests green (was 85, +11 motion), typecheck clean, colour lint 18/exit-1, production build green. Delivered: unified rAF `clock.ts` (one frame, dt clamped, pauses hidden/empty), `reducedMotion.ts` (live query), `scroll.ts` (`useInViewOnce`/`useScrollProgress`, mutable progress ref), `dataset.ts` (`motionAllows`), `data-motion` prop on `PageShell` with inline `--motion-*` resolver (index.css owns the reduced-motion collapse; jsdom can't process Tailwind-4 CSS so tokens are inline for testability), and `motion.tsx` gained `useMotionBudget`/`useReveal`/`useParallax` layered on the intact Tier-3 primitives.
 
+---
+
+## Sub-phase 4A.5 — Fit-scoring pipeline (shared)
+
+**Goal:** a pure, explainable two-sided fit score in `packages/shared`, consumed by the backend aggregation (4A.3/4A.4) and the UI (4B/4D). Spec §Success criterion 4: the UI shows *why*.
+
+**Key decisions:**
+- Pure functions, no I/O, no DOM. `packages/shared` builds to plain TS for both runtimes.
+- One source of truth for weights: `weights.ts`. Any weight change updates `weights.ts` and any consumer in the same commit (Global Constraints).
+- Explainable: every score returns a breakdown of its contributing factors, not a bare number.
+- Symmetric: same pipeline scores job→seeker (search) and seeker→job (recruiter workspace) by swapping the profile-side and job-side arguments. The factor semantics differ by direction, so the weights are per-direction.
+
+**Files:**
+- Create `packages/shared/src/matching/factors.ts` — the `Factor` type and pure normalisers/validators for skills, salary band, remote/openToRemote, experience, location.
+- Create `packages/shared/src/matching/weights.ts` — per-direction weight tables + `FACTOR_KEYS`; the only place the numbers live.
+- Create `packages/shared/src/matching/compute.ts` — `computeJobFit(seeker, job)`, `computeSeekerFit(seeker, job)`: each returns `{ score, breakdown }`.
+- Create `packages/shared/src/matching/explain.ts` — `explain(score, breakdown) → string[]` of human-readable reasons.
+- Modify `packages/shared/src/index.ts` — export the matching barrel.
+- Create `packages/shared/tests/matching.test.ts` — pure-function tests over fixed fixtures; no DB.
+
+**Interfaces produced:**
+- `type Factor = { key, weight, earned, max, reason }`
+- `ScoreBreakdown = { score: number; factors: Factor[]; max: number }`
+- `computeJobFit(seeker: FitSeekerInput, job: FitJobInput): ScoreBreakdown`
+- `computeSeekerFit(seeker: FitSeekerInput, job: FitJobInput): ScoreBreakdown`
+- `explain(b: ScoreBreakdown): string[]`
+
+**Tasks:**
+- [ ] **S1: failing test** — `matching.test.ts` imports from `@/matching` and asserts: perfect fit → 100; missing skills → skills factor partial; remote mismatch on an on-site-only job → remote factor 0; factor `earned ≤ max`; `explain` returns human strings mentioning the dominant factor. Red: module doesn't exist.
+- [ ] **S2: factors.ts** — normalise skill aliases (lowercase, trim, canonical map), salary overlap, remote/openToRemote boolean, experience-years, location token match. Pure.
+- [ ] **S3: weights.ts** — the weight numbers; `FACTOR_KEYS` + `WEIGHTS.job` and `WEIGHTS.seeker` totalling 100 each.
+- [ ] **S4: compute.ts** — build `ScoreBreakdown` for each direction; clamp `earned` to factor max; produce reasons.
+- [ ] **S5: explain.ts** — order factors by weight, emit human-readable reason lines.
+- [ ] **S6: barrel + typecheck** — wire into `index.ts`; run `npm run build --workspace @jobportal/shared` + full `npm run typecheck`.
+- [ ] **S7: green + commit** — `feat(shared): explainable two-sided fit pipeline (Phase 4A.5)`.
+
+
 
