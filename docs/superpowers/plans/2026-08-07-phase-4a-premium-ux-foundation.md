@@ -164,7 +164,7 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 - [x] **B1: scope correction** — confirmed regex→`$text` breaks the escaped-literal contract (`.*` → exactly 1 hit today, becomes 0 under text indexing). Text index deferred; compound index is the real scan elimination.
 - [x] **B2: jobs indexes** — compound `{ location: 1, jobType: 1, experienceLevel: 1, salary: 1 }` on the schema. Field set unchanged.
 - [x] **B3: backend suite green** — 7/7 job tests, typecheck clean. No behavioural regression.
-- [ ] **B4: commit** — pending, will batch with 4A.3 (model fields) or commit alone; decision at gate.
+- [x] **B4: commit** — landed `75a7ad5` batched with 4A.3 (model fields); single green wave.
 
 ---
 
@@ -189,11 +189,25 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 - Create `backend/tests/matching.pipeline.test.ts` — projection + scoring wired to the shared pipeline.
 
 **Tasks:**
-- [ ] **A1: failing test** — `matching.pipeline.test.ts` builds a seeker + job doc, runs `scoreJobsForSeeker`, asserts a populated `ScoreBreakdown` and that `remote:false` + seeker not remote → present but low. Red: module doesn't exist.
-- [ ] **A2: models** — add the additive fields to seeker + job.
-- [ ] **A3: shared DTO** — extend schemas/`JobDto`; keep legacy fields valid.
-- [ ] **A4: matching.pipeline.ts** — projections + scorer; derive `workMode`, normalise location, canonicalise skills from the shared module.
-- [ ] **A5: typecheck + backend suite** — `npm run build --workspace @jobportal/shared`, `npm run typecheck`, backend tests green, commit `feat(api): fit data model + matching pipeline (Phase 4A.3)`.
+- [x] **A1: failing test** — `matching.pipeline.test.ts` + a profile round-trip test; both now green.
+- [x] **A2: models** — `seeker.profile.{salaryMin,salaryMax,openToRemote}` (default null) and `job.remote` (default false).
+- [x] **A3: shared DTO** — `profileUpdateBodySchema` gained the three seeker fit fields (form-coerced); `jobCreateBodySchema` gained `remote`; `JobDto` + `ProfileView` expose them.
+- [x] **A4: matching.pipeline.ts** — `toFitSeekerInput`/`toFitJobInput` projections (unset → `undefined`, never `0`; `workMode` derived from `remote`) + `scoreJobForSeeker`/`scoreSeekerForJob` wired to the shared pipeline.
+- [x] **A5: typecheck + backend suite** — shared build + root typecheck clean; **254/254 backend tests green**. Committed `75a7ad5` (batched with 4A.4).
+
+**Status (4A.3):** complete — the fit fields persist and round-trip; the matching pipeline projects real Mongo docs into the shared scoring contract. `ProfileView` is additive so the existing profile UI typechecks unchanged; the form fields to *capture* them land in 4B/4C's profile editor.
+
+---
+
+### 4A.4 — index wave (landed with the same commit)
+
+**B1 correction shipped:** the compound index `{ location, jobType, experienceLevel, salary }` now covers 4B's facet filter tuple. The `$text` index was deliberately **held back** — regex keyword search has a pinned contract (`.*` literal → exactly one hit) that text indexing would silently break; that decision moves to 4B with the rankings design.
+
+**Status (4A.4):** partial-by-design — compound index green (7/7 job tests held); text index deferred to 4B. One publicJobs allowlist assertion extended to admit the intentional new public `remote` field.
+
+---
+
+## Sub-phase 4A.5 — Fit-scoring pipeline (shared)
 
 **Goal:** a pure, explainable two-sided fit score in `packages/shared`, consumed by the backend aggregation (4A.3/4A.4) and the UI (4B/4D). Spec §Success criterion 4: the UI shows *why*.
 
