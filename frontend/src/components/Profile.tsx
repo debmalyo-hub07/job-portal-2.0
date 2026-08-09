@@ -49,7 +49,7 @@ const Profile = () => {
   return (
     <div>
       <Navbar />
-      <div className="max-w-4xl mx-auto bg-white border border-gray-200 rounded-2xl my-5 p-8">
+      <div className="max-w-4xl mx-auto bg-paper-raised border border-line rounded-2xl my-5 p-8">
         <div className="flex justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-24 w-24">
@@ -78,7 +78,7 @@ const Profile = () => {
           </div>
         </div>
         <div className="my-5">
-          <h1>Skills</h1>
+          <h2 className="text-xl font-display">Skills</h2>
           <div className="flex items-center gap-1">
             {skills.length > 0 ? (
               skills.map((item) => <Badge key={item}>{item}</Badge>)
@@ -105,8 +105,8 @@ const Profile = () => {
           )}
         </div>
       </div>
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl">
-        <h1 className="font-bold text-lg my-5">Applied Jobs</h1>
+      <div className="max-w-4xl mx-auto bg-paper-raised rounded-2xl">
+        <h2 className="font-bold text-xl font-display my-5">Applied Jobs</h2>
         <AppliedJobTable />
       </div>
       <UpdateProfileDialog

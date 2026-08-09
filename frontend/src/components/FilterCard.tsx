@@ -53,24 +53,24 @@ const FilterCard = () => {
   };
 
   return (
-    <div className="w-full bg-white p-4 rounded-md shadow-sm border border-gray-100">
+    <div className="w-full bg-paper-raised p-4 rounded-md shadow-sm border border-line">
       <div className="flex items-center justify-between mb-3">
-        <h1 className="font-bold text-lg">Filter Jobs</h1>
+        <h2 className="font-bold text-lg">Filter Jobs</h2>
         {hasFilters && (
           <button
             type="button"
             onClick={clearAll}
-            className="text-xs font-medium text-gray-500 hover:text-gray-700 underline"
+            className="text-xs font-medium text-ink-muted hover:text-ink underline"
           >
             Clear all
           </button>
         )}
       </div>
-      <hr className="mb-4" />
+      <hr className="mb-4 border-line" />
       <div className="space-y-5">
         {FACETS.map((facet) => (
           <section key={facet.key}>
-            <h2 className="font-semibold text-sm text-gray-700 mb-2">{facet.label}</h2>
+            <h3 className="font-semibold text-sm text-ink mb-2">{facet.label}</h3>
             <ul className="space-y-1.5">
               {facet.options.map((option) => {
                 const id = `${facet.key}-${option.replace(/\s+/g, "-").toLowerCase()}`;
@@ -82,9 +82,12 @@ const FilterCard = () => {
                       id={id}
                       checked={checked}
                       onChange={() => toggle(facet.key, option)}
-                      className="h-4 w-4 rounded border-gray-300 accent-slate-900"
+                      className="h-4 w-4 rounded border-line accent-[var(--signal-text)]"
                     />
-                    <label htmlFor={id} className="text-sm text-gray-600 select-none cursor-pointer">
+                    <label
+                      htmlFor={id}
+                      className="text-sm text-ink-muted select-none cursor-pointer"
+                    >
                       {option}
                     </label>
                   </li>

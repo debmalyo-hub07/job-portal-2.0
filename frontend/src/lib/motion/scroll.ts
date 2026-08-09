@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useMotionValueEvent, useScroll, useInView } from "motion/react";
 import type { RefObject } from "react";
 

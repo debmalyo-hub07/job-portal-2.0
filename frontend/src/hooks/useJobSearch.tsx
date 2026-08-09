@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import { jobListQuerySchema, type JobDto } from "@jobportal/shared";
+import {
+  jobListQuerySchema,
+  type JobDto,
+  type PaginatedResponse,
+} from "@jobportal/shared";
 
 import { apiClient } from "@/lib/apiClient";
 
@@ -18,13 +22,16 @@ import { apiClient } from "@/lib/apiClient";
  * facets (Location AND JobType). The backend's `jobListQuerySchema` does the
  * string→set parsing; we just forward the raw query string.
  */
-export interface JobSearchPage {
-  items: JobDto[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
+/**
+ * One page of results, matching the API's pagination envelope exactly.
+ *
+ * `pages` is the field the server sends (`PaginatedResponse` in
+ * `packages/shared`) — not `totalPages`, and there is no `limit` on the
+ * response. Declaring fields the server never sends would hand a pagination UI
+ * `undefined` at runtime while typechecking clean, so this mirrors the shared
+ * type rather than restating it loosely.
+ */
+export type JobSearchPage = PaginatedResponse<JobDto>;
 
 /**
  * Job-board query, already shaped for the `jobListQuerySchema` wire format.

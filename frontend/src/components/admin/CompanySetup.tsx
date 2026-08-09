@@ -88,7 +88,7 @@ const CompanySetup = () => {
               type="button"
               onClick={() => navigate("/hire/companies")}
               variant="outline"
-              className="flex items-center gap-2 text-gray-500 font-semibold"
+              className="flex items-center gap-2 text-ink-muted font-semibold"
             >
               <ArrowLeft />
               <span>Back</span>

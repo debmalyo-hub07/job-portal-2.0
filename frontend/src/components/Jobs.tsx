@@ -1,10 +1,9 @@
-import { motion } from "motion/react";
-
 import Navbar from "./shared/Navbar";
 import FilterCard from "./FilterCard";
 import Job from "./Job";
 import { useJobSearch } from "@/hooks/useJobSearch";
 import { Skeleton } from "./ui/skeleton";
+import { StaggerItem, StaggerList } from "@/lib/motion";
 
 /**
  * 4B jobs board.
@@ -22,38 +21,32 @@ const Jobs = () => {
   return (
     <div>
       <Navbar />
-      <div className="max-w-7xl mx-auto mt-5">
-        <div className="flex gap-5">
-          <div className="w-[20%]">
+      <div className="max-w-7xl mx-auto mt-5 px-4">
+        <div className="flex flex-col gap-5 md:flex-row">
+          <div className="w-full md:w-[20%] md:shrink-0">
             <FilterCard />
           </div>
-          <div className="flex-1 h-[88vh] overflow-y-auto pb-5">
+          <div className="flex-1 md:h-[88vh] md:overflow-y-auto pb-5">
             {isPending ? (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }, (_, i) => (
                   <Skeleton key={i} className="h-48 rounded-md" />
                 ))}
               </div>
             ) : isError ? (
-              <div className="text-red-600 text-sm p-4">
+              <div className="text-danger text-sm p-4" role="alert">
                 Could not load jobs: {error instanceof Error ? error.message : "unknown error"}
               </div>
             ) : jobs.length === 0 ? (
               <span>No jobs match these filters.</span>
             ) : (
-              <div className="grid grid-cols-3 gap-4">
+              <StaggerList className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {jobs.map((job) => (
-                  <motion.div
-                    initial={{ opacity: 0, x: 100 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -100 }}
-                    transition={{ duration: 0.3 }}
-                    key={job.id}
-                  >
+                  <StaggerItem key={job.id}>
                     <Job job={job} />
-                  </motion.div>
+                  </StaggerItem>
                 ))}
-              </div>
+              </StaggerList>
             )}
           </div>
         </div>

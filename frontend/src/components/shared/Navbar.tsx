@@ -1,9 +1,18 @@
+import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { LogOut, User2 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../ui/sheet";
+import { LogOut, Menu, User2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
+import { navLinksFor } from "./navLinks";
 
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -32,6 +41,7 @@ const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const logoutHandler = async () => {
     if (!user) return;
@@ -53,57 +63,39 @@ const Navbar = () => {
   };
 
   const isRecruiter = user?.portal === "recruiter";
+  const links = navLinksFor(user?.portal ?? "seeker");
 
   return (
     <div className="border-b border-line bg-paper">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to={isRecruiter ? "/hire" : "/"}>
           <h1 className="font-display text-2xl font-bold text-ink">
             Job<span className="text-signal-text">{isRecruiter ? "Hire" : "Portal"}</span>
           </h1>
         </Link>
 
-        <div className="flex items-center gap-8">
-          <ul className="flex items-center gap-5 text-sm font-medium">
-            {isRecruiter ? (
-              <>
-                <li>
-                  <Link to="/hire/companies" className="hover:text-signal-text">
-                    Companies
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/hire/jobs" className="hover:text-signal-text">
-                    Jobs
-                  </Link>
-                </li>
-              </>
-            ) : (
-              <>
-                <li>
-                  <Link to="/" className="hover:text-signal-text">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/jobs" className="hover:text-signal-text">
-                    Jobs
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/browse" className="hover:text-signal-text">
-                    Browse
-                  </Link>
-                </li>
-              </>
-            )}
+        <div className="flex items-center gap-4 lg:gap-8">
+          {/* Desktop links. Below lg they live in the sheet instead — at the
+              narrow end the row collided with the avatar and the theme toggle. */}
+          <ul className="hidden items-center gap-5 text-sm font-medium lg:flex">
+            {links.map((link) => (
+              <li key={link.to}>
+                <Link to={link.to} className="hover:text-signal-text">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
           </ul>
 
           <ThemeToggle />
 
           {!user ? (
+            /* "Sign in" hides below sm; "Get started" always shows. Both at
+               360px left no room for the logo, and of the two the primary
+               action is the one worth keeping. Sign-in stays reachable from
+               the sheet. */
             <div className="flex items-center gap-2">
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="hidden sm:inline-flex">
                 <Link to="/login">Sign in</Link>
               </Button>
               <Button asChild variant="signal">
@@ -162,6 +154,42 @@ const Navbar = () => {
               </PopoverContent>
             </Popover>
           )}
+
+          {/* Mobile navigation. `Sheet` shipped in 2A and was used by nothing
+              until now, which is why the app had no navigation at all below lg. */}
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="lg:hidden" aria-label="Open menu">
+                <Menu />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <SheetHeader>
+                <SheetTitle>Menu</SheetTitle>
+              </SheetHeader>
+              <nav className="mt-6 flex flex-col gap-1 px-4">
+                {links.map((link) => (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-sharp px-2 py-2 text-base text-ink hover:bg-signal-muted"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                {!user && (
+                  <Link
+                    to="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-sharp px-2 py-2 text-base text-ink hover:bg-signal-muted sm:hidden"
+                  >
+                    Sign in
+                  </Link>
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
     </div>

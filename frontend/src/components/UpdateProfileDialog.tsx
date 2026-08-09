@@ -124,7 +124,7 @@ const UpdateProfileDialog = ({
                     readOnly
                     disabled
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-ink-muted mt-1">
                     Your email address cannot be changed here.
                   </p>
                 </div>

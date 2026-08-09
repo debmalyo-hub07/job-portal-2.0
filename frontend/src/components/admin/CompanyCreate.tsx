@@ -39,7 +39,7 @@ const CompanyCreate = () => {
       <div className="max-w-4xl mx-auto">
         <div className="my-10">
           <h1 className="font-bold text-2xl">Your Company Name</h1>
-          <p className="text-gray-500">
+          <p className="text-ink-muted">
             Create a new company profile by filling out the form below. You can change the company
             name, logo, and other details.
           </p>

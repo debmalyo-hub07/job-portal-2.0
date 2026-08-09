@@ -32,6 +32,11 @@ jobs:
       - run: npm run build --workspace @jobportal/shared
       - run: npm run typecheck
       - run: npm run lint
+      # The colour-token gate. It was advisory through 2A/2B (exit 1 with a
+      # known-violation count that drifted 18 -> 23 unnoticed, because nothing
+      # ran it). It is now zero, and zero is enforced here: a non-token colour
+      # fails the build rather than being counted.
+      - run: npm run lint:colour --workspace @jobportal/web
       - run: npm run test
       - run: npm run build
 

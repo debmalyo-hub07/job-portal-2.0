@@ -106,7 +106,9 @@ function SheetTitle({
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("font-display text-lg leading-none font-semibold text-ink", className)}
+      // text-xl, not text-lg: Fraunces is never set below 20px, and text-lg
+      // (1.125rem) is under that floor.
+      className={cn("font-display text-xl leading-none font-semibold text-ink", className)}
       {...props}
     />
   )
