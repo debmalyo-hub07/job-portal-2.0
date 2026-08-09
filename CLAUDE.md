@@ -46,9 +46,15 @@ Guidance for Claude Code when working in this repository.
 - **Responses:** build an explicit DTO. Never serialize a Mongoose document
   directly; that is how password hashes leak.
 - **Config:** call `env()` from `src/config/env.ts`. Never read `process.env`
-  directly. The one deliberate exception is `src/lib/logger.ts`, which reads
-  `NODE_ENV` to pick a log level — going through `env()` there would force full
-  config validation at import time and break the test harness.
+  directly. There are exactly **two** deliberate exceptions, both bootstrap
+  reads that happen before validation can run: `src/lib/logger.ts` (`NODE_ENV`
+  → log level) and `resolveLogHttpMode()` in `src/lib/httpLogger.ts`
+  (`LOG_HTTP`). Both are reached at import time — `buildApp()` runs at module
+  scope in 16 test files, before `tests/setup.ts` assigns `MONGO_URI` in
+  `beforeAll` — so calling `env()` there fails full config validation and takes
+  those suites down at import. `env()` still declares and validates both, so a
+  typo is still a named boot failure. Do not add a third without the same
+  argument.
 - **New endpoints:** define the Zod schema in `packages/shared` first.
 - **Auth:** never read `passwordHash` without `{ withSecret: true }` on
   `findAccountByEmail`/`findAccountById`. The schema marks it `select: false`, so

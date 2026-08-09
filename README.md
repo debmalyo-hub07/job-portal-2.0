@@ -162,11 +162,32 @@ client/server contract mismatch a compile error rather than a runtime surprise.
 
 ## Local configuration
 
-Set `VITE_API_URL` in `frontend/.env.local` for local development:
+Copy `frontend/.env.example` to `frontend/.env.local`:
 
 ```
 VITE_API_URL=http://localhost:8000/api/v1
 ```
+
+**Save it as plain UTF-8 with no byte-order mark.** A BOM becomes part of the
+first key name, so Vite parses `<BOM>VITE_API_URL` and `import.meta.env.VITE_API_URL`
+reads `undefined`. On Windows, PowerShell's `>` and `Set-Content` both write a
+BOM by default — use `-Encoding utf8NoBOM`. `apiClient.ts` throws at import when
+the variable is missing rather than letting axios default `baseURL` to the page
+origin, where the dev server answers `index.html` with a 200 and the app appears
+online while every call silently fails. `frontend/tests/envFiles.test.ts` fails
+if either `.env.example` regains a BOM.
+
+Backend config lives in `backend/.env` (copy `backend/.env.example`). Two
+optional logging variables:
+
+| Variable | Values | Effect |
+|---|---|---|
+| `LOG_LEVEL` | pino levels | Defaults to `info` in production, `debug` in development, forced to `silent` under `NODE_ENV=test`. At `debug`, request lines also carry the query string and the authenticated `{id, portal}`. |
+| `LOG_HTTP` | `summary` \| `all` \| `off` | `summary` (default) logs one line per request and skips `/health`; `all` includes it; `off` disables request logging. |
+
+Request lines carry the same correlation id as the error envelope, so a client
+error and a server log can be joined. Bodies, cookies and headers are never
+logged at any level.
 
 ## Authentication
 
