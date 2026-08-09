@@ -1,13 +1,23 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AppliedJobDto, JobDto } from "@jobportal/shared";
 
+/**
+ * `searchedQuery` is deliberately absent since 2B-2.
+ *
+ * It was the job board's filter state, written by the hero search box and the
+ * category chips and read by `useGetAllJobs`. 4B moved the board to the URL
+ * (`useJobSearch`), which left redux authoritative for the retired `/browse`
+ * list and the URL authoritative for `/jobs` — two sources of truth for one
+ * question. Its last consumer was the landing page's "Latest openings", where
+ * it was a bug: a search filtered that section while its heading still claimed
+ * to show the latest.
+ */
 type JobState = {
   allJobs: JobDto[];
   allAdminJobs: JobDto[];
   singleJob: JobDto | null;
   searchJobByText: string;
   allAppliedJobs: AppliedJobDto[];
-  searchedQuery: string;
 };
 
 const initialState: JobState = {
@@ -16,7 +26,6 @@ const initialState: JobState = {
   singleJob: null,
   searchJobByText: "",
   allAppliedJobs: [],
-  searchedQuery: "",
 };
 
 const jobSlice = createSlice({
@@ -38,9 +47,6 @@ const jobSlice = createSlice({
     setAllAppliedJobs: (state, action: PayloadAction<AppliedJobDto[]>) => {
       state.allAppliedJobs = action.payload;
     },
-    setSearchedQuery: (state, action: PayloadAction<string>) => {
-      state.searchedQuery = action.payload;
-    },
   },
 });
 
@@ -50,6 +56,5 @@ export const {
   setAllAdminJobs,
   setSearchJobByText,
   setAllAppliedJobs,
-  setSearchedQuery,
 } = jobSlice.actions;
 export default jobSlice.reducer;

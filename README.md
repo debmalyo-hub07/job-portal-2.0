@@ -6,11 +6,12 @@ control as the starting point rather than an afterthought.
 
 > **Status:** Phases 1A (foundation), 1B (authentication), 1C (authorization),
 > 2A (design system), 2B-1 (design language and portal-split auth), 3A
-> (three-portal foundation), 4A/4B (faceted job search) and 3B (admin console)
-> are complete. Ownership checks are in place on every route touching a
-> user-owned resource, and recruiter approval now has a UI rather than needing
-> curl. The seeker job pages and the recruiter workspace are still the inherited
-> UI and are next. See [Roadmap](#roadmap).
+> (three-portal foundation), 4A/4B (faceted job search), 3B (admin console) and
+> 2B-2 (seeker pages) are complete. Ownership checks are in place on every route
+> touching a user-owned resource, recruiter approval has a UI rather than
+> needing curl, and the seeker surface is one faceted, paginated job board. The
+> recruiter workspace is still the inherited UI and is next. See
+> [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -245,7 +246,9 @@ mirroring the API's `buildAuthRouter(portal)`:
 
 | Route | Portal | Notes |
 |---|---|---|
-| `/` | seeker | Job board landing |
+| `/` | seeker | Marketing landing: hero search, role shortcuts, latest openings |
+| `/jobs` | seeker | The job board. Every filter lives in the URL, so a search is a shareable link |
+| `/description/:id`, `/profile` | seeker | Job detail and the seeker's own profile |
 | `/login`, `/signup` | seeker | |
 | `/hire` | recruiter | Employer front door |
 | `/hire/login`, `/hire/signup` | recruiter | |
@@ -255,6 +258,12 @@ mirroring the API's `buildAuthRouter(portal)`:
 
 The workspace lived under `/admin/*` before Phase 3A. Those URLs redirect to
 their `/hire` equivalent, parameters and query intact.
+
+`/browse` was a second, weaker job board until Phase 2B-2 — keyword-only, with
+no facets, pagination or loading state — and it was where the hero search and
+every category chip sent you, so the faceted board was reachable only by
+clicking "Jobs". It now redirects to `/jobs` carrying the query, since `/jobs`
+reads `keyword` from the URL as its own state.
 
 There is no control anywhere that picks a portal. `PortalScope` derives it from
 `useLocation().pathname` and nothing else — never a body, query or cookie —
@@ -358,8 +367,8 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 3A | Three portals, admin collection, recruiter approval gate, `seed:admin`, workspace moved to `/hire/*` | Complete |
 | 4A/4B | Faceted job search on a compound index, URL-driven filters, react-query | Complete |
 | 3B | Admin console: dashboard, approvals queue, deny action, job/company moderation | Complete |
-| 2B-2 | Seeker pages: job board, job detail, filters, profile | Next |
-| 2B-3 | Recruiter workspace: companies, jobs, applicants | Planned |
+| 2B-2 | Seeker pages: one faceted job board, pagination, profile | Complete |
+| 2B-3 | Recruiter workspace: companies, jobs, applicants | Next |
 | 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 

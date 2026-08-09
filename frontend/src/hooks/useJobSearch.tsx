@@ -127,6 +127,24 @@ export function useJobSearch() {
   });
 }
 
+/**
+ * The board's URL for a keyword search, starting from no filters.
+ *
+ * The landing page's two search entry points — the hero box and the category
+ * chips — used to dispatch `setSearchedQuery` into redux and navigate to
+ * `/browse`, the pre-4B board. That made redux authoritative for one list and
+ * the URL authoritative for the other, and sent every search to the weaker of
+ * the two. Both now build a `/jobs` URL, so the board has exactly one source of
+ * truth and a search is a shareable link.
+ *
+ * Deliberately not a hook and not carrying existing params: these are entry
+ * points from outside the board, where the only intent expressed is the keyword.
+ */
+export function jobBoardPath(keyword: string): string {
+  const trimmed = keyword.trim();
+  return trimmed ? `/jobs?${new URLSearchParams({ keyword: trimmed })}` : "/jobs";
+}
+
 /** Toggles a facet value in the URL; the query refetches on the next render. */
 export function useFacetToggle() {
   const [searchParams, setSearchParams] = useSearchParams();

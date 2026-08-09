@@ -2,20 +2,28 @@ import { useEffect } from "react";
 import type { JobDto, PaginatedResponse } from "@jobportal/shared";
 import { apiClient } from "@/lib/apiClient";
 import { setAllJobs } from "@/redux/jobSlice";
-import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { useAppDispatch } from "@/redux/store";
 
+/**
+ * The landing page's "Latest openings".
+ *
+ * Not the job board — that is `useJobSearch`, which reads the URL. This asks one
+ * question with no inputs: what has been posted recently. It used to pass the
+ * redux `searchedQuery` as `keyword`, which meant a search from the hero box
+ * filtered the "Latest openings" section while its heading still said latest.
+ * With the board owning search, there is nothing left to filter by.
+ */
 const useGetAllJobs = () => {
   const dispatch = useAppDispatch();
-  const { searchedQuery } = useAppSelector((state) => state.job);
 
   useEffect(() => {
     const fetchAllJobs = async () => {
       try {
         const res = await apiClient.get<{ success: boolean } & PaginatedResponse<JobDto>>(
           "/job/get",
-          // The API caps `limit` at 50. Asking for the cap keeps the board
-          // showing what it used to until a real pager lands.
-          { params: { keyword: searchedQuery, limit: 50 } },
+          // LatestJobs renders six. Asking for a page rather than the API's cap
+          // of 50 keeps the landing payload proportional to what it shows.
+          { params: { limit: 6 } },
         );
         if (res.data.success) {
           dispatch(setAllJobs(res.data.items));
@@ -25,9 +33,7 @@ const useGetAllJobs = () => {
       }
     };
     void fetchAllJobs();
-    // searchedQuery was previously missing from this list, so changing the
-    // search term never triggered a refetch.
-  }, [dispatch, searchedQuery]);
+  }, [dispatch]);
 };
 
 export default useGetAllJobs;

@@ -108,6 +108,17 @@ Guidance for Claude Code when working in this repository.
 - **Frontend type:** Fraunces (`font-display`) never below 20px — `text-xl`
   (1.44rem) is the smallest permitted. Geist Mono only for aligned numeric
   comparison, never a lone value in a badge.
+- **Frontend headings:** exactly one `<h1>` per route, and it is the page's own
+  title. The navbar wordmark is a `<span>` — a site name is not a page heading,
+  and making it one gave every route two competing `<h1>`s.
+  `seekerBoard.test.tsx` asserts the count per route.
+- **Frontend list state:** a filter, a sort or a page number lives in the URL,
+  never in a slice. Two sources of truth for the same question is how the app
+  ended up with two job boards, one of which nothing linked to. If a slice field
+  has no writer left after a page moves to the URL, delete the field.
+- **No dead controls.** A button whose handler does nothing must not ship, even
+  disabled-looking or "for later" — it reads as broken. Ship the control with
+  the feature.
 
 ## Guardrails
 
@@ -155,12 +166,63 @@ directory and passed over zero files.
 
 Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
 2A (Ink & Signal design foundation), 2B-1 (design language and portal-split
-authentication), 3A (three-portal foundation), 4A/4B (faceted job search) and
-3B (admin console) are complete. The design system, its primitives and the
-compositional layer are all in place; the auth surfaces, the landing page and
-the admin console are built on them. Phases 2B-2 (seeker pages) and 2B-3
-(recruiter workspace) have not started — those pages are still the inherited
-structure.
+authentication), 3A (three-portal foundation), 4A/4B (faceted job search),
+3B (admin console) and 2B-2 (seeker pages) are complete. The design system, its
+primitives and the compositional layer are all in place; the auth surfaces, the
+landing page, the admin console and the seeker surface are built on them. Phase
+2B-3 (recruiter workspace) has not started — `components/admin/*` is still the
+inherited structure.
+
+What 2B-2 closed:
+
+- **There were two job boards and the landing page pointed at the wrong one.**
+  `/jobs` was the 4B rebuild (react-query, URL-as-state, facets, skeletons);
+  `/browse` was the pre-4B original (redux `allJobs`, keyword-only, a fixed
+  `grid-cols-3`, no loading state, no pagination). The hero search and every
+  category chip navigated to `/browse`, so the faceted board was reachable only
+  by clicking "Jobs" directly. `/browse` is now `BrowseRedirect` — it forwards
+  to `/jobs` carrying `search` and `hash`, because `/jobs` reads `keyword` from
+  the URL as its own state, so a shared link survives the move untranslated
+- **`searchedQuery` is gone from `jobSlice`.** With the hero and the carousel
+  writing the URL it had no writers left. It was the second source of truth for
+  a question the URL already answered, and its last reader was a bug: the
+  landing page's "Latest openings" filtered itself by a stale search while its
+  heading still claimed to show the latest. Adding it back is how the two-board
+  split returns
+- **The wordmark is a `<span>`, not an `<h1>`.** Every page in the application
+  had two top-level headings — the site name in the navbar and the page's own
+  title — so a screen-reader user navigating by heading hit "JobPortal" first on
+  every route. `AuthLayout` had already settled this; the navbar had not.
+  `seekerBoard.test.tsx` asserts exactly one `<h1>` per route
+- **`Pager` moved to `components/layout/`** and the seeker board is its second
+  consumer. The board asked for `limit=50` and rendered whatever came back, so
+  results 51+ were unreachable — the pagination gap the docs recorded. `page` is
+  a URL param like every other filter, so paging is an ordinary navigation and
+  the back button works
+- **`FilterCard` renders the three facets it was already clearing.** `clearAll`
+  and the has-filters check handled `salaryMax`, `experienceMax` and `remote`
+  from 4B onward while no control existed for any of them, so "Clear all" could
+  appear for filters the rail gave no way to set. Ceilings are radios with an
+  explicit "Any" rather than click-to-unset, which no keyboard can reach.
+  Clearing filters deliberately keeps `keyword` — that came from the hero or a
+  shared link, and discarding it is not what "clear filters" means
+- **The job card's two save affordances are gone.** The Bookmark button and
+  "Save For Later" both rendered as real controls and called nothing at all.
+  Saved jobs is still Phase 3; a control that silently ignores a click is worse
+  than an absent one, so they return with the feature. The card is now one link
+  rather than a card containing a "Details" button — one tab stop per result
+- **`Profile` has an `AvatarFallback`.** Same defect 2B-1 fixed in the navbar:
+  `AvatarImage` with a null `src` renders nothing, and `avatarUrl` is null for
+  every account created through the standard flow. `initialsOf` moved to
+  `src/lib/initials.ts` so the two surfaces cannot drift. Loading is tracked
+  separately from `profile === null`, which could not distinguish "still
+  fetching" from "the fetch failed"
+- **`maxWorkers: 4` in `vitest.config.ts`.** Vitest forks one worker per core;
+  a jsdom environment carrying React, framer-motion and embla costs a few
+  hundred MB, so twelve at once made this machine swap and tests needing ~1s of
+  wall-clock blew the 5s timeout. *Which* tests failed changed between runs,
+  which reads exactly like flakiness rather than contention. Raising the timeout
+  would have hidden the thrash instead of removing it
 
 What 3B closed:
 
@@ -227,9 +289,10 @@ What 2A closed:
   component sets a colour outside the token system. 2B-1 replaced the raw grep
   with `npm run lint:colour --workspace @jobportal/web`
   (`frontend/scripts/check-colour-tokens.mjs`), widened to catch side-specific
-  borders (`border-t-gray-200`) and the full neutral scale. It currently exits
-  **1** with 18 known violations, all in files 2B-2 and 2B-3 own — see the
-  itemised list in commit `abbab3e`. No *new* violation may appear
+  borders (`border-t-gray-200`) and the full neutral scale. It is a **hard
+  zero** — any violation fails CI. It used to allow 18 known ones, which is
+  exactly how drift to 23 landed unnoticed; a baseline that tolerates n
+  violations cannot tell you when n grows
 - Dark mode works via `ThemeProvider` (next-themes, `attribute="class"`).
   Components never branch on theme; the tokens flip themselves, so a `dark:`
   colour override in a component is a bug
@@ -334,22 +397,17 @@ Known gaps, deliberately deferred:
 
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
-- No pagination UI on the **seeker** job list — it requests `limit=50` and shows
-  that. The admin console's `Pager` (`components/console/ListControls.tsx`) is
-  the first real consumer; wiring `/jobs` belongs to 2B-2
 - Replacing a company logo orphans the previous Cloudinary asset
-- The seeker pages (`Job`, `JobDescription`, `FilterCard`, `Profile`,
-  `UpdateProfileDialog`) and the recruiter workspace (`components/admin/*`)
-  still carry inherited non-token neutrals and ad-hoc spacing — 18 occurrences,
-  itemised by file and line in commit `abbab3e`. 2B-2 and 2B-3 replace them as
-  they rebuild each page
+- The recruiter workspace (`components/admin/*`) is still the inherited
+  structure — ad-hoc spacing, no `PageShell`, no headings. 2B-3 rebuilds it
 - Two `react-hooks/exhaustive-deps` warnings remain in `AdminJobs.tsx` and
   `Companies.tsx`. Neither is a live bug (`dispatch` is referentially stable);
   they are recorded in `docs/superpowers/plans/2026-08-05-phase-2b-lint-debt.md`
   and belong to 2B-3, whose rebuild will likely replace those effects outright
-- `CategoryCarousel` is still centred while the rebuilt landing around it runs
-  on one left axis. Same two-axis problem 2B-1 fixed in the hero; the file
-  belongs to 2B-2
+- `/profile` is not behind `ProtectedRoute`, so an anonymous visitor reaches a
+  page whose two requests both 401 and which then renders its own empty state.
+  Harmless — the API refuses correctly and no data leaks — but it should
+  redirect to `/login` instead. Belongs with the seeker session work
 - `packages/shared/src/legacy-dto.ts` is vestigial. 1C replaced the endpoints it
   described with projected DTOs, and nothing imports the `Legacy*` types any
   more

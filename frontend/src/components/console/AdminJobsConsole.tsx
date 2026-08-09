@@ -1,7 +1,7 @@
 import { Briefcase } from "lucide-react";
 
 import AdminShell from "./AdminShell";
-import { ListControls, Pager } from "./ListControls";
+import { ListControls, Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";

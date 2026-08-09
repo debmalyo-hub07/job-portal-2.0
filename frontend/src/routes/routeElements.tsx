@@ -52,3 +52,21 @@ export function AdminHomeRedirect() {
   if (!bootstrapped) return null;
   return <Navigate to={user?.portal === "admin" ? "/admin/dashboard" : "/admin/login"} replace />;
 }
+
+/**
+ * Sends the retired `/browse` board to `/jobs`, carrying the search across.
+ *
+ * `/browse` was the pre-4B list: keyword-only, driven by a redux field, with no
+ * facets, no pagination and no loading state. `/jobs` is the same list done
+ * properly, so keeping both advertised two boards where one was strictly worse
+ * — and the hero search and the category carousel both pointed at the weaker
+ * one, which is how most searches ended up there.
+ *
+ * The query rides along rather than being dropped: `/browse?keyword=react` is a
+ * link someone may have shared, and `/jobs` reads `keyword` from the URL as its
+ * own state, so the search survives the move without translation.
+ */
+export function BrowseRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/jobs${search}${hash}`} replace />;
+}

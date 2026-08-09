@@ -3,7 +3,6 @@ import { type RouteObject } from "react-router";
 
 import Home from "@/components/Home";
 import Jobs from "@/components/Jobs";
-import Browse from "@/components/Browse";
 import Profile from "@/components/Profile";
 import JobDescription from "@/components/JobDescription";
 import Companies from "@/components/admin/Companies";
@@ -26,7 +25,12 @@ import LinkPending from "@/components/auth/LinkPending";
 import ConfirmGoogleLink from "@/components/auth/ConfirmGoogleLink";
 import AuthError from "@/components/auth/AuthError";
 import { buildAuthRoutes } from "@/routes/authRoutes";
-import { AdminHomeRedirect, RootLayout, WorkspaceRedirect } from "@/routes/routeElements";
+import {
+  AdminHomeRedirect,
+  BrowseRedirect,
+  RootLayout,
+  WorkspaceRedirect,
+} from "@/routes/routeElements";
 import HireLanding from "@/pages/HireLanding";
 
 const DesignGallery = import.meta.env.DEV
@@ -87,7 +91,10 @@ export const appRoutes: RouteObject[] = [
       { path: "/auth/error", element: <AuthError /> },
       { path: "/jobs", element: <Jobs /> },
       { path: "/description/:id", element: <JobDescription /> },
-      { path: "/browse", element: <Browse /> },
+      // The pre-4B board. Kept as a redirect because it was the destination of
+      // the hero search and every category chip, so it is in browser histories
+      // and shared links. See BrowseRedirect for why the query rides along.
+      { path: "/browse", element: <BrowseRedirect /> },
       { path: "/profile", element: <Profile /> },
       // The recruiter workspace. Under /hire since Phase 3A — /admin belongs to
       // the admin portal now, so the whole recruiter surface (marketing, auth,

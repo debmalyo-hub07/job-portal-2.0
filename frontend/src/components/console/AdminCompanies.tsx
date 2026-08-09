@@ -1,7 +1,7 @@
 import { Building2 } from "lucide-react";
 
 import AdminShell from "./AdminShell";
-import { ListControls, Pager } from "./ListControls";
+import { ListControls, Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";

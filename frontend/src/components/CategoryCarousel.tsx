@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
+
 import {
   Carousel,
   CarouselContent,
@@ -7,10 +8,9 @@ import {
   CarouselPrevious,
 } from "./ui/carousel";
 import { Button } from "./ui/button";
-import { setSearchedQuery } from "@/redux/jobSlice";
-import { useAppDispatch } from "@/redux/store";
+import { jobBoardPath } from "@/hooks/useJobSearch";
 
-const category = [
+const CATEGORIES = [
   "Frontend Developer",
   "Backend Developer",
   "Full Stack Developer",
@@ -27,27 +27,34 @@ const category = [
   "Network Engineer",
 ];
 
+/**
+ * Role shortcuts into the job board.
+ *
+ * Two things changed in 2B-2. The rail sat on `max-w-xl mx-auto my-20` — a
+ * centred axis inside a page that reads down one left spine, the same two-axis
+ * problem 2B-1 fixed in the hero, plus hand-tuned spacing where every other
+ * section resolves `--space-section` from `data-density`.
+ *
+ * And each chip was a `<button>` that dispatched a redux field and pushed
+ * `/browse`. Now that a search is a URL, these are `Link`s: middle-click and
+ * open-in-new-tab work, and the destination is visible on hover.
+ */
 const CategoryCarousel = () => {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-
-  const searchJobHandler = (query: string) => {
-    dispatch(setSearchedQuery(query));
-    navigate("/browse");
-  };
-
   return (
-    <div>
-      <Carousel className="w-full max-w-xl mx-auto my-20">
+    <section aria-labelledby="categories-heading" className="pb-(--space-section)">
+      <h2 id="categories-heading" className="font-display text-display-md font-bold text-ink">
+        Browse by <span className="text-signal-text">role</span>
+      </h2>
+      {/*
+        px-12 leaves room for the arrows, which the primitive positions outside
+        the content box — without it they sit on top of the first and last chip.
+      */}
+      <Carousel opts={{ align: "start" }} className="mt-8 w-full px-12">
         <CarouselContent>
-          {category.map((cat) => (
-            <CarouselItem key={cat} className="md:basis-1/2 lg:basis-1/3">
-              <Button
-                onClick={() => searchJobHandler(cat)}
-                variant="outline"
-                className="rounded-full"
-              >
-                {cat}
+          {CATEGORIES.map((category) => (
+            <CarouselItem key={category} className="basis-auto">
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to={jobBoardPath(category)}>{category}</Link>
               </Button>
             </CarouselItem>
           ))}
@@ -55,7 +62,7 @@ const CategoryCarousel = () => {
         <CarouselPrevious />
         <CarouselNext />
       </Carousel>
-    </div>
+    </section>
   );
 };
 

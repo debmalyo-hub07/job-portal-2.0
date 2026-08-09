@@ -1,10 +1,9 @@
 import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
-import { useDispatch } from "react-redux";
 
 import { Button } from "./ui/button";
-import { setSearchedQuery } from "@/redux/jobSlice";
+import { jobBoardPath } from "@/hooks/useJobSearch";
 import { FadeIn } from "@/lib/motion";
 
 /**
@@ -16,13 +15,13 @@ import { FadeIn } from "@/lib/motion";
  */
 function HeroSection() {
   const [query, setQuery] = useState("");
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Navigates to the board with the keyword in the URL, rather than writing a
+  // redux field the board no longer reads. The submitted search is now a link.
   const searchJobHandler = (e: FormEvent) => {
     e.preventDefault();
-    dispatch(setSearchedQuery(query));
-    navigate("/browse");
+    navigate(jobBoardPath(query));
   };
 
   return (

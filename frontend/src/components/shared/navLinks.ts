@@ -34,11 +34,13 @@ export function navLinksFor(portal: Portal): NavLink[] {
         { to: "/admin/review/jobs", label: "Jobs" },
         { to: "/admin/review/companies", label: "Companies" },
       ];
+    // No "Browse" entry. `/browse` was the pre-4B keyword-only board and now
+    // redirects to `/jobs`, which is the only seeker job list — listing both
+    // advertised two boards where the second was strictly the weaker one.
     case "seeker":
       return [
         { to: "/", label: "Home" },
         { to: "/jobs", label: "Jobs" },
-        { to: "/browse", label: "Browse" },
       ];
   }
 }

@@ -16,26 +16,11 @@ import { navLinksFor } from "./navLinks";
 
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { initialsOf } from "@/lib/initials";
 import { setUser } from "@/redux/authSlice";
 import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-
-/**
- * Up to two initials from a display name.
- *
- * The avatar trigger needs content that survives a null avatarUrl — which is
- * every account created through the standard flow, since nothing uploads a
- * picture at registration. Without a fallback the trigger is a zero-content
- * circle and the sign-out inside it cannot be reached.
- */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
-  return (first + last).toUpperCase() || "?";
-}
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -69,9 +54,17 @@ const Navbar = () => {
     <div className="border-b border-line bg-paper">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to={isRecruiter ? "/hire" : "/"}>
-          <h1 className="font-display text-2xl font-bold text-ink">
+          {/*
+            A span, not an h1. The wordmark is a site identifier, not the
+            heading of the page it happens to sit on — as an h1 it gave every
+            page in the app two top-level headings, so a screen-reader user
+            navigating by heading hit "JobPortal" before the page's own title
+            on every route. AuthLayout already renders its wordmark this way;
+            this is the navbar catching up.
+          */}
+          <span className="font-display text-2xl font-bold text-ink">
             Job<span className="text-signal-text">{isRecruiter ? "Hire" : "Portal"}</span>
-          </h1>
+          </span>
         </Link>
 
         <div className="flex items-center gap-4 lg:gap-8">

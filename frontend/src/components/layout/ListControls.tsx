@@ -5,11 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
- * The search + pagination furniture both moderation tables need.
+ * The search + pagination furniture every paginated list needs.
  *
- * Extracted because the two lists are the same screen with different columns,
- * and a second hand-written copy is how the jobs list keeps a bug the companies
- * list already fixed.
+ * Extracted because the two moderation lists are the same screen with different
+ * columns, and a second hand-written copy is how the jobs list keeps a bug the
+ * companies list already fixed. It sits in `layout/` rather than `console/`
+ * because 2B-2 wired `Pager` to the seeker job board as well — the seeker list
+ * requested `limit=50` and showed that, which is the pagination gap the docs
+ * recorded. A page-count control is layout, not an admin concept.
  */
 export function ListControls({
   label,
