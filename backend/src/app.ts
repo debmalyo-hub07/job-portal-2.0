@@ -13,15 +13,18 @@ import { errorHandler } from "./middleware/error.js";
 import { requestId } from "./middleware/requestId.js";
 import { applySecurity } from "./middleware/security.js";
 import { rateLimit } from "./middleware/rateLimit.js";
-import { logger } from "./lib/logger.js";
-import { pinoHttp } from "pino-http";
+import { buildHttpLogger, resolveLogHttpMode } from "./lib/httpLogger.js";
 
 export function buildApp(): Express {
   const app = express();
 
   // First, so every subsequent log line and error carries the correlation id.
   app.use(requestId);
-  app.use(pinoHttp({ logger, genReqId: (req) => (req as express.Request).requestId ?? "" }));
+  // Reads process.env directly rather than env(): buildApp() is called at module
+  // scope by the test harness, before tests/setup.ts assigns MONGO_URI in
+  // beforeAll, so calling env() here fails full config validation on 16 suites.
+  // Same bootstrap exception as lib/logger.ts, for the same reason.
+  app.use(buildHttpLogger(undefined, resolveLogHttpMode()));
 
   applySecurity(app);
   app.use(cookieParser());

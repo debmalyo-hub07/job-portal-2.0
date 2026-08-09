@@ -1,3 +1,10 @@
+// FIRST import, deliberately, and imported for its side effect rather than a
+// value. Every `import` is hoisted and evaluated before any statement in this
+// file's body, so calling an installer down there would run *after* the module
+// that throws. Import order is the only lever available. Do not move this below
+// another import, and do not convert it into a function call.
+import "./lib/crashOverlay";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";
@@ -16,15 +23,6 @@ import { queryClient } from "./lib/queryClient";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element #root not found in index.html");
-
-// Until the app has a real ErrorBoundary, surface any provider/render crash
-// directly. A blank page means something threw before paint.
-window.addEventListener("error", (event) => {
-  const el = document.getElementById("root");
-  if (el && el.childElementCount === 0) {
-    el.innerHTML = `<pre style="padding:24px;color:#b91c1c;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap">${String(event.error?.stack ?? event.message)}</pre>`;
-  }
-});
 
 createRoot(rootElement).render(
   <StrictMode>

@@ -11,6 +11,12 @@ export function errorHandler(
   const requestId = req.requestId;
 
   if (err instanceof AppError) {
+    // Handed to the http logger, which sees the response but never the thrown
+    // error. Without it a 403 logs as a bare status with no indication of which
+    // rule refused — RECRUITER_PENDING_APPROVAL and an ownership 404 look
+    // identical in the log.
+    res.locals.errorCode = err.code;
+
     res.status(err.statusCode).json({
       success: false,
       code: err.code,

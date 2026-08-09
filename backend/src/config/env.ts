@@ -42,6 +42,22 @@ const envSchema = z.object({
   COOKIE_SAMESITE: z.enum(["strict", "lax", "none"]).default("strict"),
   COOKIE_DOMAIN: z.string().optional(),
 
+  /**
+   * Verbosity. Validated here so a typo is a boot failure that names the
+   * variable, but read straight from process.env by `lib/logger.ts` — see the
+   * bootstrap exception documented there.
+   */
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .default("info"),
+
+  /**
+   * How much HTTP traffic to log. `summary` is one line per request with
+   * /health skipped; `all` includes /health; `off` disables request logging
+   * and leaves application-level logs alone.
+   */
+  LOG_HTTP: z.enum(["summary", "all", "off"]).default("summary"),
+
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),

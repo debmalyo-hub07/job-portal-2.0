@@ -19,12 +19,33 @@ function readCsrfToken(): string | null {
 }
 
 /**
+ * A missing `VITE_API_URL` is not survivable, so fail loudly at import rather
+ * than letting axios default `baseURL` to the page origin — that turns every
+ * API call into a request against the Vite dev server, which answers `index.html`
+ * with a 200. The app then renders as if it were online while nothing works, and
+ * the network tab shows no errors to explain it.
+ *
+ * This has bitten twice. The second time the variable *was* set, but the file was
+ * saved UTF-8-with-BOM, so the key Vite parsed carried a leading U+FEFF and this
+ * one read `undefined`. Write `frontend/.env.local` as plain UTF-8; PowerShell's
+ * `>` and `Set-Content` both emit a BOM by default. Prefer `-Encoding utf8NoBOM`.
+ */
+const baseURL = import.meta.env.VITE_API_URL;
+if (!baseURL) {
+  throw new Error(
+    "VITE_API_URL is not set. Copy frontend/.env.example to frontend/.env.local " +
+      "and set it (e.g. http://localhost:8000/api/v1). If the file looks correct, " +
+      "check it is saved as UTF-8 without a BOM.",
+  );
+}
+
+/**
  * Single configured client. `withCredentials` is set once here rather than
  * repeated at every call site, where it is easy to forget — and forgetting it
  * silently drops the auth cookie.
  */
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL,
   withCredentials: true,
 });
 

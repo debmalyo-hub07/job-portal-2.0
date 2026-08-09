@@ -9,7 +9,7 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
-import createWebStorage from "redux-persist/lib/storage/createWebStorage";
+import createWebStorage from "redux-persist/es/storage/createWebStorage";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
 
 import authSlice from "./authSlice";
