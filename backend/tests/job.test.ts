@@ -126,6 +126,92 @@ describe("job routes", () => {
     expect(all.body.total).toBe(4);
   });
 
+  // ── 4B faceted search — the filter queries the field it names ────────────
+  describe("faceted filters (4B)", () => {
+    const post = (title: string, body: Record<string, unknown>) =>
+      request(app)
+        .post("/api/v1/job/post")
+        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .send({
+          title,
+          description: "Build",
+          requirements: "ts",
+          salary: 10,
+          experience: 2,
+          location: "Berlin",
+          jobType: "full-time",
+          position: "1",
+          companyId: owner.companyId,
+          ...body,
+        });
+
+    it("location filters the location field, not the title", async () => {
+      await post("Bengaluru-only", { location: "Bengaluru" });
+      await post("Mumbai-only", { location: "Mumbai" });
+      const res = await request(app).get("/api/v1/job/get?location=Bengaluru");
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(res.body.items[0].title).toBe("Bengaluru-only");
+    });
+
+    it("multi-select ORs within a facet and ANDs across facets", async () => {
+      const r1 = await post("fj", { location: "Bengaluru", jobType: "full-time" });
+      const r2 = await post("fk", { location: "Bengaluru", jobType: "contract" });
+      const r3 = await post("mk", { location: "Mumbai", jobType: "contract" });
+      expect([r1.status, r2.status, r3.status]).toEqual([201, 201, 201]);
+      // location∈{Bengaluru,Mumbai} AND jobType=contract → fk AND mk both match.
+      const res = await request(app).get(
+        "/api/v1/job/get?location=Bengaluru,Mumbai&jobType=contract",
+      );
+      expect(res.body.total).toBe(2);
+      expect(res.body.items.map((i: { title: string }) => i.title).sort()).toEqual(["fk", "mk"]);
+
+      const orRes = await request(app).get("/api/v1/job/get?jobType=full-time,contract");
+      expect(orRes.body.total).toBe(3);
+    });
+
+    it("remote=true returns only remotely-flagged jobs, and doesn't match location text", async () => {
+      await post("remote-flagged", { remote: "true", location: "Berlin" });
+      await post("titled-remote", { location: "Berlin" }); // no flag: titled "remote" but office
+      const res = await request(app).get("/api/v1/job/get?remote=true");
+      expect(res.body.total).toBe(1);
+      expect(res.body.items[0].title).toBe("remote-flagged");
+    });
+
+    it("salaryMax and experienceMax bound", async () => {
+      await post("cheap", { salary: 5 });
+      await post("costly", { salary: 50 });
+      const cheap = await request(app).get("/api/v1/job/get?salaryMax=10");
+      expect(cheap.status).toBe(200);
+      expect(cheap.body.success).toBe(true);
+      expect(cheap.body.total).toBe(1);
+      expect(cheap.body.items[0].title).toBe("cheap");
+    });
+
+    it("experienceMax bounds", async () => {
+      await post("junior", { experience: 1 });
+      await post("senior", { experience: 8 });
+      const junior = await request(app).get("/api/v1/job/get?experienceMax=3");
+      expect(junior.body.total).toBe(1);
+      expect(junior.body.items[0].title).toBe("junior");
+    });
+
+    it("faces combine with keyword", async () => {
+      await post("Type Lead", { location: "Berlin" });
+      await post("Python Lead", { location: "Mumbai" });
+      const res = await request(app).get("/api/v1/job/get?keyword=Lead&location=Berlin");
+      expect(res.body.total).toBe(1);
+      expect(res.body.items[0].title).toBe("Type Lead");
+    });
+
+    it("a facet with no matches returns an empty page, not a fallback to everything", async () => {
+      await post("x-one", { location: "Bengaluru" });
+      const res = await request(app).get("/api/v1/job/get?location=Nowhere");
+      expect(res.body.total).toBe(0);
+      expect(res.body.items).toEqual([]);
+    });
+  });
+
   it("GET /get/:id serves a DTO, 400s a malformed id and 404s an unknown one", async () => {
     const created = await request(app)
       .post("/api/v1/job/post")

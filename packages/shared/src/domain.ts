@@ -42,6 +42,16 @@ export const jobCreateBodySchema = z.object({
 
 export const jobListQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(100).default(""),
+  /** 4B: OR-within-facet, AND-across-facets. Comma-joined values; empty → no filter. */
+  location: z.string().trim().max(200).default(""),
+  jobType: z.string().trim().max(200).default(""),
+  salaryMax: z.coerce.number().int().min(0).optional(),
+  experienceMax: z.coerce.number().int().min(0).max(50).optional(),
+  /** "?remote=true" → only remotely-flagged jobs. Absent → no constraint. */
+  remote: z
+    .enum(["true", "false", "1", "0"])
+    .transform((v) => v === "true" || v === "1")
+    .optional(),
 });
 
 /** `pending` is creation-default only; a recruiter can only decide, not undo. */

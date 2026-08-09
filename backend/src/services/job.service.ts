@@ -49,6 +49,8 @@ export async function createJob(ownerId: string, body: JobCreateBody): Promise<J
     location: body.location,
     jobType: body.jobType,
     position: body.position,
+    // 4A.3 in body (optional boolean); falls back to the schema default when absent.
+    remote: body.remote ?? false,
     company: body.companyId,
     created_by: ownerId,
   });
@@ -77,16 +79,33 @@ async function paginate(
 }
 
 export async function listPublicJobs(query: JobListQuery): Promise<PaginatedResponse<JobDto>> {
-  if (!query.keyword) return paginate({}, query);
-  // Escaping makes hostile input match literally rather than as a pattern, so a
-  // catastrophically backtracking regex is impossible. The filter is wrapped in
-  // `mongoose.trusted` because it is service-constructed and contains an
-  // operator key: once global `sanitizeFilter` lands, a bare top-level `$or`
-  // would be stripped even though it never came from user input.
-  const re = new RegExp(escapeRegex(query.keyword), "i");
-  const filter = mongoose.trusted({
-    $or: [{ title: re }, { description: re }],
-  }) as Record<string, unknown>;
+  // 4B — facet filter. OR within a comma-joined multi-select facet, AND across
+  // facets. Each clause is an additive equality/range the compound index
+  // `{location, jobType, experienceLevel, salary}` covers; the keyword regex
+  // (title/description substring) stays the exception that 4A.4 preserved.
+  const filter: Record<string, unknown> = {};
+
+  const split = (s: string) => s.split(",").map((v) => v.trim()).filter(Boolean);
+  const locations = split(query.location);
+  const jobTypes = split(query.jobType);
+  if (locations.length > 0)
+    filter.location =
+      locations.length === 1 ? locations[0] : mongoose.trusted({ $in: locations });
+  if (jobTypes.length > 0)
+    filter.jobType =
+      jobTypes.length === 1 ? jobTypes[0] : mongoose.trusted({ $in: jobTypes });
+  if (query.salaryMax !== undefined) filter.salary = mongoose.trusted({ $lte: query.salaryMax });
+  if (query.experienceMax !== undefined)
+    filter.experienceLevel = mongoose.trusted({ $lte: query.experienceMax });
+  if (query.remote !== undefined) filter.remote = query.remote;
+
+  if (query.keyword) {
+    const re = new RegExp(escapeRegex(query.keyword), "i");
+    // Wrap each $or branch, matching the established pattern: `trusted` belongs
+    // on the operator value, not the whole top-level filter.
+    filter.$or = [{ title: re }, { description: re }];
+  }
+
   return paginate(filter, query);
 }
 

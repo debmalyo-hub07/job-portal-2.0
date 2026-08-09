@@ -207,7 +207,68 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 
 ---
 
-## Sub-phase 4A.5 — Fit-scoring pipeline (shared)
+## Sub-phase 4B — Faceted job search + react-query migration
+
+**Goal:** make the search rail filter by the fields it names (spec §314: "location filter queries `job.location`, not `job.title`"), multi-select instead of one `RadioGroup`, and migrate job-fetching to `@tanstack/react-query` so refetch/loading/cache stop being a `useEffect` + Redux pair.
+
+**What's broken (spec §49–59, grounded in `Jobs.tsx`/`FilterCard.tsx`/`useGetAllJobs`):**
+- `FilterCard` options dispatch `setSearchedQuery(value)` — the *same* redux field the hero box writes. Clicking "Mumbai" runs a `keyword` regex for "Mumbai" against `title`/`description`. `location` is never consulted. Salary filter can never match (it regexes `0-5 LPA` into titles). All three categories share one `RadioGroup` — mutually exclusive.
+- `useGetAllJobs` dispatches into Redux; no cache, no loading state, refetch only via a hand-maintained dep.
+- Backend `listPublicJobs` only accepts `keyword` — no location/jobType/salary/experience filter args exist.
+
+**Decisions:**
+- **Server-side filtering.** New query params on `jobListQuerySchema`: `location`, `jobType`, `salaryMax`, `experienceMax`, `remote:true|false`. The keyword regex contract (escaped-literal, 4A.4) is untouched — it's still the title/description search path. Facets are *additive equality/range* filters, never regexed.
+- **Multi-select with OR within a facet, AND across facets** (Bengaluru OR Remote in Location, AND full-time in Type). Backend accepts comma-joined repeatable keys; the compound index from 4A.4 covers the four-field equality/range tuple.
+- **React-query for jobs.** `main.tsx` gets a single `QueryClientProvider`; `Jobs` uses a persisted-query query + useSearchParams-backed filter state so the rail and URL agree. Redux `allJobs`/`searchedQuery` become write-through (kept for LatestJobs etc. that still read them) until 4C/4D pick up the rest of the board.
+- **Fit badge on job cards** needs a seeker profile; render only for authenticated seekers (`fit-score-badge` is 4D). 4B ships the *search rail*; badges land with 4D when `ProfileView.seeker` fields exist and are captured.
+
+**Files:**
+- Modify `packages/shared/src/domain.ts` — `jobListQuerySchema` extends with `location`, `jobType`, `salaryMax`, `experienceMax`, `remote` (comma-joined arrays, salary/experience coerced); keep `keyword`.
+- Modify `backend/src/services/job.service.ts` — `listPublicJobs` builds the faceted filter via the compound-indexed tuple; keyword stays regex; projection unchanged.
+- Modify `backend/tests/job.test.ts` — a seed set, assert multi-select filters narrow correctly AND keyword regex still returns the contract result.
+- Create `frontend/src/lib/queryClient.ts` (single QueryClient, `staleTime` sane for the board).
+- Modify `frontend/src/main.tsx` — `QueryClientProvider` around `App`.
+- Modify `frontend/src/hooks/useJobSearch.ts` (new `useQuery` wrapping `/job/get` with the filter params); modify `frontend/src/components/Jobs.tsx` + `FilterCard.tsx` + `LatestJobs.tsx` to use it; drop `searchedQuery`-setredux for faceted use; `useGetAllJobs` stays as the legacy fallback until consumers are moved.
+- Modify `frontend/tests/jobSearch.test.tsx` — react-query hook test that faceted params reach the URL and a rerender on same params hits cache.
+
+**Tasks:**
+- [ ] **C0: brief + failing test** — `job.test.ts` seed set + faceted queries assert narrowing; today it won't compile/run because the params don't exist.
+- [ ] **C1: schema + service** — shared params + backend `listPublicJobs`.
+- [ ] **C2: react-query scaffold** — `queryClient.ts` + provider in `main.tsx`.
+- [ ] **C3: `useJobSearch` hook** — fetches with faceted params; `Jobs`/`FilterCard` rewire to multi-select + URL-sync.
+- [ ] **C4: typecheck + suites** — `npm run typecheck`, web tests + backend `job.test`, then commit `feat(web): faceted job search + react-query migration (Phase 4B)`.
+
+**Out of scope (4C/4D):** the `jobType`→enum narrowing (a migration once real data exists — the current values are free-form strings and narrowing them now would 500), the profile-capture form to actually fill `salaryMin/Max`/`openToRemote`, the fit badge, similar roles. 4B makes the rail *work*.
+
+---
+
+## Sub-phase 4C — Profile capture (seeker fit fields)
+
+**Goal:** give the seeker a UI to actually *enter* `salaryMin`, `salaryMax`, `openToRemote` (persisted in 4A.3), so fa—it pipelines score on real data instead of `undefined`.
+
+**Files:** `frontend/src/components/Profile.tsx` (or the existing profile-edit dialog) — add the three fields; `frontend/tests/profile.test.tsx` — round-trip test. Backend already accepts them (4A.3 committed).
+
+**Out of scope:** recruiting the fields into a recruiter search (4C is capture only; reverse-side ranking is 4D).
+
+---
+
+## Sub-phase 4D — Fit badge + reverse ranking (seeker/recruiter surfaces)
+
+**Goal:** the explainable fit score rendered on job cards (seeker) and applicants (recruiter), driven by the shared pipeline + 4A.3 data.
+
+**Files:** `frontend/src/components/Job.tsx` (add `fit-score-badge`), `frontend/src/components/admin/ApplicantsTable.tsx` (recruiter direction), `backend/src/routes/application.routes.ts` (expose `scoreJobForSeeker` where needed). Uses `scoreJobForSeeker`/`scoreSeekerForJob` from 4A.3 directly — no new pipeline code.
+
+**Out of scope:** similar roles (same scorer, `≥2` shared skills — a 4D sub-task gated on the recruiter table being real).
+
+---
+
+## Sub-phase 4A.6 — Seeder (added after Phase 4A design)
+
+**Task 2 (backend:** `backend/scripts/seed.ts` must write the new additive fields so the board demos realistic scores: `profile.salaryMin/Max`, `profile.openToRemote`, `job.remote`, a mix of skills that overlap. Run `npx tsx backend/scripts/seed.ts`, assert a `profile`-curried seeker exists and at least one job is remote=false.
+
+---
+
+*The `4A.6` seeder is a separate wave; it shapes demo data and lands after 4D's scorer is user-visible, so the demo shows scored cards.*
 
 **Goal:** a pure, explainable two-sided fit score in `packages/shared`, consumed by the backend aggregation (4A.3/4A.4) and the UI (4B/4D). Spec §Success criterion 4: the UI shows *why*.
 
