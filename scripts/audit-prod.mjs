@@ -34,6 +34,34 @@ const ALLOWLIST = [
       "Remove this entry when react-router publishes a release outside the " +
       "advisory range, or if this app ever adopts RSC.",
   },
+  {
+    ghsa: "GHSA-w3rx-r6r6-pgpr",
+    package: "image-size",
+    reason:
+      "ICNS parser infinite loop. Reached only through `datauri/css.js`, which " +
+      "calls imageSize() to compute CSS dimensions. This app imports " +
+      "`datauri/parser.js` (backend/src/utils/datauri.ts) — that entry point " +
+      "base64-encodes the buffer and never loads image-size, so the parser is " +
+      "absent from every code path we execute. The advisory range is `*`: no " +
+      "version of image-size is unaffected, and datauri's only non-major fix " +
+      "is a downgrade to 0.8.0. Uploads are additionally constrained to " +
+      "PNG/JPEG/WebP at 5MB by middleware/multer.ts, so ICNS never arrives.",
+    recheck:
+      "Remove this entry if anything imports `datauri/css.js` or calls " +
+      "image-size directly, or when datauri ships a release depending on a " +
+      "patched image-size. Better: drop the datauri dependency — the whole " +
+      "usage is one 4-line base64 format() call.",
+  },
+  {
+    ghsa: "GHSA-5p2g-fcmc-qvqq",
+    package: "image-size",
+    reason:
+      "JXL/HEIF parser infinite loops. Same dependency path and same reasoning " +
+      "as GHSA-w3rx-r6r6-pgpr above: only `datauri/css.js` loads image-size and " +
+      "nothing here imports it. multer's fileFilter also rejects JXL and HEIF " +
+      "mimetypes outright.",
+    recheck: "Same condition as GHSA-w3rx-r6r6-pgpr.",
+  },
 ];
 
 const allowed = new Set(ALLOWLIST.map((entry) => entry.ghsa));
