@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { logger } from "../lib/logger.js";
+
 /**
  * Injection backstop behind Zod. An operator-shaped VALUE in a filter — the
  * `{ $ne: "" }` a client smuggles through a string field — is compared as a
@@ -13,6 +15,7 @@ mongoose.set("sanitizeFilter", true);
 
 export async function connectDB(uri: string): Promise<void> {
   await mongoose.connect(uri);
+  logger.info({ host: mongoose.connection.host }, "MongoDB connected");
 }
 
 export async function disconnectDB(): Promise<void> {

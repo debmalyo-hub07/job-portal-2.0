@@ -2,6 +2,7 @@ import "dotenv/config";
 import { buildApp } from "./app.js";
 import { connectDB, disconnectDB } from "./config/db.js";
 import { env } from "./config/env.js";
+import { logger } from "./lib/logger.js";
 import { startSweeper } from "./lib/sweeper.js";
 
 async function main(): Promise<void> {
@@ -11,7 +12,15 @@ async function main(): Promise<void> {
   const stopSweeper = startSweeper();
 
   const server = buildApp().listen(config.PORT, () => {
-    console.log(`API listening on :${config.PORT}`);
+    logger.info(
+      {
+        port: config.PORT,
+        env: config.NODE_ENV,
+        clientUrls: config.CLIENT_URLS,
+        webBaseUrl: config.WEB_BASE_URL,
+      },
+      `API listening on :${config.PORT}`,
+    );
   });
 
   const shutdown = async (signal: string): Promise<void> => {
