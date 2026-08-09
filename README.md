@@ -190,6 +190,13 @@ Request lines carry the same correlation id as the error envelope, so a client
 error and a server log can be joined. Bodies, cookies and headers are never
 logged at any level.
 
+In development the log is pretty-printed and stamped in **the machine's own
+timezone**, so a line lines up with the request you just made. Production emits
+JSON with `time` as epoch millis instead — sortable across hosts, and what a log
+aggregator expects. Lines appear about 300ms after the response: pino's pretty
+transport runs in a worker thread, so a line that has not shown up yet is not
+evidence the request went unlogged.
+
 ## Authentication
 
 Every endpoint below exists once per portal — `/api/v1/seeker/auth/...`,

@@ -1,11 +1,13 @@
 import express from "express";
 import pino from "pino";
+import { prettyFactory } from "pino-pretty";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { AppError } from "../src/lib/AppError.js";
+import { prettyOptions } from "../src/lib/logger.js";
 import { buildHttpLogger } from "../src/lib/httpLogger.js";
 import { errorHandler } from "../src/middleware/error.js";
 import { notFound } from "../src/middleware/notFound.js";
@@ -143,6 +145,58 @@ describe("http request logging", () => {
       const { app, records } = appWithCapture({ logHttp: "off" });
       await request(app).get("/ok").expect(200);
       expect(records).toHaveLength(0);
+    });
+  });
+
+  describe("development pretty output", () => {
+    /** Renders one record through the real pretty options the app ships. */
+    const render = (record: Record_) => prettyFactory({ ...prettyOptions, colorize: false })(
+      JSON.stringify(record),
+    );
+
+    it("stamps lines in the machine's timezone, not UTC", () => {
+      // pino-pretty reads a bare format string as UTC. On IST that put every
+      // line 5h30m behind the wall clock, so a log streaming live looked stale
+      // and no line could be matched to the request that produced it.
+      //
+      // Asserting against the rendered hour rather than the option string means
+      // this still fails if `SYS:` is dropped — and it stays honest on a UTC CI
+      // machine, where the two renderings are identical and there is nothing to
+      // catch. Local noon is the fixture because it cannot wrap a date boundary
+      // in either direction.
+      const noonLocal = new Date();
+      noonLocal.setHours(12, 34, 56, 0);
+
+      const line = render({ level: 30, time: noonLocal.getTime(), msg: "probe" });
+
+      expect(line).toContain("[12:34:56]");
+      if (noonLocal.getTimezoneOffset() !== 0) {
+        const utcHour = String(noonLocal.getUTCHours()).padStart(2, "0");
+        expect(line).not.toContain(`[${utcHour}:34:56]`);
+      }
+    });
+
+    it("renders a request as one line carrying method, url, status and id", () => {
+      const line = render({
+        level: 30,
+        time: Date.now(),
+        req: { id: "abc123", method: "GET", url: "/api/v1/job/get" },
+        res: { statusCode: 200 },
+        responseTime: 12,
+      });
+
+      expect(line).toContain("GET /api/v1/job/get 200 12ms id=abc123");
+      expect(line.trimEnd().split("\n")).toHaveLength(1);
+    });
+
+    it("keeps its own message on a non-request line", () => {
+      // The `{if req}` guard. Without it the request template applies to every
+      // line and blanks the message, which rendered boot as "   ms  id=" — the
+      // failure that hid a database connection error behind an empty line.
+      const line = render({ level: 30, time: Date.now(), msg: "MongoDB connected" });
+
+      expect(line).toContain("MongoDB connected");
+      expect(line).not.toContain("id=");
     });
   });
 
