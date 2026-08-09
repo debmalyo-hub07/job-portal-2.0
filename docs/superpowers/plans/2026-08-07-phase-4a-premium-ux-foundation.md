@@ -232,11 +232,16 @@ Each sub-phase brief is expanded in this file before work begins on it; tasks us
 - Modify `frontend/tests/jobSearch.test.tsx` — react-query hook test that faceted params reach the URL and a rerender on same params hits cache.
 
 **Tasks:**
-- [ ] **C0: brief + failing test** — `job.test.ts` seed set + faceted queries assert narrowing; today it won't compile/run because the params don't exist.
-- [ ] **C1: schema + service** — shared params + backend `listPublicJobs`.
-- [ ] **C2: react-query scaffold** — `queryClient.ts` + provider in `main.tsx`.
-- [ ] **C3: `useJobSearch` hook** — fetches with faceted params; `Jobs`/`FilterCard` rewire to multi-select + URL-sync.
-- [ ] **C4: typecheck + suites** — `npm run typecheck`, web tests + backend `job.test`, then commit `feat(web): faceted job search + react-query migration (Phase 4B)`.
+- [x] **C0: brief + failing test** — `job.test.ts` seed set + faceted queries assert narrowing; today it won't compile/run because the params don't exist.
+- [x] **C1: schema + service** — shared params + backend `listPublicJobs`.
+- [x] **C2: react-query scaffold** — `queryClient.ts` + provider in `main.tsx`.
+- [x] **C3: `useJobSearch` hook** — fetches with faceted params; `Jobs`/`FilterCard` rewire to multi-select + URL-sync.
+- [x] **C4: typecheck + suites** — `npm run typecheck`, web tests + backend `job.test`, then commit `feat(web): faceted job search + react-query migration (Phase 4B)`.
+
+**Status (4B):** complete — shipped in `6c1ef56` (backend) and `c6ea2e6`
+(frontend). The `$text` index stayed deferred: the pinned regex contract (`.*`
+escaped to exactly one hit) still holds, so keyword search remains an escaped
+regex scan and the exact-vs-ranked decision moves with it.
 
 **Out of scope (4C/4D):** the `jobType`→enum narrowing (a migration once real data exists — the current values are free-form strings and narrowing them now would 500), the profile-capture form to actually fill `salaryMin/Max`/`openToRemote`, the fit badge, similar roles. 4B makes the rail *work*.
 

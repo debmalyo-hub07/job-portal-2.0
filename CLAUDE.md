@@ -149,11 +149,46 @@ directory and passed over zero files.
 
 Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
 2A (Ink & Signal design foundation), 2B-1 (design language and portal-split
-authentication) and 3A (three-portal foundation) are complete. The design
-system, its primitives and the compositional layer are all in place, and the
-auth surfaces plus the landing page are rebuilt on them. Phases 2B-2 (seeker
-pages) and 2B-3 (recruiter workspace) have not started — those pages are still
-the inherited structure.
+authentication), 3A (three-portal foundation), 4A/4B (faceted job search) and
+3B (admin console) are complete. The design system, its primitives and the
+compositional layer are all in place; the auth surfaces, the landing page and
+the admin console are built on them. Phases 2B-2 (seeker pages) and 2B-3
+(recruiter workspace) have not started — those pages are still the inherited
+structure.
+
+What 3B closed:
+
+- **The admin console exists.** `frontend/src/components/console/` — dashboard
+  (`/admin/dashboard`), approvals queue (`/admin/recruiters`), and two
+  moderation tables (`/admin/review/jobs`, `/admin/review/companies`). Approval
+  no longer has to be driven against the API with curl
+- **The console lives under `/admin/review/*`, never `/admin/jobs` or
+  `/admin/companies`.** Those two prefixes belong to the pre-3A recruiter
+  workspace redirects. An exact route would outrank the splat and silently
+  break a recruiter's bookmark: it would match the console, hit the admin
+  portal gate, and bounce them away from the workspace they asked for.
+  `workspaceRoutes.test.tsx` scans source for either literal outside the route
+  table — **including inside comments**. The API mirrors the client names
+  (`/api/v1/admin/review/*`) so one vocabulary holds end to end
+- **`homePathFor(portal)` in `src/lib/portalHome.ts` is the only portal→landing
+  mapping.** That ternary was hand-written in five places (`Login`, `Signup`,
+  `AuthComplete`, `VerifyEmail`, `Home`), each reading `recruiter ? /hire : /`,
+  which sent an admin to the seeker job board. Never write it inline again.
+  `ProtectedRoute` uses it too, so a wrong-portal user lands at their *own*
+  home rather than a generic `/`
+- **Deny is deliberately not idempotent, unlike approve.** `POST
+  /admin/recruiters/:id/deny` answers 409 on an already-active recruiter rather
+  than overwriting an approval a colleague just made. It sets `suspended`,
+  never deletes — the row is the evidence the address was reviewed. The reason
+  is required and emailed, so it goes through `escapeHtml`: it is the first
+  free text a human types that reaches an email body
+- The console's DTOs live in `packages/shared/src/admin.ts` and are **narrow
+  projections, not the domain DTOs**. A moderation list must not become a bulk
+  export because someone later adds a field to `JobDto`
+- `tests/setup.ts` stubs `IntersectionObserver` and `ResizeObserver` beside
+  `matchMedia`. jsdom implements none; embla (`CategoryCarousel`) constructs
+  both on mount, so every test whose assertion ends at `/` died in the observer
+  constructor before reaching its own assertion
 
 What 3A closed:
 
@@ -291,18 +326,11 @@ What 1C closed, so these are no longer open questions:
 
 Known gaps, deliberately deferred:
 
-- **There is no admin console UI.** 3A built the admin portal's foundation —
-  the collection, the auth router, `seed:admin`, and the two approval endpoints
-  (`GET /admin/recruiters/pending`, `POST /admin/recruiters/:id/approve`) — but
-  no page that calls them. Approval currently has to be driven against the API
-  directly. Worse, `Login.tsx` sends any non-recruiter to `/`, so an admin who
-  signs in lands on the **seeker job board**. Both belong to 3B, which builds
-  the console; the post-login destination should move with it rather than being
-  patched to point at a page that does not exist yet
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
-- No pagination UI — clients request `limit=50` and show that. The `Pagination`
-  primitive exists but is not wired to any list yet
+- No pagination UI on the **seeker** job list — it requests `limit=50` and shows
+  that. The admin console's `Pager` (`components/console/ListControls.tsx`) is
+  the first real consumer; wiring `/jobs` belongs to 2B-2
 - Replacing a company logo orphans the previous Cloudinary asset
 - The seeker pages (`Job`, `JobDescription`, `FilterCard`, `Profile`,
   `UpdateProfileDialog`) and the recruiter workspace (`components/admin/*`)

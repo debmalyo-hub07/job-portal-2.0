@@ -5,18 +5,20 @@ recruiters post them and manage applicants. Built with security and access
 control as the starting point rather than an afterthought.
 
 > **Status:** Phases 1A (foundation), 1B (authentication), 1C (authorization),
-> 2A (design system) and 2B-1 (design language and portal-split auth) are
-> complete. Ownership checks are in place on every route touching a user-owned
-> resource. The seeker job pages and the recruiter workspace are still the
-> inherited UI and are next. See [Roadmap](#roadmap).
+> 2A (design system), 2B-1 (design language and portal-split auth), 3A
+> (three-portal foundation), 4A/4B (faceted job search) and 3B (admin console)
+> are complete. Ownership checks are in place on every route touching a
+> user-owned resource, and recruiter approval now has a UI rather than needing
+> curl. The seeker job pages and the recruiter workspace are still the inherited
+> UI and are next. See [Roadmap](#roadmap).
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| API | Node 20, Express 5, TypeScript, Mongoose 8 |
+| API | Node 22/24, Express 5, TypeScript, Mongoose 8 |
 | Database | MongoDB (Atlas) |
-| Web | React 19, Vite 7, TypeScript, Redux Toolkit, Tailwind 4, Radix primitives |
+| Web | React 19, Vite 8, TypeScript, Redux Toolkit, TanStack Query, Tailwind 4, Radix primitives |
 | Design | "Ink & Signal" token system — CSS custom properties via `@theme inline`, portal-scoped accent, dark mode, self-hosted Fraunces/Geist |
 | Validation | Zod 4, shared between client and server |
 | Email | Brevo (transactional) |
@@ -28,7 +30,9 @@ control as the starting point rather than an afterthought.
 
 ### Prerequisites
 
-- **Node 20.19+** (Vite 7 requires it; `20.18` warns and is unsupported)
+- **Node 22.22+ or 24.15+** — jsdom 30 and the undici 8 it pulls in read
+  `markAsUncloneable` from `node:worker_threads` unguarded, so the web test
+  suite cannot even import on older releases. Node 20 is EOL as of April 2026
 - npm 10+
 - A MongoDB database — [Atlas](https://www.mongodb.com/atlas) free tier is fine
 
@@ -331,16 +335,18 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 2A | "Ink & Signal" design system: tokens, dark mode, portal-scoped accent, 20 primitives | Complete |
 | 2B-1 | Frontend test runner, layout primitives, density, portal-split auth, `/hire` landing, landing rebuild | Complete |
 | 3A | Three portals, admin collection, recruiter approval gate, `seed:admin`, workspace moved to `/hire/*` | Complete |
-| 3B | Admin console UI: pending-recruiter list and approval, admin post-login destination | Next |
-| 2B-2 | Seeker pages: job board, job detail, filters, profile | Planned |
+| 4A/4B | Faceted job search on a compound index, URL-driven filters, react-query | Complete |
+| 3B | Admin console: dashboard, approvals queue, deny action, job/company moderation | Complete |
+| 2B-2 | Seeker pages: job board, job detail, filters, profile | Next |
 | 2B-3 | Recruiter workspace: companies, jobs, applicants | Planned |
-| 3 | Saved jobs, server-side search and filters, application status timeline | Planned |
+| 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 
-Approval is enforced end to end, but 3A deliberately stopped at the API for the
-admin side: `GET /admin/recruiters/pending` and
-`POST /admin/recruiters/:id/approve` exist and are tested, and no page calls
-them yet. Until 3B, approve a recruiter against the API directly.
+Recruiter approval is now end to end. Sign in at `/admin/login` with an account
+from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
+requires a reason and emails it. Moderation lists live under `/admin/review/*`
+— not `/admin/jobs`, which still redirects a pre-3A recruiter bookmark to
+`/hire/jobs`.
 
 Design documents live in `docs/superpowers/specs/`, and the decisions behind
 them in `docs/adr/`.
