@@ -1,63 +1,92 @@
-import { useEffect, useState } from "react";
-import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
-import { Label } from "./ui/label";
-import { setSearchedQuery } from "@/redux/jobSlice";
-import { useAppDispatch } from "@/redux/store";
+import { useSearchParams } from "react-router";
 
-const filterData = [
+import { useFacetToggle } from "@/hooks/useJobSearch";
+
+/**
+ * 4B filter rail. The URLSearchParams is the state; this component reads the
+ * current selection for its checkboxes and calls `useFacetToggle` to write.
+ *
+ * Multi-select with OR-within-facet semantics: two Locations checked → jobs in
+ * either city. Facets AND across groups: Location AND JobType both must match.
+ *
+ * The taxonomy is seeded from the recruiting shapes recruiters actually post
+ * (city, contract-level). Salary bands translate to a `salaryMax` ceiling the
+ * backend range-matches on.
+ */
+const FACETS: { label: string; key: "location" | "jobType"; options: string[] }[] = [
   {
-    filterType: "Location",
-    array: ["Delhi NCR", "Mumbai", "Bengaluru", "Hyderabad", "Chennai"],
+    label: "Location",
+    key: "location",
+    options: ["Delhi NCR", "Mumbai", "Bengaluru", "Hyderabad", "Chennai", "Pune"],
   },
   {
-    filterType: "Job Type",
-    array: [
-      "Frontend Developer",
-      "Backend Developer",
-      "Full Stack Developer",
-      "Data Scientist",
-      "Product Manager",
-      "Data Analyst",
-    ],
-  },
-  {
-    filterType: "Salary",
-    array: ["0-5 LPA", "5-10 LPA", "10-15 LPA", "15-20 LPA", "20+ LPA"],
+    label: "Job Type",
+    key: "jobType",
+    options: ["Full-time", "Contract", "Internship", "Part-time"],
   },
 ];
 
+function isChecked(sp: URLSearchParams, key: "location" | "jobType", value: string): boolean {
+  const raw = sp.get(key) ?? "";
+  return raw.split(",").map((s) => s.trim()).includes(value);
+}
+
 const FilterCard = () => {
-  const [selectedValue, setSelectedValue] = useState("");
-  const dispatch = useAppDispatch();
-
-  const changeHandler = (value: string) => {
-    setSelectedValue(value);
-  };
-
-  useEffect(() => {
-    dispatch(setSearchedQuery(selectedValue));
-  }, [selectedValue, dispatch]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const toggle = useFacetToggle();
+  const hasFilters = FACETS.some((f) => (searchParams.get(f.key) ?? "") !== "");
 
   return (
-    <div className="w-full bg-white p-3 rounded-md">
-      <h1 className="font-bold text-lg">Filter Jobs</h1>
-      <hr className="mt-3" />
-      <RadioGroup value={selectedValue} onValueChange={changeHandler}>
-        {filterData.map((data, index) => (
-          <div key={data.filterType}>
-            <h1 className="font-bold text-lg">{data.filterType}</h1>
-            {data.array.map((item, idx) => {
-              const itemId = `id${index}-${idx}`;
-              return (
-                <div key={itemId} className="flex items-center space-x-2 my-2">
-                  <RadioGroupItem value={item} id={itemId} />
-                  <Label htmlFor={itemId}>{item}</Label>
-                </div>
-              );
-            })}
-          </div>
+    <div className="w-full bg-white p-4 rounded-md shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="font-bold text-lg">Filter Jobs</h1>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={() => {
+              const sp = new URLSearchParams(searchParams);
+              sp.delete("location");
+              sp.delete("jobType");
+              sp.delete("salaryMax");
+              sp.delete("experienceMax");
+              sp.delete("remote");
+              sp.delete("page");
+              setSearchParams(sp, { replace: false });
+            }}
+            className="text-xs font-medium text-gray-500 hover:text-gray-700 underline"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+      <hr className="mb-4" />
+      <div className="space-y-5">
+        {FACETS.map((facet) => (
+          <section key={facet.key}>
+            <h2 className="font-semibold text-sm text-gray-700 mb-2">{facet.label}</h2>
+            <ul className="space-y-1.5">
+              {facet.options.map((option) => {
+                const id = `${facet.key}-${option.replace(/\s+/g, "-").toLowerCase()}`;
+                const checked = isChecked(searchParams, facet.key, option);
+                return (
+                  <li key={option} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={id}
+                      checked={checked}
+                      onChange={() => toggle(facet.key, option)}
+                      className="h-4 w-4 rounded border-gray-300 accent-slate-900"
+                    />
+                    <label htmlFor={id} className="text-sm text-gray-600 select-none cursor-pointer">
+                      {option}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ))}
-      </RadioGroup>
+      </div>
     </div>
   );
 };

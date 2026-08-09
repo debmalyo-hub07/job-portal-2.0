@@ -1,34 +1,23 @@
-import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import type { JobDto } from "@jobportal/shared";
 
 import Navbar from "./shared/Navbar";
 import FilterCard from "./FilterCard";
 import Job from "./Job";
-import { useAppSelector } from "@/redux/store";
+import { useJobSearch } from "@/hooks/useJobSearch";
+import { Skeleton } from "./ui/skeleton";
 
+/**
+ * 4B jobs board.
+ *
+ * Server state (which jobs match the URL filters) lives in react-query, not
+ * Redux. `useJobSearch` reads the URL, derives the query, and returns the
+ * current page. Redux `searchedQuery`/`allJobs` stay alive for LatestJobs and
+ * Home, but the filter rail on this page is now driven from the URL alone.
+ */
 const Jobs = () => {
-  const { allJobs, searchedQuery } = useAppSelector((state) => state.job);
-  const [filterJobs, setFilterJobs] = useState<JobDto[]>(allJobs);
+  const { data, isPending, isError, error } = useJobSearch();
 
-  useEffect(() => {
-    if (!searchedQuery) {
-      setFilterJobs(allJobs);
-      return;
-    }
-
-    const needle = searchedQuery.toLowerCase();
-    const filteredJobs = allJobs.filter(
-      (job) =>
-        job.title?.toLowerCase().includes(needle) ||
-        job.company?.name?.toLowerCase().includes(needle) ||
-        job.location?.toLowerCase().includes(needle) ||
-        job.position?.toLowerCase().includes(needle) ||
-        job.jobType?.toLowerCase().includes(needle) ||
-        String(job.salary).includes(needle),
-    );
-    setFilterJobs(filteredJobs);
-  }, [allJobs, searchedQuery]);
+  const jobs = data?.items ?? [];
 
   return (
     <div>
@@ -38,12 +27,22 @@ const Jobs = () => {
           <div className="w-[20%]">
             <FilterCard />
           </div>
-          {filterJobs.length <= 0 ? (
-            <span>No jobs found</span>
-          ) : (
-            <div className="flex-1 h-[88vh] overflow-y-auto pb-5">
+          <div className="flex-1 h-[88vh] overflow-y-auto pb-5">
+            {isPending ? (
               <div className="grid grid-cols-3 gap-4">
-                {filterJobs.map((job) => (
+                {Array.from({ length: 6 }, (_, i) => (
+                  <Skeleton key={i} className="h-48 rounded-md" />
+                ))}
+              </div>
+            ) : isError ? (
+              <div className="text-red-600 text-sm p-4">
+                Could not load jobs: {error instanceof Error ? error.message : "unknown error"}
+              </div>
+            ) : jobs.length === 0 ? (
+              <span>No jobs match these filters.</span>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                {jobs.map((job) => (
                   <motion.div
                     initial={{ opacity: 0, x: 100 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -55,8 +54,8 @@ const Jobs = () => {
                   </motion.div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
