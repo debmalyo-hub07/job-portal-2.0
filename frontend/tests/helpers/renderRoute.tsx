@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { MemoryRouter, Route, Routes, useLocation, useRoutes } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 
 import { appRoutes } from "@/routes/appRoutes";
@@ -11,6 +12,23 @@ import jobReducer from "@/redux/jobSlice";
 import companyReducer from "@/redux/companySlice";
 import applicationReducer from "@/redux/applicationSlice";
 import { PortalScope } from "@/components/theme/PortalScope";
+
+/**
+ * A fresh QueryClient per render, with retries off.
+ *
+ * Retries default to 3 with backoff, so a component whose fetch rejects (every
+ * one of them here — jsdom has no API) would keep the test waiting through
+ * three delays before showing its error state. `gcTime: 0` stops a cached
+ * result from one test satisfying the next one's query.
+ */
+export function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+}
 
 /**
  * A fresh store per render.
@@ -49,13 +67,15 @@ export function renderRoute(
 ) {
   return render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={[route]}>
-        <PortalScope>
-          <Routes>
-            <Route path={path ?? route} element={ui} />
-          </Routes>
-        </PortalScope>
-      </MemoryRouter>
+      <QueryClientProvider client={makeQueryClient()}>
+        <MemoryRouter initialEntries={[route]}>
+          <PortalScope>
+            <Routes>
+              <Route path={path ?? route} element={ui} />
+            </Routes>
+          </PortalScope>
+        </MemoryRouter>
+      </QueryClientProvider>
     </Provider>,
   );
 }
@@ -84,10 +104,12 @@ function LocationProbe() {
 export function renderAppAt(entry: string, { store = makeStore() } = {}) {
   const view = render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={[entry]}>
-        <RouteTable />
-        <LocationProbe />
-      </MemoryRouter>
+      <QueryClientProvider client={makeQueryClient()}>
+        <MemoryRouter initialEntries={[entry]}>
+          <RouteTable />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>
     </Provider>,
   );
   const probe = () => view.getByTestId("loc");

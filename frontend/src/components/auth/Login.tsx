@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
+import { homePathFor } from "@/lib/portalHome";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
 /**
@@ -42,7 +43,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate(portal === "recruiter" ? "/hire/companies" : "/");
+      navigate(homePathFor(portal));
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.
@@ -57,7 +58,9 @@ const Login = ({ portal }: { portal: Portal }) => {
   };
 
   useEffect(() => {
-    if (user) navigate(user.portal === "recruiter" ? "/hire/companies" : "/");
+    // The session's own portal, not the route's — a signed-in admin who opens
+    // /login belongs in the console, not wherever this form would have sent them.
+    if (user) navigate(homePathFor(user.portal));
   }, [user, navigate]);
 
   return (

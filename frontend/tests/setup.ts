@@ -20,3 +20,36 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: vi.fn(),
   }),
 });
+
+/**
+ * jsdom implements no IntersectionObserver, and embla-carousel constructs one
+ * unconditionally on mount. Any test whose assertion ends on the landing page —
+ * every "this guard bounces the wrong portal to /" case — renders
+ * CategoryCarousel and dies in the observer's constructor rather than at its
+ * own assertion.
+ *
+ * Never intersecting is the honest stub: jsdom gives every element a zero-sized
+ * layout box, so nothing is genuinely in view.
+ */
+class NoopIntersectionObserver implements IntersectionObserver {
+  readonly root = null;
+  readonly rootMargin = "";
+  readonly thresholds: readonly number[] = [];
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+}
+
+vi.stubGlobal("IntersectionObserver", NoopIntersectionObserver);
+
+/** Same story: embla also constructs a ResizeObserver, which jsdom lacks. */
+class NoopResizeObserver implements ResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+vi.stubGlobal("ResizeObserver", NoopResizeObserver);

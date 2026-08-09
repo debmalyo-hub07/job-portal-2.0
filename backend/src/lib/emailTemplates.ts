@@ -56,6 +56,23 @@ export function renderOtpBudgetEmail(hours: number): Rendered {
   };
 }
 
+/**
+ * Escapes text destined for an HTML email body.
+ *
+ * Every other template in this file interpolates only values this codebase
+ * generated (a 6-digit code, an hour count). The denial reason is the first
+ * piece of free text a human types that lands in an email, so it is escaped at
+ * the point of interpolation rather than trusted because "an admin wrote it".
+ */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** Sent when an admin approves a pending recruiter (Phase 3A). */
 export function renderRecruiterApprovedEmail(): Rendered {
   return {
@@ -64,5 +81,21 @@ export function renderRecruiterApprovedEmail(): Rendered {
       `<h1 style="font-size:1.25rem">You're approved</h1><p>An admin has approved your recruiter account. You can now create a company profile and post roles.</p>`,
     ),
     text: `You're approved\n\nAn admin has approved your recruiter account. You can now create a company profile and post roles.`,
+  };
+}
+
+/**
+ * Sent when an admin denies a pending recruiter (Phase 3B).
+ *
+ * The reason is included because a denial the recruiter cannot interpret is
+ * indistinguishable from the queue being broken, and support then pays for it.
+ */
+export function renderRecruiterDeniedEmail(reason: string): Rendered {
+  return {
+    subject: "About your recruiter account",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">We could not approve your account</h1><p>An admin reviewed your recruiter account and could not approve it for now.</p><p style="padding:1rem;background:#f5f5f4;border-radius:.5rem"><strong>Reason:</strong> ${escapeHtml(reason)}</p><p>If you believe this is a mistake, reply to this email with more detail about your company.</p>`,
+    ),
+    text: `We could not approve your account\n\nAn admin reviewed your recruiter account and could not approve it for now.\n\nReason: ${reason}\n\nIf you believe this is a mistake, reply to this email with more detail about your company.`,
   };
 }

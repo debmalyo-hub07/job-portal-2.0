@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
+import { homePathFor } from "@/lib/portalHome";
 import { usePortalParam } from "@/hooks/usePortalParam";
 import { useAppDispatch } from "@/redux/store";
 
@@ -37,7 +38,7 @@ const VerifyEmail = () => {
       // Verification *does* issue a session, unlike registration.
       setPortalHint(portal);
       dispatch(setUser(res.data.user));
-      navigate(portal === "recruiter" ? "/hire/companies" : "/", { replace: true });
+      navigate(homePathFor(portal), { replace: true });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "That code did not work"));
     } finally {

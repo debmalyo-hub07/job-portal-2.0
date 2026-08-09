@@ -14,6 +14,10 @@ import PostJob from "@/components/admin/PostJob";
 import Applicants from "@/components/admin/Applicants";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
 import RequireApproved from "@/components/admin/RequireApproved";
+import AdminDashboard from "@/components/console/AdminDashboard";
+import AdminRecruiters from "@/components/console/AdminRecruiters";
+import AdminJobsConsole from "@/components/console/AdminJobsConsole";
+import AdminCompanies from "@/components/console/AdminCompanies";
 import VerifyEmail from "@/components/auth/VerifyEmail";
 import ForgotPassword from "@/components/auth/ForgotPassword";
 import ResetPassword from "@/components/auth/ResetPassword";
@@ -41,6 +45,17 @@ const workspace = (page: ReactNode) => (
     <RequireApproved>{page}</RequireApproved>
   </ProtectedRoute>
 );
+
+/**
+ * Every admin console page carries the portal gate and nothing else. There is
+ * no approval concept for admins — the collection has no self-service door, so
+ * an admin row exists only because `seed:admin` or another admin created it.
+ *
+ * Composed here for the same reason `workspace` is: a console page added later
+ * inherits the gate instead of being one forgotten wrapper away from rendering
+ * a moderation table to a seeker.
+ */
+const adminConsole = (page: ReactNode) => <ProtectedRoute portal="admin">{page}</ProtectedRoute>;
 
 /**
  * The route table, extracted from App.tsx so tests can assert against it
@@ -83,6 +98,20 @@ export const appRoutes: RouteObject[] = [
       { path: "/hire/jobs", element: workspace(<AdminJobs />) },
       { path: "/hire/jobs/create", element: workspace(<PostJob />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
+      // The admin console.
+      //
+      // Deliberately NOT /admin/jobs and /admin/companies: those two prefixes
+      // belong to the pre-3A recruiter workspace redirects below, and a
+      // recruiter's bookmark of /admin/jobs must keep resolving to /hire/jobs.
+      // Taking the bare path for the console would break that silently — the
+      // recruiter would land on a console page their portal cannot open, be
+      // bounced by the gate, and never reach the workspace they asked for.
+      // "review" names what these screens are: moderation, not the recruiter's
+      // own listings.
+      { path: "/admin/dashboard", element: adminConsole(<AdminDashboard />) },
+      { path: "/admin/recruiters", element: adminConsole(<AdminRecruiters />) },
+      { path: "/admin/review/jobs", element: adminConsole(<AdminJobsConsole />) },
+      { path: "/admin/review/companies", element: adminConsole(<AdminCompanies />) },
       // Pre-3A workspace URLs. The workspace lived under /admin through 2B-1, so
       // a recruiter's bookmarks and any shared link still point there — and /admin
       // now resolves to the ADMIN portal, which would show them a console door

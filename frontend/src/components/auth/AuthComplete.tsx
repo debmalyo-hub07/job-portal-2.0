@@ -5,6 +5,7 @@ import type { AuthResponse } from "@jobportal/shared";
 import { AuthLayout } from "./AuthLayout";
 import { apiClient } from "@/lib/apiClient";
 import { setPortalHint } from "@/lib/portal";
+import { homePathFor } from "@/lib/portalHome";
 import { setUser } from "@/redux/authSlice";
 import { usePortalParam } from "@/hooks/usePortalParam";
 import { useAppDispatch } from "@/redux/store";
@@ -29,7 +30,7 @@ const AuthComplete = () => {
         //
         // Portal-aware destination: sending a recruiter to "/" worked only
         // because Home.tsx bounces them, which flashes the seeker hero first.
-        navigate(portal === "recruiter" ? "/hire/companies" : "/", { replace: true });
+        navigate(homePathFor(portal), { replace: true });
       })
       .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));
   }, [portal, dispatch, navigate]);

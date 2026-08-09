@@ -7,6 +7,7 @@ import CategoryCarousel from "./CategoryCarousel";
 import LatestJobs from "./LatestJobs";
 import Footer from "./Footer";
 import useGetAllJobs from "@/hooks/useGetAllJobs";
+import { homePathFor } from "@/lib/portalHome";
 import { useAppSelector } from "@/redux/store";
 
 const Home = () => {
@@ -15,10 +16,14 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.portal === "recruiter") {
-      navigate("/hire/companies", { replace: true });
+    // The board is the seeker's product; every other portal has a home of its
+    // own. Written as "not a seeker" rather than "is a recruiter" so the admin
+    // added in 3A does not fall through to the seeker board — which is exactly
+    // how the post-login gap survived that phase.
+    if (user && user.portal !== "seeker") {
+      navigate(homePathFor(user.portal), { replace: true });
     }
-  }, [user?.portal, navigate]);
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-paper text-ink">

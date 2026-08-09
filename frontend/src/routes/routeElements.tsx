@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 
 import { PortalScope } from "@/components/theme/PortalScope";
+import { useAppSelector } from "@/redux/store";
 
 /**
  * The components the route table mounts directly.
@@ -37,9 +38,17 @@ export function WorkspaceRedirect() {
  *
  * There is no admin marketing page and there will not be one — it is an
  * internal surface. But AuthLayout links every portal's wordmark at its own
- * home, so /admin has to resolve to something. The sign-in is the only door
- * the console has.
+ * home, so /admin has to resolve to something.
+ *
+ * Signed in as an admin, that is the dashboard; otherwise the sign-in, which
+ * was the only destination before the console existed. Reading the session here
+ * rather than always sending to /login is what stops an admin who clicks the
+ * wordmark from being shown a login form they have already completed.
  */
 export function AdminHomeRedirect() {
-  return <Navigate to="/admin/login" replace />;
+  const { user, bootstrapped } = useAppSelector((state) => state.auth);
+  // Waiting for /me is not being signed out: redirecting before the answer
+  // arrives sends every hard reload of /admin to the login page.
+  if (!bootstrapped) return null;
+  return <Navigate to={user?.portal === "admin" ? "/admin/dashboard" : "/admin/login"} replace />;
 }

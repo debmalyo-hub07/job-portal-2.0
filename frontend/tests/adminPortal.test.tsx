@@ -62,10 +62,45 @@ describe("admin portal sign-in", () => {
     expect(screen.queryByText(/hiring instead/i)).not.toBeInTheDocument();
   });
 
-  /** The wordmark links to /admin, so that path must resolve rather than 404. */
+  /**
+   * The wordmark links to /admin, so that path must resolve rather than 404.
+   *
+   * Signed out, that is the sign-in — the only destination before the console
+   * existed. The store is bootstrapped first because `AdminHomeRedirect` waits
+   * for `/me` before choosing: rendering nothing while the session is unknown
+   * is what stops a signed-in admin seeing a login form flash. In the app,
+   * `useAuthBootstrap` sets that flag; a test has to set it itself.
+   */
   it("gives /admin a front door", async () => {
-    const view = renderAppAt("/admin");
+    const store = makeStore();
+    store.dispatch(setBootstrapped(true));
+
+    const view = renderAppAt("/admin", { store });
     await waitFor(() => expect(view.pathname()).toBe("/admin/login"));
+  });
+
+  /**
+   * Signed in as an admin, /admin resolves to the console rather than a login
+   * form the admin has already passed — the whole point of reading the
+   * session here instead of always sending to /login.
+   */
+  it("sends a signed-in admin from /admin straight to the dashboard", async () => {
+    const store = makeStore();
+    store.dispatch(
+      setUser({
+        id: "a1",
+        portal: "admin",
+        fullName: "Root",
+        email: "root@example.com",
+        emailVerified: true,
+        avatarUrl: null,
+        status: "active",
+      }),
+    );
+    store.dispatch(setBootstrapped(true));
+
+    const view = renderAppAt("/admin", { store });
+    await waitFor(() => expect(view.pathname()).toBe("/admin/dashboard"));
   });
 });
 

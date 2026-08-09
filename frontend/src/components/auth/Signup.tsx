@@ -11,6 +11,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { homePathFor } from "@/lib/portalHome";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 
@@ -54,7 +55,7 @@ const Signup = ({ portal }: { portal: Portal }) => {
   };
 
   useEffect(() => {
-    if (user) navigate(user.portal === "recruiter" ? "/hire/companies" : "/");
+    if (user) navigate(homePathFor(user.portal));
   }, [user, navigate]);
 
   return (

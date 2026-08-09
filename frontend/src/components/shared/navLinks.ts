@@ -20,12 +20,20 @@ export function navLinksFor(portal: Portal): NavLink[] {
         { to: "/hire/companies", label: "Companies" },
         { to: "/hire/jobs", label: "Jobs" },
       ];
-    // No admin entries yet. The console has no pages, and a nav link to a route
-    // that does not exist is worse than no link — it renders a dead end, and
-    // an admin jobs path in particular would collide with the pre-3A workspace
-    // redirect. The console phase adds them here.
+    // The console's sections. `AdminShell` renders these as its sub-navigation
+    // and the navbar/sheet render them as primary links, so all three agree by
+    // construction.
+    //
+    // Moderation sits under `/admin/review/*` rather than the bare jobs and
+    // companies prefixes: those still belong to the pre-3A recruiter workspace
+    // redirects, so an old recruiter bookmark keeps resolving into /hire.
     case "admin":
-      return [];
+      return [
+        { to: "/admin/dashboard", label: "Dashboard" },
+        { to: "/admin/recruiters", label: "Recruiters" },
+        { to: "/admin/review/jobs", label: "Jobs" },
+        { to: "/admin/review/companies", label: "Companies" },
+      ];
     case "seeker":
       return [
         { to: "/", label: "Home" },
