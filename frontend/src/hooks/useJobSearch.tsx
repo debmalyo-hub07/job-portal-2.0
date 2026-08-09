@@ -110,9 +110,10 @@ async function fetchJobs(q: JobSearchQuery, signal: AbortSignal): Promise<JobSea
 export function useJobSearch() {
   const [searchParams] = useSearchParams();
   const query = useMemo(() => parseJobSearchParams(searchParams), [searchParams]);
-  const queryKey = useMemo(() => ["jobs", ...toSearchParams(query)], [query]);
+  // Stable scalar for the key: URLSearchParams object identity changes per render.
+  const paramsString = useMemo(() => toSearchParams(query).toString(), [query]);
   return useQuery({
-    queryKey,
+    queryKey: ["jobs", paramsString],
     queryFn: ({ signal }) => fetchJobs(query, signal),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,

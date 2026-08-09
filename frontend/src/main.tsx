@@ -17,6 +17,15 @@ import { queryClient } from "./lib/queryClient";
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element #root not found in index.html");
 
+// Until the app has a real ErrorBoundary, surface any provider/render crash
+// directly. A blank page means something threw before paint.
+window.addEventListener("error", (event) => {
+  const el = document.getElementById("root");
+  if (el && el.childElementCount === 0) {
+    el.innerHTML = `<pre style="padding:24px;color:#b91c1c;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap">${String(event.error?.stack ?? event.message)}</pre>`;
+  }
+});
+
 createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

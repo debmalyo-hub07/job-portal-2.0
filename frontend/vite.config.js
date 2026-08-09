@@ -15,4 +15,12 @@ export default defineConfig({
       "@": path.resolve(dirname, "./src"),
     },
   },
+  server: {
+    port: 5173,
+    // Don't auto-bump to 5174/5175 when 5173 is held by an orphaned dev process.
+    // The sharp failure is the signal that tells the developer to Ctrl+C the
+    // prior terminal; quietly hopping to a new port leaves three stale servers
+    // running and every one of them half-valid.
+    strictPort: true,
+  },
 });

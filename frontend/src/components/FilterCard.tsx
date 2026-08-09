@@ -34,7 +34,23 @@ function isChecked(sp: URLSearchParams, key: "location" | "jobType", value: stri
 const FilterCard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const toggle = useFacetToggle();
-  const hasFilters = FACETS.some((f) => (searchParams.get(f.key) ?? "") !== "");
+  const hasFilters =
+    searchParams.get("location") !== null ||
+    searchParams.get("jobType") !== null ||
+    searchParams.get("salaryMax") !== null ||
+    searchParams.get("experienceMax") !== null ||
+    searchParams.get("remote") !== null;
+
+  const clearAll = () => {
+    const sp = new URLSearchParams(searchParams);
+    sp.delete("location");
+    sp.delete("jobType");
+    sp.delete("salaryMax");
+    sp.delete("experienceMax");
+    sp.delete("remote");
+    sp.delete("page");
+    setSearchParams(sp, { replace: false });
+  };
 
   return (
     <div className="w-full bg-white p-4 rounded-md shadow-sm border border-gray-100">
@@ -43,16 +59,7 @@ const FilterCard = () => {
         {hasFilters && (
           <button
             type="button"
-            onClick={() => {
-              const sp = new URLSearchParams(searchParams);
-              sp.delete("location");
-              sp.delete("jobType");
-              sp.delete("salaryMax");
-              sp.delete("experienceMax");
-              sp.delete("remote");
-              sp.delete("page");
-              setSearchParams(sp, { replace: false });
-            }}
+            onClick={clearAll}
             className="text-xs font-medium text-gray-500 hover:text-gray-700 underline"
           >
             Clear all

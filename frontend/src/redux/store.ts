@@ -9,13 +9,23 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
-import storage from "redux-persist/lib/storage";
+import createWebStorage from "redux-persist/lib/storage/createWebStorage";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
 
 import authSlice from "./authSlice";
 import jobSlice from "./jobSlice";
 import companySlice from "./companySlice";
 import applicationSlice from "./applicationSlice";
+
+/**
+ * `redux-persist/lib/storage` is the package's own lazy accessor for
+ * `window.localStorage`. Vite's dependency pre-bundler can hand back a stub
+ * accessor whose `getItem` never got the real storage attached to it — the
+ * `TypeError: storage.getItem is not a function` you saw in DevTools. Passing
+ * `createWebStorage("local")` constructs the adapter explicitly, so the
+ * lazy-resolution path never runs and no stub is ever installed.
+ */
+const storage = createWebStorage("local");
 
 const persistConfig = {
   key: "root",
