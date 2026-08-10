@@ -7,8 +7,8 @@ import Profile from "@/components/Profile";
 import NotFound from "@/components/NotFound";
 import JobDescription from "@/components/JobDescription";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
-import CompanyCreate from "@/components/admin/CompanyCreate";
-import CompanySetup from "@/components/admin/CompanySetup";
+import CompanyCreate from "@/components/workspace/CompanyCreate";
+import CompanyEdit from "@/components/workspace/CompanyEdit";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import JobCreate from "@/components/workspace/JobCreate";
 import Applicants from "@/components/admin/Applicants";
@@ -102,7 +102,7 @@ export const appRoutes: RouteObject[] = [
       // workspace) sits under one prefix and resolves one signal colour.
       { path: "/hire/companies", element: workspace(<WorkspaceCompanies />) },
       { path: "/hire/companies/create", element: workspace(<CompanyCreate />) },
-      { path: "/hire/companies/:id", element: workspace(<CompanySetup />) },
+      { path: "/hire/companies/:id", element: workspace(<CompanyEdit />) },
       { path: "/hire/jobs", element: workspace(<WorkspaceJobs />) },
       { path: "/hire/jobs/create", element: workspace(<JobCreate />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },

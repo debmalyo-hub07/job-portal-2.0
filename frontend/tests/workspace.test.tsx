@@ -7,6 +7,8 @@ import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import JobCreate from "@/components/workspace/JobCreate";
+import CompanyEdit from "@/components/workspace/CompanyEdit";
+import CompanyCreate from "@/components/workspace/CompanyCreate";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 describe("HireShell", () => {
@@ -165,5 +167,57 @@ describe("JobCreate", () => {
     // a warning below the submit button associated with nothing.
     expect(await screen.findByText("Create a company first")).toBeInTheDocument();
     expect(screen.queryByLabelText("Job type")).not.toBeInTheDocument();
+  });
+});
+
+describe("the company forms", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("CompanyEdit reports a failed load in an alert", async () => {
+    renderRoute(<CompanyEdit />, {
+      route: "/hire/companies/64b0c8f2a9d3e45f6a7b8c9d",
+      // Explicit: renderRoute defaults `path` to `route`, so a parameterised
+      // URL passed as a route pattern matches nothing and renders no page.
+      path: "/hire/companies/:id",
+    });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("CompanyEdit seeds its fields from the fetched company", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        success: true,
+        company: {
+          id: "64b0c8f2a9d3e45f6a7b8c9d",
+          name: "Acme Inc.",
+          description: "We build things",
+          website: "https://acme.test",
+          location: "Pune",
+          logoUrl: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    } as never);
+    renderRoute(<CompanyEdit />, {
+      route: "/hire/companies/64b0c8f2a9d3e45f6a7b8c9d",
+      path: "/hire/companies/:id",
+    });
+    expect(await screen.findByLabelText(/^Company name/)).toHaveValue("Acme Inc.");
+    expect(screen.getByLabelText("Location")).toHaveValue("Pune");
+  });
+
+  it("CompanyCreate submits on Enter, because it is a real form", async () => {
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { success: true, company: { id: "c1" } } } as never);
+    renderRoute(<CompanyCreate />, { route: "/hire/companies/create" });
+    const name = screen.getByLabelText(/^Company name/);
+    fireEvent.change(name, { target: { value: "Acme Inc." } });
+    // The inherited page was a button with a click handler, so Enter in the
+    // single text field did nothing at all.
+    fireEvent.submit(name.closest("form")!);
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/company/register", { name: "Acme Inc." }),
+    );
   });
 });
