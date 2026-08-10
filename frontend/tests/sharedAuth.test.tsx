@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
 import { render } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 
 import { makeStore } from "./helpers/renderRoute";
@@ -11,6 +12,7 @@ import ResetPassword from "@/components/auth/ResetPassword";
 import LinkPending from "@/components/auth/LinkPending";
 import AuthError from "@/components/auth/AuthError";
 import ConfirmGoogleLink from "@/components/auth/ConfirmGoogleLink";
+import { apiClient } from "@/lib/apiClient";
 
 vi.mock("@/hooks/usePublicJobCount", () => ({
   usePublicJobCount: () => ({ count: null, ready: true }),
@@ -88,5 +90,62 @@ describe("shared auth pages", () => {
     );
     expect(getByText(/something went wrong/i)).toBeInTheDocument();
     expect(queryByText(/script/i)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * `?portal=` resolves through `portalSchema`, so all three portals survive it.
+ *
+ * `usePortalParam` was written when there were two portals and read
+ * `=== "recruiter" ? "recruiter" : "seeker"`. 3A added the admin portal and did
+ * not revisit it, so every `?portal=admin` link silently resolved to `seeker`
+ * for the seven shared OAuth/OTP pages that read the param.
+ *
+ * It reached production. An admin clicking "Forgot password?" on /admin/login
+ * posted to `/seeker/auth/forgot-password`, which found no seeker and answered
+ * the deliberate uniform success — no error, no email, nothing in any log. The
+ * anti-enumeration design that makes that endpoint safe is exactly what made
+ * the bug invisible, and it blocked the only route into the admin console.
+ *
+ * These assert the posted URL rather than the rendered output: the portal is
+ * only observable in where the request goes, which is what actually broke.
+ */
+describe("shared auth pages resolve every portal from ?portal=", () => {
+  const cases = [
+    ["seeker", "/seeker/auth/forgot-password"],
+    ["recruiter", "/recruiter/auth/forgot-password"],
+    ["admin", "/admin/auth/forgot-password"],
+  ] as const;
+
+  for (const [portal, endpoint] of cases) {
+    it(`ForgotPassword posts to ${endpoint} for portal=${portal}`, async () => {
+      const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: {} } as never);
+
+      const { getByLabelText, getByRole } = renderAt(
+        <ForgotPassword />,
+        `/forgot-password?portal=${portal}`,
+      );
+      await userEvent.type(getByLabelText(/email/i), "a@b.test");
+      await userEvent.click(getByRole("button", { name: /send reset code/i }));
+
+      expect(post).toHaveBeenCalledWith(endpoint, { email: "a@b.test" });
+      post.mockRestore();
+    });
+  }
+
+  it("falls back to seeker for a portal that does not exist", async () => {
+    // The value becomes a URL segment on the next request, so an invented or
+    // hand-edited one must degrade rather than travel.
+    const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: {} } as never);
+
+    const { getByLabelText, getByRole } = renderAt(
+      <ForgotPassword />,
+      "/forgot-password?portal=../../admin",
+    );
+    await userEvent.type(getByLabelText(/email/i), "a@b.test");
+    await userEvent.click(getByRole("button", { name: /send reset code/i }));
+
+    expect(post).toHaveBeenCalledWith("/seeker/auth/forgot-password", expect.anything());
+    post.mockRestore();
   });
 });
