@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { renderRoute } from "./helpers/renderRoute";
+import { apiClient } from "@/lib/apiClient";
 import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
+import JobCreate from "@/components/workspace/JobCreate";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 describe("HireShell", () => {
@@ -86,5 +88,82 @@ describe("WorkspaceCompanies", () => {
     // resolves to an empty array, which jsdom cannot produce. The header
     // action is always present.
     expect(screen.getByRole("button", { name: "New company" })).toBeInTheDocument();
+  });
+});
+
+describe("JobCreate", () => {
+  /**
+   * The form only mounts once the companies query resolves — a recruiter with
+   * no company gets an EmptyState instead, which is the zero-company dead end
+   * this page fixes. So these tests have to resolve it rather than let jsdom's
+   * absent API reject, or they would assert the error branch.
+   */
+  const withOneCompany = () =>
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        success: true,
+        companies: [
+          {
+            id: "64b0c8f2a9d3e45f6a7b8c9d",
+            name: "Acme Inc.",
+            description: null,
+            website: null,
+            location: "Pune",
+            logoUrl: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    } as never);
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("renders a remote control", async () => {
+    withOneCompany();
+    renderRoute(<JobCreate />, { route: "/hire/jobs/create" });
+    // `remote` is on jobCreateBodySchema, on the Mongo model, and drives the
+    // matching pipeline's remoteFit — and no form ever rendered a control, so
+    // every row carried the default false and the seeker board's Remote facet
+    // matched nothing, always.
+    expect(await screen.findByLabelText("This role is remote")).toBeInTheDocument();
+  });
+
+  it("offers only job types the seeker board can filter for", async () => {
+    withOneCompany();
+    const { JOB_TYPES } = await import("@jobportal/shared");
+    renderRoute(<JobCreate />, { route: "/hire/jobs/create" });
+    const select = await screen.findByLabelText("Job type");
+    // A free-text input let a recruiter post "Full Time", which is stored,
+    // displayed, and unfilterable.
+    expect(select.tagName).toBe("SELECT");
+    for (const type of JOB_TYPES) {
+      expect(within(select).getByRole("option", { name: type })).toBeInTheDocument();
+    }
+  });
+
+  it("sends a company id, never a name", async () => {
+    withOneCompany();
+    renderRoute(<JobCreate />, { route: "/hire/jobs/create" });
+    // Anchored regex, not "Company": FormField appends a required asterisk to
+    // the label, and getByLabelText matches label.textContent rather than the
+    // computed accessible name — the span is aria-hidden, so a screen reader
+    // hears "Company" and only this matcher sees the star.
+    const picker = await screen.findByLabelText(/^Company/);
+    // The inherited form matched `companies.find(c => c.name.toLowerCase() === value)`,
+    // so two companies sharing a name resolved to whichever the array held first.
+    expect(within(picker).getByRole("option", { name: "Acme Inc." })).toHaveValue(
+      "64b0c8f2a9d3e45f6a7b8c9d",
+    );
+  });
+
+  it("replaces the unsubmittable form with a way forward when there is no company", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, companies: [] },
+    } as never);
+    renderRoute(<JobCreate />, { route: "/hire/jobs/create" });
+    // The inherited page rendered a complete form that could not succeed, with
+    // a warning below the submit button associated with nothing.
+    expect(await screen.findByText("Create a company first")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Job type")).not.toBeInTheDocument();
   });
 });
