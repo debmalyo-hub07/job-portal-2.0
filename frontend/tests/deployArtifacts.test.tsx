@@ -83,3 +83,57 @@ describe("SPA fallback config", () => {
     expect(active.some((l) => /\b30[128]\b/.test(l))).toBe(false);
   });
 });
+
+/**
+ * `VITE_API_URL` is required to *build*, not merely to run, and getting that
+ * wrong produced two failures that both looked like success.
+ *
+ * The value is inlined as a literal, so with it unset Rolldown proves
+ * apiClient's import-time throw always fires, treats everything downstream as
+ * unreachable, and tree-shakes the entire application away. That build exits 0
+ * and emits a well-formed 275 kB bundle — against a real 874 kB — with a
+ * correct hashed filename, no route, no page, and a blank screen with a clean
+ * console. It is precisely what a host serves when nobody set its environment
+ * variables.
+ *
+ * The same missing value took the test suite down a different way: ten suites
+ * died during collection, having run no test. That was green locally for a week
+ * because `.env.local` is gitignored and every developer had one.
+ */
+describe("the build cannot silently produce an empty bundle", () => {
+  const FRONTEND = process.cwd();
+
+  it("vite.config.js fails the build when VITE_API_URL is missing", () => {
+    const config = readFileSync(join(FRONTEND, "vite.config.js"), "utf8");
+    // Scoped to the plugin's registration rather than the file at large: the
+    // comment above it names the variable too, so a source-wide match would
+    // pass on a config whose guard had been deleted but documented.
+    expect(config).toMatch(/plugins:\s*\[\s*requireApiUrl\(\)/);
+    expect(config).toMatch(/apply:\s*["']build["']/);
+  });
+
+  it("the suite supplies its own value rather than depending on .env.local", () => {
+    // The fix for the ten dead suites. `.env.local` is gitignored, so a test run
+    // that needs one is green for whoever wrote it and red on every fresh
+    // checkout — which is exactly how this reached main.
+    const config = readFileSync(join(FRONTEND, "vitest.config.ts"), "utf8");
+    expect(config).toMatch(/env:\s*\{[^}]*VITE_API_URL/);
+    expect(import.meta.env.VITE_API_URL).toBeTruthy();
+  });
+
+  it("CI builds the web app with the variable set", () => {
+    // Without this the guard above turns a silently-hollow bundle into a red
+    // build — better, but still a broken pipeline.
+    const ci = readFileSync(join(FRONTEND, "..", ".github", "workflows", "ci.yml"), "utf8");
+    expect(ci).toMatch(/VITE_API_URL:/);
+  });
+
+  it("CD asserts the built bundle actually contains routes", () => {
+    // The pre-existing check grepped index.html for a hashed chunk name, which
+    // the hollow bundle satisfies — it has one. Only the bundle's contents
+    // distinguish the two, so that is what CD has to look at.
+    const cd = readFileSync(join(FRONTEND, "..", ".github", "workflows", "cd.yml"), "utf8");
+    expect(cd).toMatch(/tree-shaken away/);
+    expect(cd).toMatch(/hire\/login/);
+  });
+});

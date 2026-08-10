@@ -178,6 +178,21 @@ origin, where the dev server answers `index.html` with a 200 and the app appears
 online while every call silently fails. `frontend/tests/envFiles.test.ts` fails
 if either `.env.example` regains a BOM.
 
+**`VITE_API_URL` is a build-time requirement, not only a runtime one.** The
+value is inlined as a literal, so with it unset Rolldown proves that
+import-time throw always fires, treats everything downstream as unreachable, and
+tree-shakes the whole application away. That build *succeeds* — a well-formed
+275 kB bundle against a real 874 kB, correct hashed filename, no route and no
+page in it, serving a blank screen with a clean console. `vite.config.js`
+refuses to produce it, and `cd.yml` greps the built bundle for route literals so
+the artifact is checked as well as the process. Set the variable in the host's
+environment before the first deploy.
+
+The test suite supplies its own value through `test.env` in
+`frontend/vitest.config.ts` and never reads `.env.local` — that file is
+gitignored, so a suite depending on it passes for whoever wrote it and fails on
+every fresh checkout.
+
 Backend config lives in `backend/.env` (copy `backend/.env.example`). Two
 optional logging variables:
 

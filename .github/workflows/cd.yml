@@ -135,6 +135,26 @@ jobs:
           grep -qE 'src="/assets/index-[A-Za-z0-9_-]+\.js"' frontend/dist/index.html \
             || { echo "::error::index.html references no hashed bundle"; cat frontend/dist/index.html; exit 1; }
 
+          # The bundle must contain the application, not merely exist.
+          #
+          # VITE_API_URL is inlined as a literal, so when it is missing Rolldown
+          # proves apiClient's import-time throw always fires, treats the rest as
+          # unreachable, and tree-shakes every route and page away. The result is
+          # a well-formed 275 kB bundle with a correct hashed name that renders a
+          # blank page — it passes the grep above, and it passed it for real
+          # before this check existed. vite.config.js fails that build now; this
+          # is the second line of defence, because it inspects the artifact
+          # rather than trusting the process that produced it.
+          #
+          # Route literals are the probe: they appear in the route table, so a
+          # bundle without them has no application in it. Checking the byte size
+          # instead would need a threshold to bless, and the number moves with
+          # every dependency change.
+          for literal in '/hire/login' '/admin/review/jobs'; do
+            grep -qF "$literal" frontend/dist/assets/index-*.js \
+              || { echo "::error::the bundle contains no ${literal} route — the app was tree-shaken away"; exit 1; }
+          done
+
           # The SPA fallback rule must reach the output directory. It lives in
           # public/ so Vite copies it, and this is what proves the copy happened
           # — a missing _redirects 404s every deep link on Netlify and

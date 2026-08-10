@@ -38,7 +38,17 @@ jobs:
       # fails the build rather than being counted.
       - run: npm run lint:colour --workspace @jobportal/web
       - run: npm run test
+      # VITE_API_URL is required at build time, not merely at runtime. The value
+      # is inlined as a literal, so with it unset Rolldown proves apiClient's
+      # import-time throw always fires and tree-shakes the whole application
+      # away — a 275 kB bundle against a real 874 kB, holding no route and no
+      # page, emitted with exit 0. vite.config.js now refuses that build; this
+      # is the value that satisfies it. It is a placeholder, never the real API
+      # origin: nothing here runs the bundle, and the deployed value comes from
+      # the host's own environment.
       - run: npm run build
+        env:
+          VITE_API_URL: http://127.0.0.1:8000/api/v1
 
   audit:
     runs-on: ubuntu-latest

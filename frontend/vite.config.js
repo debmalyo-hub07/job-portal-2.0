@@ -2,14 +2,51 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
 // __dirname does not exist in ESM; derive it from import.meta.url instead.
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Refuses to produce a bundle that cannot reach the API.
+ *
+ * `src/lib/apiClient.ts` throws at import when `VITE_API_URL` is missing. That
+ * is right in a browser and pathological at build time: the value is inlined as
+ * a literal, so Rolldown proves the throw always fires, treats everything after
+ * it as unreachable, and tree-shakes the entire application away. The build
+ * then **succeeds** — measured at 275 kB against a real 874 kB, containing no
+ * route, no page and no component. It satisfies a file-exists check and a
+ * hashed-chunk grep, and it serves a blank page with a clean console.
+ *
+ * That is precisely what a host deploys when nobody set its environment
+ * variables, so it has to fail here instead of shipping quietly. Only `build`
+ * is gated: `vite dev` reads `.env.local`, and vitest supplies the value
+ * through `test.env`.
+ */
+function requireApiUrl() {
+  return {
+    name: "require-vite-api-url",
+    apply: "build",
+    config(_config, { mode }) {
+      // Reads .env files the way Vite itself will, so this agrees with the value
+      // the build would actually inline rather than guessing from process.env,
+      // which would miss .env.production entirely.
+      const env = loadEnv(mode, dirname, "VITE_");
+      if (!env.VITE_API_URL) {
+        throw new Error(
+          "VITE_API_URL is not set, so this build would tree-shake the whole " +
+            "application into an empty bundle that renders a blank page. Set it " +
+            "in the host's environment (Vercel -> Settings -> Environment " +
+            "Variables) or in frontend/.env.local for a local build.",
+        );
+      }
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [requireApiUrl(), react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(dirname, "./src"),

@@ -227,6 +227,17 @@ What the deploy artifacts phase closed:
 - **`secrets: inherit` on the calling job is load-bearing.** A reusable workflow
   sees none of the caller's secrets without it, and both deploy steps skip
   quietly by design — so the omission would look exactly like success
+- **`VITE_API_URL` is required to *build*, and its absence fails as success
+  twice over.** The value is inlined as a literal, so unset it lets Rolldown
+  prove `apiClient.ts`'s import-time throw always fires, treat the rest as
+  unreachable, and tree-shake the entire application away: exit 0, a well-formed
+  275 kB bundle against a real 874 kB, correct hashed filename, zero routes,
+  blank page, clean console. It also killed ten web suites at collection — green
+  locally for a week, because `.env.local` is gitignored and every developer had
+  one. Three guards now: `vite.config.js` refuses the build, `vitest.config.ts`
+  supplies the suite's own value via `test.env` (never read `.env.local` from a
+  test), and `cd.yml` greps the built bundle for route literals — the old check
+  looked for a hashed chunk name, which the hollow bundle has
 
 What 2B-2 closed:
 
