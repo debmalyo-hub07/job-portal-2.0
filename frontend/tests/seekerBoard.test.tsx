@@ -127,6 +127,15 @@ describe("FilterCard", () => {
     // Page 4 of the old result set means nothing in the new one.
     await waitFor(() => expect(at.search()).toBe("?remote=true"));
   });
+
+  it("filters on the same vocabulary the job form posts", async () => {
+    const { JOB_TYPES } = await import("@jobportal/shared");
+    renderRoute(<FilterCard />, { route: "/jobs" });
+    // A hardcoded copy here is how the form and the facet drifted on casing.
+    for (const type of JOB_TYPES) {
+      expect(screen.getByLabelText(type)).toBeInTheDocument();
+    }
+  });
 });
 
 describe("the job card", () => {

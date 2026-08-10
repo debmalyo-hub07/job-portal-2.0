@@ -24,7 +24,7 @@ function jobBody(companyId: string, title = "TypeScript Dev") {
     salary: 10,
     experience: 2,
     location: "Remote",
-    jobType: "full-time",
+    jobType: "Full-time",
     position: "2",
     companyId,
   };
@@ -139,7 +139,7 @@ describe("job routes", () => {
           salary: 10,
           experience: 2,
           location: "Berlin",
-          jobType: "full-time",
+          jobType: "Full-time",
           position: "1",
           companyId: owner.companyId,
           ...body,
@@ -155,18 +155,18 @@ describe("job routes", () => {
     });
 
     it("multi-select ORs within a facet and ANDs across facets", async () => {
-      const r1 = await post("fj", { location: "Bengaluru", jobType: "full-time" });
-      const r2 = await post("fk", { location: "Bengaluru", jobType: "contract" });
-      const r3 = await post("mk", { location: "Mumbai", jobType: "contract" });
+      const r1 = await post("fj", { location: "Bengaluru", jobType: "Full-time" });
+      const r2 = await post("fk", { location: "Bengaluru", jobType: "Contract" });
+      const r3 = await post("mk", { location: "Mumbai", jobType: "Contract" });
       expect([r1.status, r2.status, r3.status]).toEqual([201, 201, 201]);
       // location∈{Bengaluru,Mumbai} AND jobType=contract → fk AND mk both match.
       const res = await request(app).get(
-        "/api/v1/job/get?location=Bengaluru,Mumbai&jobType=contract",
+        "/api/v1/job/get?location=Bengaluru,Mumbai&jobType=Contract",
       );
       expect(res.body.total).toBe(2);
       expect(res.body.items.map((i: { title: string }) => i.title).sort()).toEqual(["fk", "mk"]);
 
-      const orRes = await request(app).get("/api/v1/job/get?jobType=full-time,contract");
+      const orRes = await request(app).get("/api/v1/job/get?jobType=Full-time,Contract");
       expect(orRes.body.total).toBe(3);
     });
 
@@ -257,5 +257,27 @@ describe("job routes", () => {
       .set("Cookie", [`jp_recruiter_at=${owner.access}`]);
     expect(mine.body.items).toHaveLength(1);
     expect(mine.body.items[0].title).toBe("TypeScript Dev");
+  });
+
+  it("rejects a jobType the seeker board cannot filter for", async () => {
+    const res = await request(app)
+      .post("/api/v1/job/post")
+      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .send({ ...jobBody(owner.companyId), jobType: "Full Time" });
+    // Free text was accepted, stored, and rendered on the job card while
+    // FilterCard's exact-equality facet could never match it.
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("accepts every value the seeker facet offers", async () => {
+    for (const type of ["Full-time", "Part-time", "Internship", "Contract"]) {
+      const res = await request(app)
+        .post("/api/v1/job/post")
+        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .send({ ...jobBody(owner.companyId), jobType: type });
+      expect(res.status).toBe(201);
+      expect(res.body.job.jobType).toBe(type);
+    }
   });
 });

@@ -1,7 +1,20 @@
 import { z } from "zod";
 import { portalSchema, type Portal } from "./auth.js";
 
-export const JOB_TYPES = ["full-time", "part-time", "internship", "contract"] as const;
+/**
+ * The four job types, title-case.
+ *
+ * These are the values `FilterCard` filters on by exact equality, and they were
+ * hardcoded there while this export sat unused with lowercase values — so a
+ * recruiter could post "Full Time" and the board could never show it under a
+ * filter. Both sides import this now.
+ *
+ * Title-case rather than lowercase slugs because the facet and the existing rows
+ * agree on it. Normalising to slugs with a display mapping is the better data
+ * shape and needs a migration over free-text rows; that is a follow-up, not this
+ * phase.
+ */
+export const JOB_TYPES = ["Full-time", "Part-time", "Internship", "Contract"] as const;
 export const WORK_MODES = ["onsite", "hybrid", "remote"] as const;
 export const APPLICATION_STATUSES = [
   "applied",

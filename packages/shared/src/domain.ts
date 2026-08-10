@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobTypeSchema } from "./enums.js";
 import { paginationQuerySchema } from "./pagination.js";
 
 /** 24-hex Mongo ObjectId. Route params and body references both use this. */
@@ -30,7 +31,12 @@ export const jobCreateBodySchema = z.object({
   salary: z.coerce.number().positive(),
   experience: z.coerce.number().int().min(0).max(50),
   location: z.string().trim().min(2).max(120),
-  jobType: z.string().trim().min(2).max(40),
+  /**
+   * An enum, not free text. `FilterCard` matches by exact equality, so an
+   * unrecognised value is a row the board can never surface — accepted, stored,
+   * displayed on the card, and unfilterable.
+   */
+  jobType: jobTypeSchema,
   position: z.string().trim().min(1).max(120),
   /** Flat remote flag (4A.3). A `true`-ish form string coerces to true; absent → false. */
   remote: z

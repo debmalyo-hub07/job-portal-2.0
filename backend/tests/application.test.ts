@@ -56,7 +56,7 @@ describe("application routes", () => {
         salary: 10,
         experience: 1,
         location: "Remote",
-        jobType: "full-time",
+        jobType: "Full-time",
         position: "1",
         companyId: company.body.company.id,
       });

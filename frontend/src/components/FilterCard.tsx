@@ -1,4 +1,5 @@
 import { useSearchParams } from "react-router";
+import { JOB_TYPES } from "@jobportal/shared";
 
 import { Label } from "./ui/label";
 import { useFacetToggle } from "@/hooks/useJobSearch";
@@ -26,7 +27,9 @@ const FACETS: { label: string; key: "location" | "jobType"; options: string[] }[
   {
     label: "Job Type",
     key: "jobType",
-    options: ["Full-time", "Contract", "Internship", "Part-time"],
+    // Not a local copy: the form posts from this same list, and a second
+    // hardcoded literal here is exactly how the two drifted on casing.
+    options: [...JOB_TYPES],
   },
 ];
 
