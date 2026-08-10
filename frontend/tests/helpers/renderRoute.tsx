@@ -9,8 +9,6 @@ import { appRoutes } from "@/routes/appRoutes";
 
 import authReducer from "@/redux/authSlice";
 import jobReducer from "@/redux/jobSlice";
-import companyReducer from "@/redux/companySlice";
-import applicationReducer from "@/redux/applicationSlice";
 import { PortalScope } from "@/components/theme/PortalScope";
 
 /**
@@ -43,8 +41,6 @@ export function makeStore() {
     reducer: {
       auth: authReducer,
       job: jobReducer,
-      company: companyReducer,
-      application: applicationReducer,
     },
   });
 }

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
-import { renderRoute } from "./helpers/renderRoute";
+import { makeStore, renderRoute } from "./helpers/renderRoute";
 import { apiClient } from "@/lib/apiClient";
 import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
@@ -280,5 +282,36 @@ describe("Applicants", () => {
     // 2A's rule: semantic state is icon *and* label. A green pill alone tells a
     // colourblind user nothing.
     expect(await screen.findByText("Accepted")).toBeInTheDocument();
+  });
+});
+
+describe("the workspace redux fields", () => {
+  /**
+   * `searchJobByText` and `searchCompanyByText` were the last survivors of the
+   * pattern 2B-2 deleted `searchedQuery` for: a filter living in a slice while
+   * the URL was already authoritative. Two sources of truth for one question is
+   * how the app ended up with two job boards.
+   */
+  it("no longer carries a job search field or an admin job list", async () => {
+    const jobReducer = (await import("@/redux/jobSlice")).default;
+    const state = jobReducer(undefined, { type: "@@INIT" });
+    expect(state).not.toHaveProperty("searchJobByText");
+    expect(state).not.toHaveProperty("allAdminJobs");
+  });
+
+  it("has no company or application slice", () => {
+    // A filesystem check, not `await expect(import(...)).rejects`: Vite's
+    // import-analysis resolves even a dynamic specifier at transform time, so
+    // an import of a deleted module fails the whole file at collection rather
+    // than rejecting inside the test. This also asserts the thing that matters
+    // — the files are gone — instead of a module-resolution side effect.
+    const redux = join(import.meta.dirname, "..", "src", "redux");
+    expect(existsSync(join(redux, "companySlice.ts"))).toBe(false);
+    expect(existsSync(join(redux, "applicationSlice.ts"))).toBe(false);
+  });
+
+  it("builds a store with exactly the two surviving reducers", () => {
+    const state = makeStore().getState();
+    expect(Object.keys(state).sort()).toEqual(["auth", "job"]);
   });
 });

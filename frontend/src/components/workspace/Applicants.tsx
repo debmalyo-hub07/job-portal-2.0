@@ -51,7 +51,7 @@ const STATUS: Record<
  */
 export function Applicants() {
   const params = useParams();
-  const { data, isPending, isError, error, page, setPage } = useApplicants(params.id);
+  const { data, isPending, isError, error, setPage } = useApplicants(params.id);
   const decide = useApplicantDecision(params.id);
 
   const onDecide = async (applicationId: string, status: "accepted" | "rejected") => {

@@ -14,8 +14,6 @@ import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux
 
 import authSlice from "./authSlice";
 import jobSlice from "./jobSlice";
-import companySlice from "./companySlice";
-import applicationSlice from "./applicationSlice";
 
 /**
  * `redux-persist/lib/storage` is the package's own lazy accessor for
@@ -41,7 +39,19 @@ const persistConfig = {
   // may not exist on that portal until the migration runs), and `/me` gives the
   // truth in one request anyway. Bumping the version discards the old subtree,
   // which is the intended behaviour.
-  version: 2,
+  // 2 -> 3: 2B-3 deleted companySlice and applicationSlice. Every browser that
+  // has used the app holds `company` and `application` subtrees under version 2,
+  // and combineReducers warns about state keys with no reducer. No migration
+  // function, for the same reason as the 1 -> 2 bump: all of it is server data
+  // that refetches.
+  //
+  // This costs nothing at the session layer. `auth` has its own nested
+  // persistReducer at key `auth` (below), which is a separate localStorage entry
+  // from `persist:root` — so bumping the root version discards job/company/
+  // application while the cached `user` rehydrates normally. No signed-out
+  // flicker. The nested reducer was added to keep `bootstrapped`/`loading` out of
+  // storage; decoupling the session from root-version bumps is a second dividend.
+  version: 3,
   storage,
 };
 
@@ -65,8 +75,6 @@ const persistedAuth = persistReducer(
 const rootReducer = combineReducers({
   auth: persistedAuth,
   job: jobSlice,
-  company: companySlice,
-  application: applicationSlice,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
