@@ -12,7 +12,6 @@ import type { Portal } from "@jobportal/shared";
 export const AUTH_COPY: Record<
   Portal,
   {
-    wordmarkSuffix: string;
     headline: string;
     sub: string;
     fallbackProof: string;
@@ -35,7 +34,6 @@ export const AUTH_COPY: Record<
   }
 > = {
   seeker: {
-    wordmarkSuffix: "Portal",
     headline: "Find work that fits.",
     sub: "One profile. Every application tracked in one place.",
     fallbackProof: "New roles are posted by verified companies every week.",
@@ -52,7 +50,6 @@ export const AUTH_COPY: Record<
     signupHref: "/signup",
   },
   recruiter: {
-    wordmarkSuffix: "Hire",
     headline: "Hire without the noise.",
     sub: "Post a role, see every applicant, decide faster.",
     fallbackProof: "Applicants arrive with a profile and a resume, already parsed.",
@@ -69,7 +66,6 @@ export const AUTH_COPY: Record<
     signupHref: "/hire/signup",
   },
   admin: {
-    wordmarkSuffix: "Admin",
     headline: "Manage the platform.",
     sub: "Approve recruiters and moderate content.",
     fallbackProof: "Internal console — not publicly advertised.",

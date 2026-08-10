@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { Portal } from "@jobportal/shared";
 
-import { makeStore, renderRoute } from "./helpers/renderRoute";
+import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
 import { apiClient } from "@/lib/apiClient";
+import { appRoutes } from "@/routes/appRoutes";
+import { setBootstrapped, setUser } from "@/redux/authSlice";
+import { homePathFor } from "@/lib/portalHome";
 import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
@@ -13,6 +17,23 @@ import CompanyEdit from "@/components/workspace/CompanyEdit";
 import CompanyCreate from "@/components/workspace/CompanyCreate";
 import Applicants from "@/components/workspace/Applicants";
 import { navLinksFor } from "@/components/shared/navLinks";
+
+function storeWith(portal: Portal, status: "active" | "pending") {
+  const store = makeStore();
+  store.dispatch(
+    setUser({
+      id: "u1",
+      portal,
+      fullName: "Workspace User",
+      email: "workspace@example.com",
+      emailVerified: true,
+      avatarUrl: null,
+      status,
+    }),
+  );
+  store.dispatch(setBootstrapped(true));
+  return store;
+}
 
 describe("HireShell", () => {
   it("renders the page title as the only h1", () => {
@@ -313,5 +334,76 @@ describe("the workspace redux fields", () => {
   it("builds a store with exactly the two surviving reducers", () => {
     const state = makeStore().getState();
     expect(Object.keys(state).sort()).toEqual(["auth", "job"]);
+  });
+});
+
+/**
+ * The workspace's route table and its two gates.
+ *
+ * Every page moved directory in 2B-3 while its path did not, so these assert
+ * the paths still resolve and that both gates are still on all six — a rebuild
+ * that silently dropped `requireApproved` from one page would look identical
+ * from the outside until a pending recruiter reached it.
+ */
+describe("workspace routes", () => {
+  const WORKSPACE_PATHS = [
+    "/hire/companies",
+    "/hire/companies/create",
+    "/hire/companies/:id",
+    "/hire/jobs",
+    "/hire/jobs/create",
+    "/hire/jobs/:id/applicants",
+  ];
+
+  const CONCRETE = WORKSPACE_PATHS.map((p) => p.replace(":id", "64b0c8f2a9d3e45f6a7b8c9d"));
+
+  const mountedPaths = () =>
+    appRoutes.flatMap((r) => (r.children ?? []).map((c) => c.path)).filter(Boolean);
+
+  it("mounts every workspace path", () => {
+    const paths = mountedPaths();
+    // The scan must read something — a root resolved to a nonexistent directory
+    // is how the first workspaceRoutes test passed over zero files.
+    expect(paths.length).toBeGreaterThan(10);
+    for (const path of WORKSPACE_PATHS) expect(paths).toContain(path);
+  });
+
+  it("resolves the recruiter portal on every one", async () => {
+    for (const path of CONCRETE) {
+      const { container, unmount } = renderAppAt(path, {
+        store: storeWith("recruiter", "active"),
+      });
+      await waitFor(() =>
+        expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe(
+          "recruiter",
+        ),
+      );
+      unmount();
+    }
+  });
+
+  it("bounces a seeker and an admin to their own home", async () => {
+    for (const portal of ["seeker", "admin"] as const) {
+      for (const path of CONCRETE) {
+        const view = renderAppAt(path, { store: storeWith(portal, "active") });
+        await waitFor(() => expect(view.pathname()).toBe(homePathFor(portal)));
+        view.unmount();
+      }
+    }
+  });
+
+  it("shows a pending recruiter the awaiting-approval state on every page", async () => {
+    // The gate belongs on every route, not just the entry page — the API puts
+    // requireApproved on every recruiter-owned mutation.
+    for (const path of CONCRETE) {
+      const view = renderAppAt(path, { store: storeWith("recruiter", "pending") });
+      expect(await view.findByText("Awaiting approval")).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("links only to paths the route table mounts", () => {
+    const paths = mountedPaths();
+    for (const link of navLinksFor("recruiter")) expect(paths).toContain(link.to);
   });
 });

@@ -5,6 +5,7 @@ import type { Portal } from "@jobportal/shared";
 import { FadeIn } from "@/lib/motion";
 import { AUTH_COPY } from "./authCopy";
 import { PortalPanel } from "./PortalPanel";
+import { Wordmark } from "@/components/shared/Wordmark";
 
 /**
  * Full-height split: form column, portal panel.
@@ -32,11 +33,7 @@ export function AuthLayout({
     <div className="grid min-h-screen bg-paper md:grid-cols-2">
       <div className="flex flex-col justify-center px-6 py-12 md:px-12">
         <FadeIn className="mx-auto w-full max-w-sm">
-          <Link to={copy.homeHref} className="inline-block">
-            <span className="font-display text-xl font-bold text-ink">
-              Job<span className="text-signal-text">{copy.wordmarkSuffix}</span>
-            </span>
-          </Link>
+          <Wordmark portal={portal} to={copy.homeHref} className="text-xl" />
 
           <h1 className="mt-10 font-display text-display-sm font-semibold text-ink">
             {title}

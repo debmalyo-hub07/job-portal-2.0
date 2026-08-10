@@ -1,3 +1,5 @@
+import { Wordmark } from "@/components/shared/Wordmark";
+
 const SOCIAL = [
   {
     href: "https://facebook.com",
@@ -21,13 +23,16 @@ const Footer = () => {
     <footer className="border-t border-line py-8">
       <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 md:flex-row md:items-center">
         <div>
-          <h2 className="font-display text-xl font-bold text-ink">
-            Job<span className="text-signal-text">Portal</span>
+          {/* The lockup, not a hand-written copy of it — the third copy of the
+              wordmark is where the three would drift. It stays an h2: the
+              footer is a landmark, not the page's subject. */}
+          <h2 className="text-xl">
+            <Wordmark />
           </h2>
           {/* Derived, not hardcoded. The inherited footer claimed
               "© 2024 Your Company" in a shipped build. */}
-          <p className="text-sm text-ink-muted">
-            © {new Date().getFullYear()} JobPortal. All rights reserved.
+          <p className="mt-2 text-sm text-ink-muted">
+            © {new Date().getFullYear()} Cairn. All rights reserved.
           </p>
         </div>
 

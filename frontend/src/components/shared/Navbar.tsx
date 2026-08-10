@@ -13,6 +13,7 @@ import { LogOut, Menu, User2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { navLinksFor } from "./navLinks";
+import { Wordmark } from "./Wordmark";
 
 import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -54,19 +55,11 @@ const Navbar = () => {
   return (
     <div className="border-b border-line bg-paper">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link to={isRecruiter ? "/hire" : "/"}>
-          {/*
-            A span, not an h1. The wordmark is a site identifier, not the
-            heading of the page it happens to sit on — as an h1 it gave every
-            page in the app two top-level headings, so a screen-reader user
-            navigating by heading hit "JobPortal" before the page's own title
-            on every route. AuthLayout already renders its wordmark this way;
-            this is the navbar catching up.
-          */}
-          <span className="font-display text-2xl font-bold text-ink">
-            Job<span className="text-signal-text">{isRecruiter ? "Hire" : "Portal"}</span>
-          </span>
-        </Link>
+        <Wordmark
+          portal={user?.portal ?? "seeker"}
+          to={isRecruiter ? "/hire" : "/"}
+          className="text-2xl"
+        />
 
         <div className="flex items-center gap-4 lg:gap-8">
           {/* Desktop links. Below lg they live in the sheet instead — at the
