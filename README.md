@@ -337,6 +337,11 @@ Both apps deploy independently from this monorepo. Build commands run from the
 repository root so npm can resolve the workspace symlink, and
 `@jobportal/shared` must be built before either app.
 
+**Setting it up for the first time:
+[`docs/deployment-runbook.md`](docs/deployment-runbook.md)** — the ordered
+walkthrough, including the three circular URL values and the two settings that
+fail silently at their defaults. The rest of this section is reference.
+
 **API — Render.** [`render.yaml`](render.yaml) is a blueprint: point Render at
 this repository and it reads the build command, start command, health check,
 instance count and the full list of required variables from that file. Every
