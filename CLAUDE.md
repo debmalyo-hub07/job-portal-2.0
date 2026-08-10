@@ -320,7 +320,9 @@ What 2A closed:
   Geist Mono). No CDN
 - `/_design` renders every primitive across both themes × both portals. It is
   DEV-only via `import.meta.env.DEV` + `React.lazy`, so Rollup drops it from
-  production; the build is verified to not contain it
+  production. That was true by construction and unchecked until the deploy
+  phase; `.github/workflows/cd.yml` now greps the built bundle for it and fails
+  the run if it reappears
 
 What 2B-1 closed:
 
