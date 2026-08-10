@@ -56,6 +56,19 @@ Guidance for Claude Code when working in this repository.
   typo is still a named boot failure. Do not add a third without the same
   argument.
 - **New endpoints:** define the Zod schema in `packages/shared` first.
+- **CSRF:** the token reaches the client in the **response body** of every
+  session-issuing endpoint (`/login`, `/verify-email`, `/refresh`, `/me`) and
+  lives in a module variable in `apiClient.ts`. Never read it back from
+  `document.cookie`: cross-site — which the deployed app is, web on Vercel and
+  API on Render — the browser stores and sends `__Host-jp_csrf` but withholds it
+  from `document.cookie` regardless of `httpOnly: false`. That is cookie
+  partitioning, not `httpOnly`, and same-origin dev cannot reproduce it. `/me`
+  must return one too, because a reload and the Google callback's top-level
+  redirect both start with empty memory — but it **echoes** the existing cookie
+  rather than minting, because it runs on every bootstrap and a fresh token
+  there invalidates whatever an in-flight request is already carrying. The
+  server can read the cookie (`req.cookies`); only browser JS cannot. Only
+  `/refresh` rotates.
 - **Auth:** never read `passwordHash` without `{ withSecret: true }` on
   `findAccountByEmail`/`findAccountById`. The schema marks it `select: false`, so
   a plain read silently yields `undefined` and every password check fails open
@@ -173,6 +186,28 @@ in place; the auth surfaces, the landing page, the admin console and the seeker
 surface are built on them, and the application is deployable. Phase
 2B-3 (recruiter workspace) has not started — `components/admin/*` is still the
 inherited structure.
+
+What the first live deployment closed:
+
+- **Every write in the deployed app answered 403, and it presented as the
+  session logging itself out.** `readCsrfToken()` matched `__Host-jp_csrf` out of
+  `document.cookie`. Cross-site — web on Vercel, API on Render — the browser
+  stores and sends that cookie but withholds it from `document.cookie` despite
+  `httpOnly: false`; measured in a real browser, three cookies stored and
+  `document.cookie` empty. So no `X-CSRF-Token` was ever attached. Reads worked
+  for the 15 minutes an access token lives, then `/refresh` (a POST) 403'd, and
+  `apiClient` recovers only 401 — the session died with no route back. The token
+  now travels in the response body of `/login`, `/verify-email`, `/refresh` and
+  `/me` and lives in memory. `/me` carries one because a reload and the Google
+  callback's top-level redirect both start empty
+- **The suite could not have caught it.** jsdom has no site boundaries, so it
+  returns whatever was assigned to `document.cookie`; a test that seeded the
+  cookie and asserted the header would have passed throughout the outage.
+  `frontend/tests/csrfToken.test.ts` asserts the mechanism instead — the header
+  is present *with an empty cookie jar* — and
+  `backend/tests/auth/csrfDelivery.test.ts` asserts the body carries a token that
+  actually verifies, and that `/refresh` returns the **rotated** one rather than
+  the token it was called with
 
 What the deploy artifacts phase closed:
 

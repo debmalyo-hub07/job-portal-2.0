@@ -14,7 +14,7 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { navLinksFor } from "./navLinks";
 
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { initialsOf } from "@/lib/initials";
 import { setUser } from "@/redux/authSlice";
@@ -42,6 +42,7 @@ const Navbar = () => {
       // still a user who asked to be signed out, and leaving them looking
       // signed in is the worse of the two wrong answers.
       clearPortalHint();
+      setCsrfToken(null);
       dispatch(setUser(null));
       navigate("/");
     }

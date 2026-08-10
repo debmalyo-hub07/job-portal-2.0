@@ -23,6 +23,19 @@ export interface SessionUser {
 export interface AuthResponse {
   success: true;
   user: SessionUser;
+  /**
+   * The double-submit CSRF token, echoed by the client in `X-CSRF-Token`.
+   *
+   * In the body as well as the cookie because the cookie cannot be read back
+   * cross-site: with the web app and the API on different registrable domains,
+   * the browser stores and sends `__Host-jp_csrf` but withholds it from
+   * `document.cookie`, non-httpOnly or not. The client holds this value in
+   * memory instead — which no other origin can read at all.
+   *
+   * Optional so a client built against an older API still typechecks; the
+   * cookie fallback covers same-origin development.
+   */
+  csrfToken?: string;
 }
 
 /**

@@ -11,7 +11,8 @@ import {
 } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import { AppError } from "../lib/AppError.js";
-import { refreshCookieName } from "../lib/cookies.js";
+import { csrfCookieName, refreshCookieName, setCsrfCookie } from "../lib/cookies.js";
+import { mintCsrfToken, verifyCsrfToken } from "../lib/csrfToken.js";
 import { env } from "../config/env.js";
 import { endSession, issueSession, rotateSession } from "../services/session.service.js";
 import { findAccountById } from "../services/account.service.js";
@@ -42,8 +43,8 @@ export function verifyEmailHandler(portal: Portal): RequestHandler {
   return async (req, res) => {
     const { email, code } = parseBody(verifyEmailBodySchema, req.body);
     const account = await auth.verifyEmail(portal, email, code);
-    await issueSession(res, req, account._id, portal);
-    res.json({ success: true, user: auth.toSessionUser(portal, account) });
+    const { csrfToken } = await issueSession(res, req, account._id, portal);
+    res.json({ success: true, user: auth.toSessionUser(portal, account), csrfToken });
   };
 }
 
@@ -62,8 +63,8 @@ export function loginHandler(portal: Portal): RequestHandler {
   return async (req, res) => {
     const { email, password } = parseBody(loginBodySchema, req.body);
     const account = await auth.login(portal, email, password);
-    await issueSession(res, req, account._id, portal);
-    res.json({ success: true, user: auth.toSessionUser(portal, account) });
+    const { csrfToken } = await issueSession(res, req, account._id, portal);
+    res.json({ success: true, user: auth.toSessionUser(portal, account), csrfToken });
   };
 }
 
@@ -109,8 +110,8 @@ export function refreshHandler(portal: Portal): RequestHandler {
     // that comes back is whatever the stored row says (Task 5): a seeker token
     // smuggled under the recruiter cookie name re-issues seeker cookies —
     // never recruiter ones.
-    await rotateSession(res, req, presented);
-    res.json({ success: true });
+    const { csrfToken } = await rotateSession(res, req, presented);
+    res.json({ success: true, csrfToken });
   };
 }
 
@@ -165,6 +166,32 @@ export function meHandler(portal: Portal): RequestHandler {
     if (!req.auth) throw AppError.unauthorized("SESSION_MISSING", "Sign in to continue.");
     const account = await findAccountById(portal, req.auth.id);
     if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
-    res.json({ success: true, user: auth.toSessionUser(portal, account) });
+
+    // Hands back the CSRF token so the client can re-arm after a reload.
+    //
+    // The client cannot read the cookie itself: cross-site the browser withholds
+    // it from `document.cookie` even though it is not httpOnly. A hard reload —
+    // and the top-level redirect the Google callback performs — therefore starts
+    // with nothing in memory, and without this the first mutation afterwards
+    // 403s. The *server* has no such problem, which is the point below.
+    //
+    // Echoed when the cookie already holds a valid token, minted only when it
+    // does not. Minting unconditionally looked simpler and was a bug: `/me` is
+    // called on every bootstrap, so a fresh token there invalidates the one any
+    // in-flight request is already carrying. `integration.test.ts` caught it —
+    // capture a token, call `/me`, and the captured token 403s on the next
+    // mutation. Rotation belongs to `/refresh`, which rotates the session.
+    //
+    // Echoing discloses nothing: this is behind `authenticate(portal)`, and the
+    // caller demonstrably already holds the cookie, since they just sent it.
+    const presented = req.cookies?.[csrfCookieName()] as string | undefined;
+    let csrfToken: string;
+    if (presented && verifyCsrfToken(presented)) {
+      csrfToken = presented;
+    } else {
+      csrfToken = mintCsrfToken();
+      setCsrfCookie(res, csrfToken);
+    }
+    res.json({ success: true, user: auth.toSessionUser(portal, account), csrfToken });
   };
 }

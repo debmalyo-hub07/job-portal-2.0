@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import type { AuthResponse } from "@jobportal/shared";
 
 import { AuthLayout } from "./AuthLayout";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { setPortalHint } from "@/lib/portal";
 import { homePathFor } from "@/lib/portalHome";
 import { setUser } from "@/redux/authSlice";
@@ -24,6 +24,7 @@ const AuthComplete = () => {
     apiClient
       .get<AuthResponse>(`/${portal}/auth/me`)
       .then((res) => {
+        setCsrfToken(res.data.csrfToken ?? null);
         dispatch(setUser(res.data.user));
         // `replace` on both paths: without it, Back returns to a callback URL
         // carrying a spent `code` and `state`, which fails and looks like a bug.

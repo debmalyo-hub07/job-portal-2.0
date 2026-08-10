@@ -165,6 +165,32 @@ Return to Render → Environment and replace the placeholders:
 Save and redeploy. Until this is right, sign-in redirects go to the wrong host
 and every browser request is blocked by CORS.
 
+### Cross-site means `document.cookie` is empty
+
+Vercel and Render are different registrable domains, so the browser treats every
+API call as cross-site. `COOKIE_SAMESITE=none` handles whether cookies are
+*sent*. It does not make them *readable*.
+
+`__Host-jp_csrf` is set `httpOnly: false` precisely so the client can echo it in
+`X-CSRF-Token` — and cross-site the browser withholds it from `document.cookie`
+anyway. Partitioning, not `httpOnly`. Measured against production:
+
+```
+cookies stored by browser: __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_csrf
+document.cookie (JS-visible): (EMPTY)
+```
+
+So the token travels in the **response body** of `/login`, `/verify-email`,
+`/refresh` and `/me`, and `apiClient.ts` keeps it in memory. Do not "simplify"
+that back to a cookie read — it works in local development, where the API is
+same-origin, and fails only in production, only on writes.
+
+The failure is worth recognising because it does not look like a CSRF problem.
+Reads keep working for `ACCESS_TOKEN_TTL_MINUTES` (15). Then `/refresh` — a POST
+— answers 403, and `apiClient` only recovers 401s, so the session dies with no
+route back. It reads as "the session expires on its own"; in fact every write in
+the application is failing the same way.
+
 ## 4. Google OAuth redirect URIs
 
 Google Cloud Console → APIs & Services → Credentials → the Web application
@@ -250,3 +276,11 @@ A deploy hook answers `202` once the deploy is *queued* and says nothing about
 whether it succeeded, so a green `cd.yml` means both hosts accepted the request.
 Step 7 is the verification; polling each host's API for deploy status would
 need the account-scoped tokens the hook design deliberately avoids.
+
+Nor does a green suite prove the app works cross-site. Three bugs so far reached
+production through a fully green local run — a missing `VITE_API_URL`
+tree-shaking the bundle, `NODE_ENV=production` omitting the devDependencies
+`tsc` needs, and the CSRF cookie being unreadable across sites. Each was
+invisible locally *by construction*: `.env.local` exists on every dev machine,
+CI installed with a bare `npm ci`, and localhost is same-origin. **Verify a
+write, not just a read** — sign in, then approve or post something.

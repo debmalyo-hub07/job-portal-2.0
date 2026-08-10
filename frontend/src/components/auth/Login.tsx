@@ -9,7 +9,7 @@ import { AUTH_COPY } from "./authCopy";
 import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
@@ -42,6 +42,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       // Hint written only after the server agreed. Writing it before would leave
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
+      setCsrfToken(res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
       navigate(homePathFor(portal));
     } catch (error) {

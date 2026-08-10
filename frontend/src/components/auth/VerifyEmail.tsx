@@ -9,7 +9,7 @@ import { AUTH_COPY } from "./authCopy";
 import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { apiClient } from "@/lib/apiClient";
+import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
@@ -37,6 +37,7 @@ const VerifyEmail = () => {
       });
       // Verification *does* issue a session, unlike registration.
       setPortalHint(portal);
+      setCsrfToken(res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
       navigate(homePathFor(portal), { replace: true });
     } catch (error) {

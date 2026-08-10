@@ -2,15 +2,41 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { getPortalHint } from "./portal";
 
 /**
- * Reads a non-httpOnly cookie. Only ever used for the CSRF token, which is
- * deliberately readable — that is the entire mechanism of double-submit.
+ * The CSRF token, held in memory.
  *
- * In production the cookie is `__Host-jp_csrf`; in development it is
- * `jp_csrf`. Both names are tried because the frontend does not know which
- * environment the API is running in, and getting this wrong fails only in
- * production, only on mutations.
+ * Every session-issuing response (`/login`, `/verify-email`, `/refresh`, `/me`)
+ * returns it in the body, and the client keeps it here rather than reading the
+ * cookie back.
+ *
+ * Reading `document.cookie` is what the previous version did, and it is broken
+ * cross-site. The cookie is deliberately not `httpOnly`, but that is not the
+ * only thing that governs script access: with the app on `*.vercel.app` and the
+ * API on `*.onrender.com`, Chrome stores the cookie and sends it on requests
+ * while withholding it from `document.cookie` entirely. Measured against
+ * production — three cookies stored, `document.cookie` empty. So every mutation
+ * went out with no `X-CSRF-Token` and 403'd, which surfaced as the session
+ * dropping itself roughly 15 minutes in: reads were fine until the access token
+ * expired, then `/refresh` (a POST) 403'd and could not recover.
+ *
+ * In memory is also strictly stronger than the cookie. A non-httpOnly cookie is
+ * readable by every script on the page; a module variable is readable by none.
+ *
+ * It is null before sign-in and after a reload — `useAuthBootstrap` re-arms it
+ * from `/me`, which is why that endpoint returns one.
  */
-function readCsrfToken(): string | null {
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+/**
+ * Same-origin fallback, kept for local development where the API is proxied
+ * onto the dev server's origin and the response body may not have been seen yet
+ * (a mutation fired before bootstrap resolves). Cross-site this always returns
+ * null, which is the bug above — it is a fallback, never the primary path.
+ */
+function readCsrfCookie(): string | null {
   for (const name of ["__Host-jp_csrf", "jp_csrf"]) {
     const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
     if (match?.[1]) return decodeURIComponent(match[1]);
@@ -73,7 +99,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const method = (config.method ?? "get").toLowerCase();
   if (method !== "get" && method !== "head") {
-    const token = readCsrfToken();
+    const token = csrfToken ?? readCsrfCookie();
     if (token) config.headers.set("X-CSRF-Token", token);
   }
   return config;
@@ -101,8 +127,15 @@ export function setSessionLostHandler(handler: () => void): void {
 
 function refreshOnce(portal: string): Promise<void> {
   refreshInFlight ??= apiClient
-    .post(`/${portal}/auth/refresh`)
-    .then(() => undefined)
+    .post<{ success: true; csrfToken?: string }>(`/${portal}/auth/refresh`)
+    .then((res) => {
+      // Rotation replaces the CSRF cookie too, so the token held in memory is
+      // stale the moment this resolves. Not adopting the new one turns the
+      // *next* mutation into a 403 — the same outage, one step further along,
+      // and harder to see because the refresh itself succeeded.
+      if (res.data?.csrfToken) setCsrfToken(res.data.csrfToken);
+      return undefined;
+    })
     .finally(() => {
       // Cleared in `finally`, not `then`: leaving a rejected promise cached
       // means every later 401 re-rejects with a stale error and the user can
@@ -127,7 +160,10 @@ apiClient.interceptors.response.use(
     // password. Retrying either is at best pointless and at worst an infinite
     // loop between the interceptor and itself.
     if (url.includes("/auth/refresh") || url.includes("/auth/login")) {
-      if (url.includes("/auth/refresh")) onSessionLost();
+      if (url.includes("/auth/refresh")) {
+        onSessionLost();
+        setCsrfToken(null);
+      }
       throw error;
     }
 
