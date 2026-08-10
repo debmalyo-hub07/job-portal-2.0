@@ -4,6 +4,7 @@ import { type RouteObject } from "react-router";
 import Home from "@/components/Home";
 import Jobs from "@/components/Jobs";
 import Profile from "@/components/Profile";
+import NotFound from "@/components/NotFound";
 import JobDescription from "@/components/JobDescription";
 import Companies from "@/components/admin/Companies";
 import CompanyCreate from "@/components/admin/CompanyCreate";
@@ -144,6 +145,15 @@ export const appRoutes: RouteObject[] = [
             },
           ]
         : []),
+      // Last, and it must stay last to read correctly — though react-router
+      // ranks by specificity rather than declaration order, so `*` loses to
+      // every literal path above regardless of where it sits.
+      //
+      // Mandatory since the SPA rewrite: the host answers an unresolved path
+      // with 200 and index.html, so a mistyped URL arrives here instead of at
+      // the host's 404 page. Without this entry the router matches nothing and
+      // the visitor gets a blank page. See vercel.json and public/_redirects.
+      { path: "*", element: <NotFound /> },
     ],
   },
 ];
