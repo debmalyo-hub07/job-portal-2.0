@@ -42,6 +42,32 @@ every mail call 401s **while registration still returns 201** — so signup
 dead-ends with no email and no error. Deploy first, send one test registration,
 then add the IP Brevo reports. This also blocks admin seeding (step 6).
 
+Diagnose it without sending anything:
+
+```bash
+curl -sS -w "\nHTTP %{http_code}\n" https://api.brevo.com/v3/account \
+  -H "api-key: $BREVO_API_KEY"
+```
+
+A 401 naming an unrecognised IP is this problem and nothing else. Authorise at
+<https://app.brevo.com/security/authorised_ips>.
+
+Two IPs need authorising, and they are not interchangeable:
+
+- **Your dev IP**, for local development. Residential addresses are reassigned,
+  so expect to redo this periodically.
+- **Render's outbound ranges**, for production. Find them under the service's
+  **Connect → Outbound** tab — they are per-region and are *not* listed in
+  Render's docs, which only show `216.24.60.0/24` as an example of CIDR
+  notation. They are shared across every service in the region, so the allowlist
+  is a weak control; `BREVO_API_KEY` staying secret is what actually protects
+  the account.
+
+`mailer.ts` dispatches fire-and-forget (`void work.catch`) so registration
+cannot fail on a mail outage — deliberate, because awaiting the send would
+reintroduce a timing oracle on forgot-password. The consequence is that the only
+evidence of a failed send is a `transactional email failed` line in the logs.
+
 ### Generate four fresh secrets
 
 Each is validated at `min(32)` and all four must differ; the API refuses to boot
