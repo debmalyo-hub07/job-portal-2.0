@@ -167,11 +167,66 @@ directory and passed over zero files.
 Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
 2A (Ink & Signal design foundation), 2B-1 (design language and portal-split
 authentication), 3A (three-portal foundation), 4A/4B (faceted job search),
-3B (admin console) and 2B-2 (seeker pages) are complete. The design system, its
-primitives and the compositional layer are all in place; the auth surfaces, the
-landing page, the admin console and the seeker surface are built on them. Phase
+3B (admin console), 2B-2 (seeker pages) and the deploy artifacts phase are
+complete. The design system, its primitives and the compositional layer are all
+in place; the auth surfaces, the landing page, the admin console and the seeker
+surface are built on them, and the application is deployable. Phase
 2B-3 (recruiter workspace) has not started — `components/admin/*` is still the
 inherited structure.
+
+What the deploy artifacts phase closed:
+
+- **Every route except `/` 404'd on a static host.** The client routes on the
+  client, so a host that cannot resolve a path to a file must serve
+  `index.html` — measured before the fix, `/jobs`, `/hire/login`,
+  `/admin/review/jobs`, `/profile` and `/browse` all 404'd while `/` served. In-app
+  navigation hid it, because that is `history.pushState` and never reaches the
+  host; refreshes, pasted links and bookmarks did not. `frontend/vercel.json`
+  and `frontend/public/_redirects` (in `public/` so Vite copies it into `dist`
+  verbatim) cover all three named hosts. The status is **200, not 302** — the
+  router reads the original path off `window.location`, so a redirect would
+  discard the route it was meant to preserve
+- **`NotFound` at `{ path: "*" }` shipped in the same phase, and before the
+  rewrite.** The rewrite is what makes it mandatory: the host answers an
+  unresolved path with 200 and `index.html`, the router matches none of the
+  literal paths, and the visitor gets a blank white page — strictly worse than
+  the host 404 it replaced. Reversed, a half-finished phase would have shipped
+  that window
+- **`render.yaml` is committed, and `deployConfig.test.ts` checks it against the
+  env schema in both directions.** A required variable missing from the
+  blueprint, a typo'd variable the schema does not know, and a required variable
+  commented out of `.env.example` each fail a named test rather than a
+  production boot. Requiredness is asked of the schema
+  (`envSchema.shape[key].safeParse(undefined)`), not scanned out of the source
+  text, so a reformat cannot break it — which is why `envSchema` is now exported
+- **`numInstances: 1` is a security parameter, not a cost choice.**
+  `rateLimitStore.ts` is a single-process `Map` per ADR-0004, so every threshold
+  it enforces is per-instance: two instances turn `LOGIN_LOCK_THRESHOLD` 5 into
+  ~10 and `OTP_BUDGET_MAX_FAILURES` 20 into ~40. Nothing surfaces that at the
+  point of change — the dashboard control is a number field beside the plan
+  selector. See `docs/adr/0007-deploy-topology.md`
+- **`NODE_ENV` and `COOKIE_SAMESITE` are pinned literals in the blueprint.**
+  `env.ts` defaults `NODE_ENV` to `development` and `cookies.ts` keys both the
+  `Secure` attribute and the `__Host-` prefix off it, so an API deployed without
+  it serves over HTTPS setting insecure cookies — no error, no warning, `/health`
+  still `ok`. The cookie guardrail held in the code and was silently void in
+  deployment. `COOKIE_SAMESITE=none` because Render and Vercel are different
+  *sites*: under `strict` sign-in succeeds and the next request is anonymous
+- **`startCommand` is `node backend/dist/server.js`, never `npm start`.** Render
+  sends SIGTERM on every redeploy; through npm the signal lands on npm, which
+  need not forward it, so `server.ts`'s graceful shutdown would never run
+- **`cd.yml` is the only check that runs the built artifacts.** `npm test`
+  mounts `buildApp()` from source and never executes `dist/server.js`. The
+  workflow boots the real server against a `mongo:7` service container and
+  asserts `/health` reports both `status: ok` **and** `db: connected` — `status`
+  alone would pass with a disconnected database — then inspects the web bundle
+  for a hashed entry chunk, the `_redirects` copy, and any `_design` leak.
+  Deploys go out by **deploy hook, never a CLI token**: a hook is scoped to one
+  project and branch, a `VERCEL_TOKEN` acts on the whole account. A missing
+  secret skips its step with a `::notice::` rather than failing the run
+- **`secrets: inherit` on the calling job is load-bearing.** A reusable workflow
+  sees none of the caller's secrets without it, and both deploy steps skip
+  quietly by design — so the omission would look exactly like success
 
 What 2B-2 closed:
 
@@ -413,8 +468,19 @@ Known gaps, deliberately deferred:
 - `packages/shared/src/legacy-dto.ts` is vestigial. 1C replaced the endpoints it
   described with projected DTOs, and nothing imports the `Legacy*` types any
   more
+- **CD triggers deploys, it does not verify them.** A deploy hook answers 202
+  once the deploy is queued and says nothing about whether it succeeded, so a
+  green `cd.yml` means "both hosts accepted the request". Polling each host's
+  API for the resulting deploy status needs the account-scoped tokens the hook
+  design deliberately avoids
+- **Two dashboard settings live outside the repository.** `render.yaml` carries
+  `autoDeploy: false`, but Vercel's equivalent is a project setting — left on,
+  it deploys on push while CI is still running, which is exactly what routing
+  deploys through the workflow was for. Both are recorded in the README's
+  Continuous delivery section
 
 See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`,
 `docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`,
-`docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md` and
-`docs/superpowers/plans/2026-08-06-phase-3a-three-portal-foundation.md`.
+`docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md`,
+`docs/superpowers/plans/2026-08-06-phase-3a-three-portal-foundation.md` and
+`docs/superpowers/plans/2026-08-10-deploy-artifacts.md`.

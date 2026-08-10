@@ -420,6 +420,7 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 4A/4B | Faceted job search on a compound index, URL-driven filters, react-query | Complete |
 | 3B | Admin console: dashboard, approvals queue, deny action, job/company moderation | Complete |
 | 2B-2 | Seeker pages: one faceted job board, pagination, profile | Complete |
+| Deploy | SPA fallback, not-found route, Render blueprint, CD on green main | Complete |
 | 2B-3 | Recruiter workspace: companies, jobs, applicants | Next |
 | 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
