@@ -3,6 +3,7 @@ import type {
   JobCreateBody,
   JobDto,
   JobListQuery,
+  OwnedJobsQuery,
   PaginatedResponse,
   PaginationQuery,
 } from "@jobportal/shared";
@@ -119,9 +120,22 @@ export async function getPublicJob(jobId: string): Promise<JobDto> {
 
 export async function listOwnedJobs(
   ownerId: string,
-  query: PaginationQuery,
+  query: OwnedJobsQuery,
 ): Promise<PaginatedResponse<JobDto>> {
-  return paginate({ created_by: ownerId }, query);
+  // Ownership first and unconditionally: the keyword can only ever narrow a set
+  // the caller already owns.
+  const filter: Record<string, unknown> = { created_by: ownerId };
+
+  if (query.keyword) {
+    // escapeRegex is mandatory — this is user input reaching a RegExp
+    // constructor. No mongoose.trusted wrapper: a RegExp has no $-prefixed
+    // keys, so the global sanitizeFilter passes it through, exactly as it does
+    // for listPublicJobs.
+    const re = new RegExp(escapeRegex(query.keyword), "i");
+    filter.$or = [{ title: re }, { description: re }];
+  }
+
+  return paginate(filter, query);
 }
 
 /** Missing and foreign are indistinguishable by design: both 404. */

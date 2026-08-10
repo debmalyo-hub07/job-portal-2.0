@@ -60,6 +60,18 @@ export const jobListQuerySchema = paginationQuerySchema.extend({
     .optional(),
 });
 
+/**
+ * The recruiter workspace's own job list.
+ *
+ * Keyword only — no facets. The workspace is "find the role I posted", not a
+ * search surface. It exists at all because a client-side filter over a
+ * server-paginated list searches only the rows currently on screen while
+ * presenting itself as searching everything.
+ */
+export const ownedJobsQuerySchema = paginationQuerySchema.extend({
+  keyword: z.string().trim().max(100).default(""),
+});
+
 /** `pending` is creation-default only; a recruiter can only decide, not undo. */
 export const applicationStatusBodySchema = z.object({
   status: z.enum(["accepted", "rejected"]),
@@ -69,6 +81,7 @@ export type CompanyCreateBody = z.infer<typeof companyCreateBodySchema>;
 export type CompanyUpdateBody = z.infer<typeof companyUpdateBodySchema>;
 export type JobCreateBody = z.infer<typeof jobCreateBodySchema>;
 export type JobListQuery = z.infer<typeof jobListQuerySchema>;
+export type OwnedJobsQuery = z.infer<typeof ownedJobsQuerySchema>;
 export type ApplicationStatusBody = z.infer<typeof applicationStatusBodySchema>;
 
 export type CompanyDto = {

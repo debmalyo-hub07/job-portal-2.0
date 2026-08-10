@@ -3,7 +3,7 @@ import {
   jobCreateBodySchema,
   jobListQuerySchema,
   objectIdSchema,
-  paginationQuerySchema,
+  ownedJobsQuerySchema,
 } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import * as jobService from "../services/job.service.js";
@@ -27,7 +27,7 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
 };
 
 export const getAdminJobs = async (req: Request, res: Response): Promise<void> => {
-  const query = parseBody(paginationQuerySchema, req.query);
+  const query = parseBody(ownedJobsQuerySchema, req.query);
   const result = await jobService.listOwnedJobs(req.auth!.id, query);
   res.status(200).json({ success: true, ...result });
 };
