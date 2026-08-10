@@ -1,0 +1,208 @@
+name: CD
+
+# Reusable, called by ci.yml with `needs: [verify, audit]`. That edge is the
+# gate: deployment cannot begin until both existing jobs pass. Triggering on
+# `workflow_run` instead would express the same intent with a weaker guarantee
+# and an extra indirection.
+on:
+  workflow_call:
+
+jobs:
+  # The only check in this repository that runs the built artifacts. `npm test`
+  # mounts buildApp() from source through vitest and never executes
+  # dist/server.js — the same class of gap that produced a blank page from an
+  # import-time throw while the suite stayed green, since jsdom resolves through
+  # Node and the browser through Rolldown.
+  artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # A real mongod rather than mongodb-memory-server: the deployed API talks
+      # to a server over a connection string, and that is the thing worth
+      # rehearsing here.
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # shared first: the API compiles against its emitted .d.ts.
+      - run: npm run build --workspace @jobportal/shared
+      - run: npm run build --workspace @jobportal/api
+
+      - name: Boot the built API and check /health
+        env:
+          NODE_ENV: production
+          PORT: 8000
+          MONGO_URI: mongodb://127.0.0.1:27017/jobportal_smoke
+          API_BASE_URL: http://127.0.0.1:8000
+          WEB_BASE_URL: http://127.0.0.1:5173
+          CLIENT_URLS: http://127.0.0.1:5173
+          # Placeholders. Nothing here reaches Cloudinary, Brevo or Google — the
+          # check boots the app and asks /health. env() refuses to start without
+          # them, which is the behaviour being rehearsed.
+          CLOUDINARY_CLOUD_NAME: smoke
+          CLOUDINARY_API_KEY: smoke
+          CLOUDINARY_API_SECRET: smoke
+          BREVO_API_KEY: smoke
+          BREVO_SENDER_EMAIL: smoke@example.com
+          GOOGLE_CLIENT_ID: smoke
+          GOOGLE_CLIENT_SECRET: smoke
+        run: |
+          set -euo pipefail
+
+          # Four distinct throwaway secrets, generated here and never persisted.
+          # parseEnv refuses to boot if any two are equal, so they must differ.
+          export JWT_ACCESS_SECRET="$(openssl rand -base64 48)"
+          export JWT_REFRESH_PEPPER="$(openssl rand -base64 48)"
+          export OTP_PEPPER="$(openssl rand -base64 48)"
+          export CSRF_SECRET="$(openssl rand -base64 48)"
+
+          # The exact command render.yaml runs. Not `npm start`, which would
+          # exercise a different process tree than the deployment does.
+          node backend/dist/server.js > /tmp/api.log 2>&1 &
+          API_PID=$!
+
+          # Poll rather than sleep: the boot cost is a Mongo connection, which is
+          # fast on a warm service container and occasionally is not. A fixed
+          # sleep is either wasted time or a flake.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json 2>/dev/null; then
+              break
+            fi
+            # A boot failure is not something to wait 30 seconds for. server.ts
+            # logs the reason and exits non-zero, so surface it immediately.
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              echo "::error::the built API exited during boot"
+              cat /tmp/api.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "--- /health ---"
+          cat /tmp/health.json || true
+          echo
+
+          # Both fields. `status: ok` alone would pass with a disconnected
+          # database, which is most of what this check is for.
+          #
+          # --input-type=commonjs is not decoration: the root package.json sets
+          # "type": "module", and leaving the eval input type to Node's syntax
+          # detection is how a `require` in a one-liner becomes a confusing
+          # ReferenceError in CI and nowhere else.
+          node --input-type=commonjs -e '
+            const h = JSON.parse(require("node:fs").readFileSync("/tmp/health.json", "utf8"));
+            if (h.status !== "ok") throw new Error("status=" + h.status);
+            if (h.db !== "connected") throw new Error("db=" + h.db);
+            console.log("health ok, db connected");
+          '
+
+          echo "--- boot log ---"
+          cat /tmp/api.log
+
+          # SIGTERM, the signal Render sends, so the shutdown path runs here too.
+          kill -TERM "$API_PID"
+          wait "$API_PID" 2>/dev/null || true
+
+      - name: Build the web app and inspect the artifact
+        env:
+          VITE_API_URL: http://127.0.0.1:8000/api/v1
+        run: |
+          set -euo pipefail
+          rm -rf frontend/dist
+          npm run build --workspace @jobportal/web
+
+          test -f frontend/dist/index.html || { echo "::error::no index.html"; exit 1; }
+
+          # A hashed asset reference. An index.html that survived a build with no
+          # bundle wired into it renders a blank page and passes a file check.
+          grep -qE 'src="/assets/index-[A-Za-z0-9_-]+\.js"' frontend/dist/index.html \
+            || { echo "::error::index.html references no hashed bundle"; cat frontend/dist/index.html; exit 1; }
+
+          # The SPA fallback rule must reach the output directory. It lives in
+          # public/ so Vite copies it, and this is what proves the copy happened
+          # — a missing _redirects 404s every deep link on Netlify and
+          # Cloudflare with nothing to indicate why.
+          grep -q '/index.html' frontend/dist/_redirects \
+            || { echo "::error::_redirects missing from the build output"; exit 1; }
+
+          # CLAUDE.md claims the production build does not contain /_design.
+          # Nothing verified that until now: it holds by construction, because
+          # import.meta.env.DEV is statically false and Rollup drops the branch.
+          # This is what would catch a regression.
+          if grep -rIl '_design' frontend/dist; then
+            echo "::error::the DEV-only design gallery is in the production bundle"
+            exit 1
+          fi
+
+          echo "web artifact ok"
+
+  deploy:
+    needs: artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Deploy hooks, not CLI tokens. A hook is scoped to one project and one
+      # branch; a VERCEL_TOKEN can act on every project in the account, so a
+      # leaked token is an account compromise rather than one unwanted deploy.
+      #
+      # A missing secret skips its step with an explicit log line rather than
+      # failing the run or quietly succeeding. Red CI for a deploy nobody
+      # configured trains people to ignore CI; a silent skip leaves "I pushed,
+      # why is it not live?" unanswerable. The log line is the difference.
+      - name: Trigger the API deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOOK}" ]; then
+            echo "::notice::RENDER_DEPLOY_HOOK_URL is not set — skipping the API deploy."
+            echo "Add it under Settings → Secrets and variables → Actions."
+            echo "Render → service → Settings → Deploy Hook."
+            exit 0
+          fi
+          # -f so a 4xx from the hook fails the step. --output so the response
+          # body cannot echo anything derived from the URL into the log.
+          curl -fsS -X POST "${HOOK}" --output /dev/null
+          echo "API deploy triggered."
+
+      - name: Trigger the web deploy
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOOK}" ]; then
+            echo "::notice::VERCEL_DEPLOY_HOOK_URL is not set — skipping the web deploy."
+            echo "Add it under Settings → Secrets and variables → Actions."
+            echo "Vercel → project → Settings → Git → Deploy Hooks."
+            exit 0
+          fi
+          curl -fsS -X POST "${HOOK}" --output /dev/null
+          echo "Web deploy triggered."
+
+      # A hook answers 202 as soon as the deploy is queued, so the run above
+      # reports "triggered" and never "live". Verifying the deployed revision
+      # needs a polled health check against the public URL, which needs a stable
+      # public URL to exist first.
+      - name: Note what a triggered deploy does and does not prove
+        run: |
+          echo "Deploys are queued, not verified. A hook returns 202 once the"
+          echo "host accepts the request; it does not report the build result."
+          echo "Check the Render and Vercel dashboards for the outcome."

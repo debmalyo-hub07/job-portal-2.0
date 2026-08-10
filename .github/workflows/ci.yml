@@ -57,3 +57,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run audit:prod
+
+  # Deployment is gated on both jobs above. `needs` is the whole mechanism: it
+  # is what makes a green suite the precondition for a deploy rather than a
+  # coincidence that happens to finish first.
+  #
+  # Pull requests build and test but never deploy. `secrets: inherit` is
+  # required — a reusable workflow sees none of the caller's secrets otherwise,
+  # and both deploy steps skip quietly by design, so the omission would look
+  # exactly like success.
+  deploy:
+    needs: [verify, audit]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/cd.yml
+    secrets: inherit
