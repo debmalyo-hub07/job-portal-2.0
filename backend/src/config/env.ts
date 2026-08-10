@@ -1,7 +1,16 @@
 import type { Portal } from "@jobportal/shared";
 import { z } from "zod";
 
-const envSchema = z.object({
+/**
+ * Exported for `tests/deployConfig.test.ts`, which checks the deploy blueprint
+ * and .env.example against it in both directions. Asking the schema which
+ * variables are required beats scanning this file's text: a reformat cannot
+ * break it, and adding a variable cannot silently escape the check.
+ *
+ * `parseEnv` remains the only validated way in — it adds the cross-field rule
+ * that the four secrets must all differ, which the schema alone does not know.
+ */
+export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8000),
 

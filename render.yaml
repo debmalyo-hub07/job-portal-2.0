@@ -1,0 +1,102 @@
+# Render blueprint for the API.
+#
+# Committed rather than left as dashboard state: every field below is a decision
+# worth reviewing, and two of them (numInstances, NODE_ENV) are security
+# parameters that look like ordinary settings in a web form.
+#
+# Render reads this file from the repository root. The web app is not described
+# here — it deploys to Vercel from frontend/, see frontend/vercel.json.
+services:
+  - type: web
+    name: jobportal-api
+    runtime: node
+    plan: free
+    # Keep this near the Atlas region. Every request pays the API-to-database
+    # round trip, and that latency dominates anything the app itself does.
+    region: singapore
+
+    # Build from the repository root, not from backend/. npm resolves the
+    # @jobportal/shared workspace symlink only from here, and shared must be
+    # built before the API compiles against its emitted .d.ts — the same
+    # ordering the root `ci` script encodes.
+    rootDir: .
+    buildCommand: npm ci && npm run build --workspace @jobportal/shared && npm run build --workspace @jobportal/api
+
+    # node directly, not `npm start`. Render sends SIGTERM on every redeploy,
+    # and server.ts handles it to close the listener, stop the sweeper and
+    # disconnect Mongo. Through npm the signal lands on npm, which need not
+    # forward it — so graceful shutdown would silently never run.
+    startCommand: node backend/dist/server.js
+
+    # /health already reports database connectivity, so a revision that boots
+    # without a reachable Mongo fails the check instead of serving 500s.
+    healthCheckPath: /health
+
+    # NOT a cost decision. rateLimitStore.ts is a single-process Map
+    # (docs/adr/0004-no-redis-phase-1.md), so every threshold it enforces is
+    # per-instance. Two instances turn LOGIN_LOCK_THRESHOLD 5 into ~10 and
+    # OTP_BUDGET_MAX_FAILURES 20 into ~40 — brute-force resistance divided by
+    # the instance count. Raising this is a security change that needs the
+    # shared store ADR-0004 defers. See docs/adr/0007-deploy-topology.md.
+    numInstances: 1
+
+    # CI is the gate. Render's default is to deploy on every push, which starts
+    # a deploy while the suite is still running — so the revision that reaches
+    # users is the one the host chose, not the one the workflow approved.
+    # .github/workflows/cd.yml POSTs the deploy hook after both CI jobs pass.
+    autoDeploy: false
+
+    envVars:
+      # Pinned as a literal. env.ts defaults NODE_ENV to "development", and
+      # cookies.ts keys both the Secure attribute and the __Host- prefix off it.
+      # An API deployed without this boots normally, serves over Render's HTTPS,
+      # reports /health ok — and sets every session cookie without Secure and
+      # without __Host-. No error, no warning.
+      - key: NODE_ENV
+        value: production
+
+      # api.onrender.com and the web app on Vercel are different *sites*, not
+      # merely different origins, and SameSite compares sites. Under `strict`
+      # the session cookie is never sent on the request after login: sign-in
+      # succeeds, the next request is anonymous, and nothing is logged anywhere.
+      # Change to `strict` only if both apps move under one registrable domain.
+      - key: COOKIE_SAMESITE
+        value: none
+
+      # Names in git, values never. `sync: false` also makes a fresh deploy stop
+      # and ask rather than start with a blank value — matching how env() already
+      # behaves, refusing to boot and naming every variable it is missing.
+      - key: MONGO_URI
+        sync: false
+      # Four independent secrets. The API refuses to boot if any two are equal.
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_PEPPER
+        sync: false
+      - key: OTP_PEPPER
+        sync: false
+      - key: CSRF_SECRET
+        sync: false
+      # Both Google redirect URIs are derived from API_BASE_URL, and Google
+      # matches redirect_uri byte-for-byte — so this must be the public Render
+      # URL, with both derived URIs registered on the OAuth client.
+      - key: API_BASE_URL
+        sync: false
+      - key: WEB_BASE_URL
+        sync: false
+      - key: CLIENT_URLS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
