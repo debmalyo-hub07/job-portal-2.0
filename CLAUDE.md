@@ -180,12 +180,66 @@ directory and passed over zero files.
 Phases 1A (foundation), 1B (authentication), 1C (authorization and domain),
 2A (Ink & Signal design foundation), 2B-1 (design language and portal-split
 authentication), 3A (three-portal foundation), 4A/4B (faceted job search),
-3B (admin console), 2B-2 (seeker pages) and the deploy artifacts phase are
-complete. The design system, its primitives and the compositional layer are all
-in place; the auth surfaces, the landing page, the admin console and the seeker
-surface are built on them, and the application is deployable. Phase
-2B-3 (recruiter workspace) has not started — `components/admin/*` is still the
-inherited structure.
+3B (admin console), 2B-2 (seeker pages), the deploy artifacts phase and
+2B-3 (recruiter workspace) are complete. The design system, its primitives and
+the compositional layer are all in place; every portal's surface is built on
+them, and the application is deployable.
+
+The platform is called **Cairn**. The wordmark is one component
+(`components/shared/Wordmark.tsx`) rendering the mark and the name, with a
+portal suffix — bare for seekers, `Cairn / Hire` for recruiters,
+`Cairn / Console` for admins. Never hand-write it: two copies is how the navbar
+kept rendering an `<h1>` for a year after `AuthLayout` had settled on a
+`<span>`. The mark's top stone takes `--signal`, so it recolours per portal for
+free.
+
+What 2B-3 closed:
+
+- **A recruiter could not post a remote job.** `remote` is on
+  `jobCreateBodySchema`, on the Mongo model, and drives the matching pipeline's
+  `remoteFit` — and no form had ever rendered a control, so every row carried
+  the schema default `false` and the seeker board's Remote facet matched
+  nothing, always. It is a checkbox now, posted as the string `"true"`/`"false"`
+  because the schema is `z.enum([...])` *before* its transform and a raw boolean
+  fails validation
+- **`jobType` is an enum, and `JOB_TYPES` is the one list.** The export existed
+  in `packages/shared` with **zero importers** and lowercase values, while
+  `FilterCard` carried its own hardcoded title-case literal and filtered by
+  exact equality — so "Full Time" was accepted, stored, rendered on the card,
+  and unfilterable. Both sides import `JOB_TYPES` now, title-case because that
+  is what the facet and the existing rows agree on. Switching it broke **nine**
+  test fixtures across three suites; the two in `packages/shared` surfaced only
+  in full CI, because that workspace has its own suite the per-file commands
+  never touch
+- **Deciding on an applicant updates the screen.** The old table POSTed the
+  status, toasted success, and never refetched. The mutation invalidates the
+  query, which falls out of the react-query pattern rather than being a separate
+  repair
+- **Accept and reject are reachable by keyboard.** They were `<div onClick>` —
+  no role, no `tabIndex`, no focus ring. They are `DropdownMenu` items now
+- **Owned jobs takes a keyword, and it is server-side.** Both list pages fetched
+  `limit=50` and filtered in the browser. That survives only while nothing
+  paginates: a client-side filter over a server-paginated list searches the rows
+  on screen while presenting itself as searching everything. Companies keeps its
+  local filter deliberately — `/company/get` returns every owned row — and its
+  control says "Filter companies" rather than "Search" to keep the distinction
+  visible
+- **`components/admin/*` is gone.** The recruiter workspace is
+  `components/workspace/*`, the admin console stays `components/console/*`, and
+  the two route guards are `components/routing/*` — the console no longer
+  imports from a directory named for the other portal. `CompanySetup` is
+  `CompanyEdit`, which is what it does
+- **Two of four redux slices stopped existing.** `companySlice` and
+  `applicationSlice` lost their last readers when the workspace moved to
+  react-query, and three legacy fetch hooks went with them. `persistConfig` goes
+  to version 3 to discard the orphaned subtrees — which costs nothing at the
+  session layer, because `auth` persists at its own key and rehydrates
+  independently
+- **A deleted module cannot be asserted with `expect(import(...)).rejects`.**
+  Vite's import-analysis resolves even a dynamic specifier at transform time, so
+  the import fails the whole file at collection rather than rejecting inside the
+  test. `workspace.test.tsx` checks the filesystem and the store's key set
+  instead — which is what actually matters
 
 What the first live deployment closed:
 
@@ -501,12 +555,20 @@ Known gaps, deliberately deferred:
 - Keyword search is an unindexed regex scan. A `$text` index is a Phase 3
   decision, made when there is data and a UI to tune against
 - Replacing a company logo orphans the previous Cloudinary asset
-- The recruiter workspace (`components/admin/*`) is still the inherited
-  structure — ad-hoc spacing, no `PageShell`, no headings. 2B-3 rebuilds it
-- Two `react-hooks/exhaustive-deps` warnings remain in `AdminJobs.tsx` and
-  `Companies.tsx`. Neither is a live bug (`dispatch` is referentially stable);
-  they are recorded in `docs/superpowers/plans/2026-08-05-phase-2b-lint-debt.md`
-  and belong to 2B-3, whose rebuild will likely replace those effects outright
+- `jobType` is title-case rather than a lowercase slug with a display mapping.
+  Slugs are the better data shape, but adopting them means rewriting every
+  stored `jobType`, and the pre-2B-3 rows are free text — guesswork. The enum
+  gates new posts only, so rows posted before it may still be unfilterable
+- Applicant search. The list paginates but has no keyword; applicant search is a
+  new capability rather than a port of an existing one
+- The application status vocabulary is still two-outcome.
+  `APPLICATION_STATUSES` defines seven values and
+  `applicationStatusBodySchema` accepts two
+- `WorkspaceCompanies` filters in the browser. That is correct only while
+  `GET /company/get` returns every owned row unpaginated — the day it paginates,
+  the filter must move to the server the same day, or it silently searches one
+  page while presenting itself as searching everything. See `useOwnedJobs` for
+  the shape it would take
 - `/profile` is not behind `ProtectedRoute`, so an anonymous visitor reaches a
   page whose two requests both 401 and which then renders its own empty state.
   Harmless — the API refuses correctly and no data leaks — but it should
@@ -528,5 +590,6 @@ Known gaps, deliberately deferred:
 See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`,
 `docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`,
 `docs/superpowers/plans/2026-08-05-phase-2b-design-language-auth.md`,
-`docs/superpowers/plans/2026-08-06-phase-3a-three-portal-foundation.md` and
-`docs/superpowers/plans/2026-08-10-deploy-artifacts.md`.
+`docs/superpowers/plans/2026-08-06-phase-3a-three-portal-foundation.md`,
+`docs/superpowers/plans/2026-08-10-deploy-artifacts.md` and
+`docs/superpowers/plans/2026-08-10-phase-2b-3-recruiter-workspace.md`.

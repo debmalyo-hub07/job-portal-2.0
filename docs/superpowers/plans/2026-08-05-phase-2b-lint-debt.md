@@ -9,21 +9,24 @@ These are in files Phase 2B-1 does not touch, so they are recorded rather than
 fixed or silenced. Neither is an error; both are warnings and neither blocks
 `npm run lint`.
 
-## Open
+## Resolved in Phase 2B-3
 
 | File | Rule | Note |
 |---|---|---|
 | `src/components/admin/AdminJobs.tsx:18` | `react-hooks/exhaustive-deps` | `useEffect` missing `dispatch` |
 | `src/components/admin/Companies.tsx:18` | `react-hooks/exhaustive-deps` | `useEffect` missing `dispatch` |
 
-Both are the same shape: an effect that dispatches a search-filter action on
-every keystroke and omits `dispatch` from its dependency array. `dispatch` is
-referentially stable in Redux Toolkit, so neither is a live bug — but the
-warning is correct that the array is lying, and the honest fix is to include it.
+Both were the same shape: an effect that dispatched a search-filter action on
+every keystroke and omitted `dispatch` from its dependency array. `dispatch` is
+referentially stable in Redux Toolkit, so neither was a live bug — but the
+warning was correct that the array was lying.
 
-Both files belong to the recruiter workspace, rebuilt in **Phase 2B-3**. Fix
-them there rather than in a drive-by, since the effects themselves are likely
-to be replaced.
+Neither effect was fixed, because neither exists. 2B-3 moved the workspace's
+filter state into the URL (`useRecruiterWorkspace`'s `useListParams`), which
+deleted both effects and the redux fields they wrote. The right resolution for a
+lint warning is often to delete the code that earns it. Verified by
+`npx eslint src --max-warnings 0` exiting 0, which is now the standard the
+frontend holds.
 
 ## Resolved by configuration
 

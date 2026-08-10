@@ -1,17 +1,20 @@
-# Job Portal
+# Cairn
 
 A job portal for the Indian market — job seekers find and apply to roles,
 recruiters post them and manage applicants. Built with security and access
 control as the starting point rather than an afterthought.
 
+A cairn is a stack of stones one traveller leaves to mark the path for the next.
+
 > **Status:** Phases 1A (foundation), 1B (authentication), 1C (authorization),
 > 2A (design system), 2B-1 (design language and portal-split auth), 3A
-> (three-portal foundation), 4A/4B (faceted job search), 3B (admin console) and
-> 2B-2 (seeker pages) are complete. Ownership checks are in place on every route
+> (three-portal foundation), 4A/4B (faceted job search), 3B (admin console),
+> 2B-2 (seeker pages) and 2B-3 (recruiter workspace) are complete. Ownership
+> checks are in place on every route
 > touching a user-owned resource, recruiter approval has a UI rather than
-> needing curl, and the seeker surface is one faceted, paginated job board. The
-> recruiter workspace is still the inherited UI and is next. See
-> [Roadmap](#roadmap).
+> needing curl, and both the seeker board and the recruiter workspace are
+> faceted, paginated and built on the design system. Navigation and the
+> informational surfaces are next. See [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -441,7 +444,8 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 3B | Admin console: dashboard, approvals queue, deny action, job/company moderation | Complete |
 | 2B-2 | Seeker pages: one faceted job board, pagination, profile | Complete |
 | Deploy | SPA fallback, not-found route, Render blueprint, CD on green main | Complete |
-| 2B-3 | Recruiter workspace: companies, jobs, applicants | Next |
+| 2B-3 | Recruiter workspace: companies, jobs, applicants, remote + jobType fixes | Complete |
+| 2B-4 | Navigation and informational surfaces: about, contact, help, legal, discovery | Next |
 | 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 
