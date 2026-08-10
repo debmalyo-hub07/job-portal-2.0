@@ -39,11 +39,28 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      # NODE_ENV=production for the install and the build, because that is what
+      # Render does — it sets NODE_ENV as a service variable, which is therefore
+      # also set during the build. npm omits devDependencies whenever it sees
+      # it, taking out typescript and every @types/* package, so `tsc` fails
+      # with TS7016 "could not find a declaration file for module 'express'".
+      #
+      # This job previously installed with a bare `npm ci` and so never
+      # reproduced the production install. It built cleanly here and failed on
+      # Render — the one difference being the variable this step now sets. The
+      # point of this job is to run what the host runs; anything it does more
+      # comfortably than the host is a gap, not a convenience.
+      - run: npm ci --include=dev
+        env:
+          NODE_ENV: production
 
       # shared first: the API compiles against its emitted .d.ts.
       - run: npm run build --workspace @jobportal/shared
+        env:
+          NODE_ENV: production
       - run: npm run build --workspace @jobportal/api
+        env:
+          NODE_ENV: production
 
       - name: Boot the built API and check /health
         env:

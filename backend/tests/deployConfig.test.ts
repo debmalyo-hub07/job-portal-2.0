@@ -158,6 +158,19 @@ describe("deploy config", () => {
     expect(build.indexOf("@jobportal/shared")).toBeLessThan(build.indexOf("@jobportal/api"));
   });
 
+  it("installs devDependencies, without which tsc cannot run", () => {
+    // NODE_ENV=production is pinned as a service variable, so it is set during
+    // the build too, and npm omits devDependencies whenever it sees it. That
+    // removes typescript itself along with every @types/* package, and the
+    // build dies with dozens of TS7016 "could not find a declaration file for
+    // module 'express'" errors that name a dependency rather than the cause.
+    //
+    // This failed a real deploy. It passed CI at the time because the workflow
+    // installed with a bare `npm ci` and so never reproduced the production
+    // install; cd.yml now sets NODE_ENV for its install and build steps.
+    expect(service?.buildCommand ?? "").toMatch(/npm ci --include=dev\b/);
+  });
+
   it("starts node directly so SIGTERM reaches the shutdown handler", () => {
     // Through `npm start` the signal lands on npm, which need not forward it —
     // and server.ts's SIGTERM handler is what closes the listener, stops the

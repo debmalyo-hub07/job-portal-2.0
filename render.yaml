@@ -20,7 +20,17 @@ services:
     # built before the API compiles against its emitted .d.ts — the same
     # ordering the root `ci` script encodes.
     rootDir: .
-    buildCommand: npm ci && npm run build --workspace @jobportal/shared && npm run build --workspace @jobportal/api
+    # --include=dev is required, not stylistic. NODE_ENV=production is set below
+    # as a service variable, so it is also set during the build, and npm omits
+    # devDependencies whenever it sees it. That removes typescript itself along
+    # with every @types/* package, so `tsc` runs without declarations and fails
+    # with dozens of TS7016 "could not find a declaration file for module
+    # 'express'" errors. They read like a missing dependency; nothing in them
+    # points back at NODE_ENV.
+    #
+    # The alternative — moving @types/* into dependencies — ships compile-time
+    # -only packages into the runtime image to work around an install flag.
+    buildCommand: npm ci --include=dev && npm run build --workspace @jobportal/shared && npm run build --workspace @jobportal/api
 
     # node directly, not `npm start`. Render sends SIGTERM on every redeploy,
     # and server.ts handles it to close the listener, stop the sweeper and
