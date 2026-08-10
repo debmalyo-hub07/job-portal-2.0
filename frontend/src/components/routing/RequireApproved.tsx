@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { Clock } from "lucide-react";
 
-import Navbar from "../shared/Navbar";
-import { PageShell } from "../layout/PageShell";
-import { EmptyState } from "../layout/EmptyState";
+import Navbar from "@/components/shared/Navbar";
+import { PageShell } from "@/components/layout/PageShell";
+import { EmptyState } from "@/components/layout/EmptyState";
 import { useAppSelector } from "@/redux/store";
 
 /**
@@ -21,6 +21,10 @@ import { useAppSelector } from "@/redux/store";
  *
  * The Navbar stays so a pending recruiter can still reach the account menu and
  * sign out. Without it this is a page with no way off it.
+ *
+ * It lives in `routing/` rather than beside the workspace pages because it is a
+ * gate, not a page — and `ProtectedRoute` next to it serves the admin console
+ * too, which must not import from a directory named for the other portal.
  */
 export function RequireApproved({ children }: { children: ReactNode }) {
   const { user } = useAppSelector((state) => state.auth);
