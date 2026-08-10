@@ -22,7 +22,7 @@ describe("domain schemas", () => {
   it("job create coerces salary and splits requirements", () => {
     const ok = jobCreateBodySchema.parse({
       title: "Dev", description: "Build things", requirements: "ts, node ,",
-      salary: "12", experience: "2", location: "Remote", jobType: "full-time",
+      salary: "12", experience: "2", location: "Remote", jobType: "Full-time",
       position: "2", companyId: "64b0c8f2a9d3e45f6a7b8c9d",
     });
     expect(ok.salary).toBe(12);

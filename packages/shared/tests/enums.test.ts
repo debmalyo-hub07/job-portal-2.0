@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { paginationQuerySchema, jobTypeSchema } from "../src/index.js";
+import { paginationQuerySchema, jobTypeSchema, JOB_TYPES } from "../src/index.js";
 
 describe("jobTypeSchema", () => {
   it("accepts a known job type", () => {
-    expect(jobTypeSchema.parse("full-time")).toBe("full-time");
+    expect(jobTypeSchema.parse("Full-time")).toBe("Full-time");
   });
 
   it("rejects an unknown job type", () => {
     expect(() => jobTypeSchema.parse("freelance-ish")).toThrow();
+  });
+
+  it("rejects the casing a free-text form would have produced", () => {
+    // 2B-3: these values are what FilterCard matches on by exact equality, so a
+    // near-miss is a row the seeker board can never surface under a filter.
+    expect(() => jobTypeSchema.parse("full-time")).toThrow();
+    expect(() => jobTypeSchema.parse("Full Time")).toThrow();
+  });
+
+  it("accepts every value the seeker facet offers", () => {
+    for (const type of JOB_TYPES) expect(jobTypeSchema.parse(type)).toBe(type);
   });
 });
 
