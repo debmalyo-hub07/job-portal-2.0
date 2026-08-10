@@ -43,6 +43,10 @@ export async function runPhase1cMigration(): Promise<void> {
 // Run directly (`npm run migrate:phase1c`), not when imported by a test.
 const invokedDirectly = /migrate-phase1c\.(ts|js)$/.test(process.argv[1] ?? "");
 if (invokedDirectly) {
+  // See seed-admin.ts: only server.ts loaded dotenv, so a direct run read no
+  // .env and env() failed naming every required variable. Inside the guard, so
+  // it never reaches the test that imports this module.
+  await import("dotenv/config");
   await mongoose.connect(env().MONGO_URI);
   await runPhase1cMigration();
   await mongoose.disconnect();

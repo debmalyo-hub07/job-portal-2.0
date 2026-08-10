@@ -59,6 +59,16 @@ export async function seedAdmin(input: SeedAdminInput): Promise<{ created: boole
 // Run directly (`npm run seed:admin`), not when imported by a test.
 const invokedDirectly = /seed-admin\.(ts|js)$/.test(process.argv[1] ?? "");
 if (invokedDirectly) {
+  // Only server.ts loaded dotenv, so running this script read no .env at all
+  // and env() failed naming all fourteen required variables — which reads like
+  // a broken .env rather than a missing import. Loaded inside the direct-run
+  // guard, never at module scope: tests import seedAdmin() and tests/setup.ts
+  // assigns its own values, and dotenv must not reach a test run at all. It
+  // would not overwrite them (dotenv never overwrites an existing value), but
+  // a test process that has silently read the developer's real .env — real
+  // MONGO_URI included — is not a boundary worth leaving to that guarantee.
+  await import("dotenv/config");
+
   const arg = (flag: string): string | undefined => {
     const i = process.argv.indexOf(flag);
     return i === -1 ? undefined : process.argv[i + 1];
