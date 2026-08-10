@@ -6,7 +6,7 @@ import Jobs from "@/components/Jobs";
 import Profile from "@/components/Profile";
 import NotFound from "@/components/NotFound";
 import JobDescription from "@/components/JobDescription";
-import Companies from "@/components/admin/Companies";
+import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import CompanyCreate from "@/components/admin/CompanyCreate";
 import CompanySetup from "@/components/admin/CompanySetup";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
@@ -100,7 +100,7 @@ export const appRoutes: RouteObject[] = [
       // The recruiter workspace. Under /hire since Phase 3A — /admin belongs to
       // the admin portal now, so the whole recruiter surface (marketing, auth,
       // workspace) sits under one prefix and resolves one signal colour.
-      { path: "/hire/companies", element: workspace(<Companies />) },
+      { path: "/hire/companies", element: workspace(<WorkspaceCompanies />) },
       { path: "/hire/companies/create", element: workspace(<CompanyCreate />) },
       { path: "/hire/companies/:id", element: workspace(<CompanySetup />) },
       { path: "/hire/jobs", element: workspace(<WorkspaceJobs />) },

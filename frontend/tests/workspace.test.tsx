@@ -4,6 +4,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderRoute } from "./helpers/renderRoute";
 import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
+import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 describe("HireShell", () => {
@@ -70,5 +71,20 @@ describe("WorkspaceJobs", () => {
     const search = screen.getByLabelText("Search jobs");
     fireEvent.change(search, { target: { value: "react" } });
     await waitFor(() => expect(search).toHaveValue("react"));
+  });
+});
+
+describe("WorkspaceCompanies", () => {
+  it("reports a failed load in an alert", async () => {
+    renderRoute(<WorkspaceCompanies />, { route: "/hire/companies" });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("offers a create action from its header", async () => {
+    renderRoute(<WorkspaceCompanies />, { route: "/hire/companies" });
+    // Not asserted on the empty state — that only renders once the query
+    // resolves to an empty array, which jsdom cannot produce. The header
+    // action is always present.
+    expect(screen.getByRole("button", { name: "New company" })).toBeInTheDocument();
   });
 });
