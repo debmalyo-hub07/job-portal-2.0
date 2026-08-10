@@ -9,6 +9,7 @@ import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import JobCreate from "@/components/workspace/JobCreate";
 import CompanyEdit from "@/components/workspace/CompanyEdit";
 import CompanyCreate from "@/components/workspace/CompanyCreate";
+import Applicants from "@/components/workspace/Applicants";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 describe("HireShell", () => {
@@ -219,5 +220,65 @@ describe("the company forms", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith("/company/register", { name: "Acme Inc." }),
     );
+  });
+});
+
+describe("Applicants", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const withOneApplicant = (status: "pending" | "accepted" | "rejected" = "pending") =>
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        success: true,
+        items: [
+          {
+            applicationId: "a1",
+            status,
+            appliedAt: "2026-01-01T00:00:00.000Z",
+            fullName: "Ada Lovelace",
+            email: "ada@example.com",
+            phone: null,
+            headline: null,
+            skills: [],
+            resumeUrl: null,
+            resumeName: null,
+          },
+        ],
+        total: 1,
+        page: 1,
+        pages: 1,
+      },
+    } as never);
+
+  it("reports a failed load in an alert", async () => {
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("gives the decision a real button, reachable by keyboard", async () => {
+    withOneApplicant();
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // The inherited accept/reject were `<div onClick>` — no role, no tabIndex,
+    // no focus ring. They worked for a mouse and did not exist for a keyboard.
+    const trigger = await screen.findByRole("button", { name: "Decide on Ada Lovelace" });
+    expect(trigger).toBeInTheDocument();
+    expect(trigger.tagName).toBe("BUTTON");
+  });
+
+  it("states the status in text, not colour alone", async () => {
+    withOneApplicant("accepted");
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // 2A's rule: semantic state is icon *and* label. A green pill alone tells a
+    // colourblind user nothing.
+    expect(await screen.findByText("Accepted")).toBeInTheDocument();
   });
 });

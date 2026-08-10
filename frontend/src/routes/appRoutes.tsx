@@ -11,7 +11,7 @@ import CompanyCreate from "@/components/workspace/CompanyCreate";
 import CompanyEdit from "@/components/workspace/CompanyEdit";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import JobCreate from "@/components/workspace/JobCreate";
-import Applicants from "@/components/admin/Applicants";
+import Applicants from "@/components/workspace/Applicants";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
 import RequireApproved from "@/components/routing/RequireApproved";
 import AdminDashboard from "@/components/console/AdminDashboard";
