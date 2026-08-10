@@ -9,7 +9,7 @@ import JobDescription from "@/components/JobDescription";
 import Companies from "@/components/admin/Companies";
 import CompanyCreate from "@/components/admin/CompanyCreate";
 import CompanySetup from "@/components/admin/CompanySetup";
-import AdminJobs from "@/components/admin/AdminJobs";
+import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import PostJob from "@/components/admin/PostJob";
 import Applicants from "@/components/admin/Applicants";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
@@ -103,7 +103,7 @@ export const appRoutes: RouteObject[] = [
       { path: "/hire/companies", element: workspace(<Companies />) },
       { path: "/hire/companies/create", element: workspace(<CompanyCreate />) },
       { path: "/hire/companies/:id", element: workspace(<CompanySetup />) },
-      { path: "/hire/jobs", element: workspace(<AdminJobs />) },
+      { path: "/hire/jobs", element: workspace(<WorkspaceJobs />) },
       { path: "/hire/jobs/create", element: workspace(<PostJob />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
       // The admin console.

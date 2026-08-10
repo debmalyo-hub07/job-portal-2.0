@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { renderRoute } from "./helpers/renderRoute";
 import HireShell from "@/components/workspace/HireShell";
+import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 describe("HireShell", () => {
@@ -47,5 +48,27 @@ describe("HireShell", () => {
         link.to,
       );
     }
+  });
+});
+
+describe("WorkspaceJobs", () => {
+  it("shows a skeleton while loading, never a blank screen", () => {
+    const { container } = renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    expect(container.querySelectorAll("[data-slot='skeleton']").length).toBeGreaterThan(0);
+  });
+
+  it("reports a failed load in an alert rather than as an empty table", async () => {
+    // jsdom has no API, so every fetch rejects — which is precisely the error
+    // path. The inherited page console.error'd and rendered an empty table,
+    // indistinguishable from "you have posted no jobs".
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("puts the search keyword in the URL", async () => {
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    const search = screen.getByLabelText("Search jobs");
+    fireEvent.change(search, { target: { value: "react" } });
+    await waitFor(() => expect(search).toHaveValue("react"));
   });
 });
