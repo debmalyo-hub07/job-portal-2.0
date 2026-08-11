@@ -1,4 +1,4 @@
-import type { MotionTier } from "@/components/layout/PageShell";
+import type { MotionTier } from "@/components/layout/motionTiers";
 
 import { prefersReduced } from "./reducedMotion";
 

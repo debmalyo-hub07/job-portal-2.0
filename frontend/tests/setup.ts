@@ -53,3 +53,18 @@ class NoopResizeObserver implements ResizeObserver {
 }
 
 vi.stubGlobal("ResizeObserver", NoopResizeObserver);
+
+/**
+ * jsdom implements no canvas context, and it reports that through
+ * `console.error` — "Not implemented: HTMLCanvasElement's getContext() method"
+ * — every single time one is requested. Since `Atmosphere` asks for a WebGL
+ * context on mount, every suite that renders a page carrying one would emit
+ * that line, and `tests/atmosphere.test.tsx` could not tell jsdom's noise apart
+ * from a log of our own.
+ *
+ * Returning null is what a real browser does when WebGL is unavailable (a
+ * blocklisted GPU, a hardened privacy setting), so this stub is not a fiction —
+ * it is the fallback path, made assertable. The visual suite drives a real
+ * browser and is where the shader itself is checked.
+ */
+HTMLCanvasElement.prototype.getContext = (() => null) as typeof HTMLCanvasElement.prototype.getContext;

@@ -1,7 +1,7 @@
 import { useReducedMotion } from "motion/react";
 import type { RefObject } from "react";
 
-import type { MotionTier } from "@/components/layout/PageShell";
+import type { MotionTier } from "@/components/layout/motionTiers";
 import { motionAllows } from "./dataset";
 import { useInViewOnce, useScrollProgress } from "./scroll";
 import { DUR_SLOW, EASE_OUT_QUINT } from "./timing";

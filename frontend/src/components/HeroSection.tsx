@@ -1,4 +1,6 @@
 import { Search } from "lucide-react";
+
+import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 
@@ -26,36 +28,44 @@ function HeroSection() {
 
   return (
     <FadeIn>
-      <div className="flex flex-col items-start gap-5 py-(--space-section)">
-        <span className="rounded-full bg-signal-muted px-4 py-1.5 text-sm font-medium text-signal-text">
-          Hiring is open
-        </span>
-        <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
-          Search, apply, and get your next role.
-        </h1>
-        <p className="max-w-xl text-lg text-ink-muted">
-          Find jobs, internships, and contract work matched to your skills.
-        </p>
-        <form
-          onSubmit={searchJobHandler}
-          className="flex w-full max-w-xl items-center gap-2 rounded-full border border-line bg-paper-raised py-1 pr-1 pl-5"
-        >
-          <label htmlFor="hero-search" className="sr-only">
-            Search for jobs, companies, or skills
-          </label>
-          <input
-            id="hero-search"
-            type="text"
-            placeholder="Search for jobs, companies, or skills"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full border-none bg-transparent text-ink outline-none placeholder:text-ink-muted"
-          />
-          <Button type="submit" variant="signal" size="icon" className="rounded-full">
-            <Search />
-            <span className="sr-only">Search</span>
-          </Button>
-        </form>
+      {/* The atmosphere's host: `relative` because the layer is absolutely
+          positioned, `isolate` so it cannot paint over anything outside this
+          section. The field is masked in the shader to vanish across the band
+          where the headline and paragraph sit — see Atmosphere for the contrast
+          measurements that forced that rather than a global alpha cap. */}
+      <div className="relative isolate -mx-6 px-6">
+        <Atmosphere className="-z-10" textBand={[0.3, 0.72]} />
+        <div className="flex flex-col items-start gap-5 py-(--space-section)">
+          <span className="rounded-full bg-signal-muted px-4 py-1.5 text-sm font-medium text-signal-text">
+            Hiring is open
+          </span>
+          <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
+            Search, apply, and get your next role.
+          </h1>
+          <p className="max-w-xl text-lg text-ink-muted">
+            Find jobs, internships, and contract work matched to your skills.
+          </p>
+          <form
+            onSubmit={searchJobHandler}
+            className="flex w-full max-w-xl items-center gap-2 rounded-full border border-line bg-paper-raised py-1 pr-1 pl-5"
+          >
+            <label htmlFor="hero-search" className="sr-only">
+              Search for jobs, companies, or skills
+            </label>
+            <input
+              id="hero-search"
+              type="text"
+              placeholder="Search for jobs, companies, or skills"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full border-none bg-transparent text-ink outline-none placeholder:text-ink-muted"
+            />
+            <Button type="submit" variant="signal" size="icon" className="rounded-full">
+              <Search />
+              <span className="sr-only">Search</span>
+            </Button>
+          </form>
+        </div>
       </div>
     </FadeIn>
   );
