@@ -33,6 +33,12 @@ import {
   WorkspaceRedirect,
 } from "@/routes/routeElements";
 import HireLanding from "@/pages/HireLanding";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
+import Help from "@/pages/Help";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
+import { PublicLayout } from "@/components/layout/PublicLayout";
 
 const DesignGallery = import.meta.env.DEV
   ? lazy(() => import("@/components/design/DesignGallery"))
@@ -71,14 +77,40 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RootLayout />,
     children: [
-      { path: "/", element: <Home /> },
+      // Surfaces that carry the site chrome — navbar and footer — mounted once
+      // by the layout rather than by each page. The footer used to be imported
+      // by `Home` alone while the navbar was hand-mounted in nine components,
+      // so every link the footer carried was reachable from the landing page
+      // and nowhere else.
+      //
+      // The signed-in working surfaces (workspace, console, auth) stay outside:
+      // they have their own shells and sub-navigation, and a marketing footer
+      // under an applicant table is noise. The informational URLs are public, so
+      // they remain reachable from anywhere regardless.
+      {
+        element: <PublicLayout />,
+        children: [
+          { path: "/", element: <Home /> },
+          { path: "/jobs", element: <Jobs /> },
+          { path: "/description/:id", element: <JobDescription /> },
+          { path: "/profile", element: <Profile /> },
+          { path: "/hire", element: <HireLanding /> },
+          // The informational surfaces. `siteNav.ts` lists the same paths for
+          // the footer, and publicPages.test.tsx asserts the two agree — a page
+          // mounted but unlinked is how /jobs stayed orphaned for a phase.
+          { path: "/about", element: <About /> },
+          { path: "/contact", element: <Contact /> },
+          { path: "/help", element: <Help /> },
+          { path: "/privacy", element: <Privacy /> },
+          { path: "/terms", element: <Terms /> },
+        ],
+      },
       // One component set, two mounts. The prefix is the only place a portal is
       // named on the client, and every call site passes a literal.
       ...buildAuthRoutes("seeker", ""),
       ...buildAuthRoutes("recruiter", "/hire"),
       // No signup on admin: the API's admin router mounts no /register either.
       ...buildAuthRoutes("admin", "/admin", { withSignup: false }),
-      { path: "/hire", element: <HireLanding /> },
       // The admin console has no marketing page, but AuthLayout links its
       // wordmark at the portal's own home. Send it to the only door there is.
       { path: "/admin", element: <AdminHomeRedirect /> },
