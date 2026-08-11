@@ -3,6 +3,7 @@ import type { JobDto } from "@jobportal/shared";
 
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { FitBadge } from "./FitBadge";
 
 type JobProps = {
   job: JobDto;
@@ -58,6 +59,10 @@ const Job = ({ job }: JobProps) => {
 
       <h3 className="mt-4 font-display text-xl font-semibold text-ink">{job.title}</h3>
       <p className="mt-2 line-clamp-3 text-sm text-ink-muted">{job.description}</p>
+
+      {/* Absent for an anonymous visitor and for a recruiter, so the card is
+          unchanged for them rather than carrying an empty row. */}
+      <FitBadge fit={job.fit} className="mt-3" />
 
       <div className="mt-4 flex flex-wrap items-center gap-2 pt-2">
         <Badge variant="outline">{job.position} positions</Badge>

@@ -9,9 +9,12 @@ import type {
 } from "@jobportal/shared";
 import { Job, type JobDocument } from "../models/job.model.js";
 import type { CompanyDocument } from "../models/company.model.js";
+import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
 import { escapeRegex } from "../lib/escapeRegex.js";
 import { assertCompanyOwned, toCompanyDto } from "./company.service.js";
+import { findAccountById } from "./account.service.js";
+import { scoreJobForSeeker } from "./matching.pipeline.js";
 
 const notFound = () => AppError.notFound("JOB_NOT_FOUND", "Job not found");
 
@@ -20,8 +23,29 @@ type PopulatedJob = Omit<HydratedDocument<JobDocument>, "company"> & {
   company: HydratedDocument<CompanyDocument> | null;
 };
 
-export function toJobDto(doc: PopulatedJob): JobDto {
-  return {
+/**
+ * The viewing seeker, or `null` for everyone else.
+ *
+ * Resolved once per request and threaded down, rather than looked up inside
+ * `toJobDto`: the profile cannot change mid-request, so a per-row lookup would
+ * be up to 50 reads of the same document for one page.
+ */
+export type FitViewer = HydratedDocument<SeekerDocument> | null;
+
+/**
+ * `viewerId` is a seeker's id or nothing. The caller decides — the controller
+ * reads `req.auth.portal`, which the authentication middleware set from the
+ * cookie it verified, so a recruiter or an anonymous visitor arrives here as
+ * `undefined` and gets no `fit`.
+ */
+async function resolveFitViewer(viewerId?: string): Promise<FitViewer> {
+  if (!viewerId) return null;
+  const account = await findAccountById("seeker", viewerId);
+  return (account as FitViewer) ?? null;
+}
+
+export function toJobDto(doc: PopulatedJob, viewer: FitViewer = null): JobDto {
+  const dto: JobDto = {
     id: String(doc._id),
     title: doc.title,
     description: doc.description,
@@ -35,6 +59,10 @@ export function toJobDto(doc: PopulatedJob): JobDto {
     company: doc.company ? toCompanyDto(doc.company) : null,
     createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? "",
   };
+  // Assigned only when there is a seeker to score, so the key is absent rather
+  // than present-and-null for a caller the score does not describe.
+  if (viewer) dto.fit = scoreJobForSeeker(viewer, doc as unknown as JobDocument);
+  return dto;
 }
 
 export async function createJob(ownerId: string, body: JobCreateBody): Promise<JobDto> {
@@ -62,6 +90,7 @@ export async function createJob(ownerId: string, body: JobCreateBody): Promise<J
 async function paginate(
   filter: Record<string, unknown>,
   { page, limit }: PaginationQuery,
+  viewer: FitViewer = null,
 ): Promise<PaginatedResponse<JobDto>> {
   const [total, jobs] = await Promise.all([
     Job.countDocuments(filter),
@@ -72,14 +101,18 @@ async function paginate(
       .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company"),
   ]);
   return {
-    items: jobs.map((j) => toJobDto(j as unknown as PopulatedJob)),
+    // Newest first, unscored: sorting by fit here would rank this page only.
+    items: jobs.map((j) => toJobDto(j as unknown as PopulatedJob, viewer)),
     total,
     page,
     pages: Math.ceil(total / limit),
   };
 }
 
-export async function listPublicJobs(query: JobListQuery): Promise<PaginatedResponse<JobDto>> {
+export async function listPublicJobs(
+  query: JobListQuery,
+  viewerId?: string,
+): Promise<PaginatedResponse<JobDto>> {
   // 4B — facet filter. OR within a comma-joined multi-select facet, AND across
   // facets. Each clause is an additive equality/range the compound index
   // `{location, jobType, experienceLevel, salary}` covers; the keyword regex
@@ -107,15 +140,15 @@ export async function listPublicJobs(query: JobListQuery): Promise<PaginatedResp
     filter.$or = [{ title: re }, { description: re }];
   }
 
-  return paginate(filter, query);
+  return paginate(filter, query, await resolveFitViewer(viewerId));
 }
 
-export async function getPublicJob(jobId: string): Promise<JobDto> {
+export async function getPublicJob(jobId: string, viewerId?: string): Promise<JobDto> {
   const job = await Job.findById(jobId).populate<{
     company: HydratedDocument<CompanyDocument> | null;
   }>("company");
   if (!job) throw notFound();
-  return toJobDto(job as unknown as PopulatedJob);
+  return toJobDto(job as unknown as PopulatedJob, await resolveFitViewer(viewerId));
 }
 
 export async function listOwnedJobs(

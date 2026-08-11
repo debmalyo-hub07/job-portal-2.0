@@ -21,12 +21,68 @@ function missingSkills(seeker: FitSeekerInput, job: FitJobInput): string[] {
   return canonicalSkills(job.requirements).filter((r) => !have.has(r));
 }
 
+/**
+ * Reason lines, written in the voice of whoever reads them.
+ *
+ * The `job` direction answers "is this job right for the seeker?" and is what a
+ * seeker sees on a job card, so it addresses them directly. The `seeker`
+ * direction answers "is this seeker right for the job?" and is read by a
+ * recruiter, about somebody else. A single shared set of strings had to pick one
+ * voice and picked the recruiter's, so a seeker's own job card would have read
+ * "the seeker isn't open to it".
+ *
+ * The salary line also used to invent a `$` and repeat the figure, while the app
+ * renders `job.salary` as LPA and prints it on the card already. It names the
+ * verdict now, and leaves the number and its unit to the surface that owns them.
+ */
+interface Voice {
+  skillsOk: (count: number) => string;
+  skillsMissing: (missing: string[]) => string;
+  salaryOk: string;
+  salaryOff: string;
+  remoteOk: (roleIsRemote: boolean) => string;
+  remoteOff: string;
+  experienceOk: string;
+  experienceOff: string;
+  locationOk: string;
+  locationOff: string;
+}
+
+const VOICES: Record<"job" | "seeker", Voice> = {
+  job: {
+    skillsOk: (count) => `You have all ${count} of the skills asked for`,
+    skillsMissing: (missing) => `You are missing ${missing.join(", ")}`,
+    salaryOk: "Pay is inside the range you set",
+    salaryOff: "Pay is outside the range you set",
+    remoteOk: (roleIsRemote) =>
+      roleIsRemote ? "Remote, which is what you asked for" : "On-site or hybrid, which is fine",
+    remoteOff: "Remote-only, and you said you would rather not",
+    experienceOk: "You meet the experience asked for",
+    experienceOff: "Short of the experience asked for",
+    locationOk: "In the location you set",
+    locationOff: "Outside the location you set",
+  },
+  seeker: {
+    skillsOk: (count) => `Has every requirement (${count} skills)`,
+    skillsMissing: (missing) => `Missing: ${missing.join(", ")}`,
+    salaryOk: "Pay is inside their range",
+    salaryOff: "Pay is outside their range",
+    remoteOk: (roleIsRemote) => (roleIsRemote ? "Remote works for them" : "On-site or hybrid is fine"),
+    remoteOff: "Role is remote and they are not open to it",
+    experienceOk: "Meets the experience bar",
+    experienceOff: "Below the experience bar",
+    locationOk: "Location matches",
+    locationOff: "Location differs",
+  },
+};
+
 function buildFactors(
   key: "job" | "seeker",
   seeker: FitSeekerInput,
   job: FitJobInput,
 ): Factor[] {
   const w = WEIGHTS[key];
+  const v = VOICES[key];
   const skillsFrac = skillCoverage(seeker.skills, job.requirements);
   const salaryFrac = salaryFit(job.salary, seeker.salaryMin, seeker.salaryMax);
   const remoteFrac = remoteFit(seeker.openToRemote, job.workMode);
@@ -36,25 +92,11 @@ function buildFactors(
 
   const reasons: Record<FactorKey, string> = {
     skills:
-      missing.length === 0
-        ? `Has every requirement (${job.requirements.length} skills)`
-        : `Missing: ${missing.join(", ")}`,
-    salary:
-      salaryFrac >= 1
-        ? `Salary $${job.salary.toLocaleString()} fits the band`
-        : `Salary $${job.salary.toLocaleString()} is outside the band`,
-    remote:
-      remoteFrac >= 1
-        ? job.workMode === "remote"
-          ? "Remote works"
-          : "On-site / hybrid is fine"
-        : "Role is remote but the seeker isn't open to it",
-    experience:
-      expFrac >= 1
-        ? "Meets the experience bar"
-        : "Below the experience bar",
-    location:
-      locFrac >= 1 ? "Location matches" : "Location differs",
+      missing.length === 0 ? v.skillsOk(job.requirements.length) : v.skillsMissing(missing),
+    salary: salaryFrac >= 1 ? v.salaryOk : v.salaryOff,
+    remote: remoteFrac >= 1 ? v.remoteOk(job.workMode === "remote") : v.remoteOff,
+    experience: expFrac >= 1 ? v.experienceOk : v.experienceOff,
+    location: locFrac >= 1 ? v.locationOk : v.locationOff,
   };
 
   const entries: Array<[FactorKey, number]> = [

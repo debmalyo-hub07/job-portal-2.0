@@ -6,6 +6,7 @@ import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+import { FitBreakdown } from "./FitBadge";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setSingleJob } from "@/redux/jobSlice";
@@ -130,6 +131,14 @@ const JobDescription = () => {
             {isApplied ? "Applied" : "Apply Now"}
           </Button>
         </header>
+
+        {/*
+          Directly under the header, because it answers the question the page is
+          open to answer. Absent for an anonymous visitor and for a recruiter —
+          neither is the subject of a seeker's score — so the page is unchanged
+          for them rather than carrying an empty panel.
+        */}
+        <FitBreakdown fit={singleJob.fit} className="mt-8" />
 
         <section className="mt-8" aria-labelledby="overview-heading">
           <h2 id="overview-heading" className="text-xl font-display border-b border-line pb-2">

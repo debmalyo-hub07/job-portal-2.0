@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { jobTypeSchema } from "./enums.js";
+import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
 /** 24-hex Mongo ObjectId. Route params and body references both use this. */
@@ -108,6 +109,22 @@ export type JobDto = {
   remote: boolean;
   company: CompanyDto | null;
   createdAt: string;
+  /**
+   * Phase 5: how this job scores against the *viewing seeker's* profile.
+   *
+   * Optional because the field is only meaningful for one kind of caller. The
+   * public routes are `optionalAuthenticate`, so a job list is served to
+   * anonymous visitors and to recruiters as well, and neither is the subject of
+   * a seeker fit — absent is the honest answer, where a `0` would render as
+   * "0% fit", a claim about somebody nobody made.
+   *
+   * It explains an order; it does not set one. `paginate` sorts and pages in
+   * Mongo, so a score computed after the query could only rank the rows already
+   * on the page while presenting itself as ranking the whole board — the defect
+   * already documented for `WorkspaceCompanies`. Fit-ranked ordering needs an
+   * aggregation, and is a separate change.
+   */
+  fit?: ScoreBreakdown;
 };
 
 export type AppliedJobDto = {

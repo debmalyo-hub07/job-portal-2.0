@@ -58,28 +58,39 @@ describe("the public job board", () => {
     const seeker = await signedUpOn("seeker", "applied@x.test");
     const application = await Application.create({ job: job._id, applicant: seeker.id });
 
-    for (const cookies of [[], [`jp_seeker_at=${seeker.access}`]]) {
+    // The DTO is an allowlist: anything not named here cannot be returned.
+    // `remote` was added to the public allowlist in 4A.3 — it is the fit
+    // pipeline's on-site/remote signal and is surfaced deliberately to drive
+    // the faceted search rail and the fit explanation, not an accident.
+    const base = [
+      "company",
+      "createdAt",
+      "description",
+      "experienceLevel",
+      "id",
+      "jobType",
+      "location",
+      "position",
+      "remote",
+      "requirements",
+      "salary",
+      "title",
+    ];
+
+    // `fit` is the one key whose presence depends on the caller: it describes a
+    // seeker's own profile, so an anonymous visitor must not receive it at all
+    // rather than receive a zero. Asserting the two key sets separately is what
+    // makes that difference a test rather than a coincidence.
+    const cases = [
+      { cookies: [] as string[], keys: base },
+      { cookies: [`jp_seeker_at=${seeker.access}`], keys: [...base, "fit"].sort() },
+    ];
+
+    for (const { cookies, keys } of cases) {
       const res = await request(app).get(`/api/v1/job/get/${job._id}`).set("Cookie", cookies);
       expect(res.status).toBe(200);
       expect(res.body.job.applications).toBeUndefined();
-      // The DTO is an allowlist: anything not named here cannot be returned.
-      // `remote` was added to the public allowlist in 4A.3 — it is the fit
-      // pipeline's on-site/remote signal and is surfaced deliberately to drive
-      // the faceted search rail and the fit explanation, not an accident.
-      expect(Object.keys(res.body.job).sort()).toEqual([
-        "company",
-        "createdAt",
-        "description",
-        "experienceLevel",
-        "id",
-        "jobType",
-        "location",
-        "position",
-        "remote",
-        "requirements",
-        "salary",
-        "title",
-      ]);
+      expect(Object.keys(res.body.job).sort()).toEqual(keys);
       // Neither the applicant's id nor the application's should appear anywhere.
       expect(JSON.stringify(res.body)).not.toContain(seeker.id);
       expect(JSON.stringify(res.body)).not.toContain(String(application._id));

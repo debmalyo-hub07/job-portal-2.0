@@ -84,3 +84,39 @@ describe("explain", () => {
     expect(explain(r).some((l) => l.toLowerCase().includes("skill"))).toBe(true);
   });
 });
+
+/**
+ * The two directions are read by different people, so they are worded
+ * differently.
+ *
+ * One shared set of reason strings had to pick a voice, and it picked the
+ * recruiter's — so the seeker-facing job card would have said "the seeker isn't
+ * open to it" about the person reading it. The salary line also printed a `$`
+ * that appears nowhere else in the product (`job.salary` renders as LPA).
+ */
+describe("reason voice", () => {
+  const remoteAverse = { ...perfectSeeker, openToRemote: false };
+  const remoteJob = { ...perfectJob, workMode: "remote" as const };
+
+  const reasonFor = (b: ReturnType<typeof computeJobFit>, key: string) =>
+    b.factors.find((f) => f.key === key)!.reason;
+
+  it("addresses the seeker directly in the job direction", () => {
+    const r = computeJobFit(remoteAverse, remoteJob);
+    expect(reasonFor(r, "remote")).toMatch(/\byou\b/i);
+    expect(reasonFor(r, "remote")).not.toMatch(/\bthe seeker\b/i);
+  });
+
+  it("speaks about the candidate in the seeker direction", () => {
+    const r = computeSeekerFit(remoteAverse, remoteJob);
+    expect(reasonFor(r, "remote")).toMatch(/\bthey\b/i);
+    expect(reasonFor(r, "remote")).not.toMatch(/\byou\b/i);
+  });
+
+  it("never invents a currency symbol", () => {
+    for (const direction of [computeJobFit, computeSeekerFit]) {
+      const lines = direction(perfectSeeker, perfectJob).factors.map((f) => f.reason);
+      expect(lines.join(" ")).not.toMatch(/[$€£₹]/);
+    }
+  });
+});
