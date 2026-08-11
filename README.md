@@ -9,12 +9,13 @@ A cairn is a stack of stones one traveller leaves to mark the path for the next.
 > **Status:** Phases 1A (foundation), 1B (authentication), 1C (authorization),
 > 2A (design system), 2B-1 (design language and portal-split auth), 3A
 > (three-portal foundation), 4A/4B (faceted job search), 3B (admin console),
-> 2B-2 (seeker pages) and 2B-3 (recruiter workspace) are complete. Ownership
-> checks are in place on every route
-> touching a user-owned resource, recruiter approval has a UI rather than
-> needing curl, and both the seeker board and the recruiter workspace are
-> faceted, paginated and built on the design system. Navigation and the
-> informational surfaces are next. See [Roadmap](#roadmap).
+> 2B-2 (seeker pages), 2B-3 (recruiter workspace) and 2B-4 (navigation and
+> informational surfaces) are complete. Ownership checks are in place on every
+> route touching a user-owned resource, recruiter approval has a UI rather than
+> needing curl, both the seeker board and the recruiter workspace are faceted,
+> paginated and built on the design system, and the site has a footer that
+> links it plus public about, contact, help, privacy and terms pages. See
+> [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -447,7 +448,7 @@ spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
 | 2B-2 | Seeker pages: one faceted job board, pagination, profile | Complete |
 | Deploy | SPA fallback, not-found route, Render blueprint, CD on green main | Complete |
 | 2B-3 | Recruiter workspace: companies, jobs, applicants, remote + jobType fixes | Complete |
-| 2B-4 | Navigation and informational surfaces: about, contact, help, legal, discovery | Next |
+| 2B-4 | Navigation and informational surfaces: about, contact, help, legal | Complete |
 | 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 
@@ -456,6 +457,14 @@ from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
 requires a reason and emails it. Moderation lists live under `/admin/review/*`
 — not `/admin/jobs`, which still redirects a pre-3A recruiter bookmark to
 `/hire/jobs`.
+
+The public informational surfaces are live: `/about`, `/contact`, `/help`,
+`/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries
+the navbar and footer, which replaced the hand-mounted copies that left the
+footer reachable only from the landing page. Contact is a mailto for now — the
+form ships with its endpoint. The legal pages carry a draft notice pending
+counsel; a public companies directory and a contact form are the next
+candidates for a phase.
 
 Design documents live in `docs/superpowers/specs/`, and the decisions behind
 them in `docs/adr/`.

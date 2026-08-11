@@ -115,6 +115,18 @@ Guidance for Claude Code when working in this repository.
   workspace lived under `/admin/*` before 3A; those URLs redirect. A workspace
   page must go through the `workspace()` helper in `appRoutes.tsx`, which
   composes both gates in the order the API applies them.
+- **Frontend chrome:** a page never mounts `Navbar` or `Footer`. Public routes
+  are children of `PublicLayout` in the route table and inherit both; the
+  workspace and console have their own shells (`HireShell`, `AdminShell`). The
+  footer was hand-mounted in `Home.tsx` alone until 2B-4, so every other route
+  had none — and nobody noticed, because it contained no links.
+- **Frontend navigation:** the footer's link columns and the list of public
+  informational paths live in `components/shared/siteNav.ts`
+  (`FOOTER_COLUMNS`, `INFO_PATHS`); the portal-scoped primary nav stays in
+  `navLinksFor`. Never hand-write a link list in a component — the navbar and
+  the mobile sheet both read `navLinksFor`, the footer reads `FOOTER_COLUMNS`,
+  and `publicPages.test.tsx` cross-checks the route table against both, so a
+  page that is mounted but unlinked (or linked but unmounted) fails a test.
 - **Frontend motion:** go through `lib/motion.tsx`. Never import
   `framer-motion` in a page — the composables are what honour
   `prefers-reduced-motion`.
@@ -240,6 +252,49 @@ What 2B-3 closed:
   the import fails the whole file at collection rather than rejecting inside the
   test. `workspace.test.tsx` checks the filesystem and the store's key set
   instead — which is what actually matters
+
+What 2B-4 closed:
+
+- **The footer was reachable from exactly one route.** `Footer` was mounted by
+  hand inside `Home.tsx`, so every other page in the application — the job
+  board, the profile, all five auth screens — simply had no footer. It rendered
+  three social icons and **zero links**, which is why nothing noticed: there was
+  nothing in it to miss. `PublicLayout` (`components/layout/PublicLayout.tsx`) is
+  an `<Outlet />` layout route carrying navbar and footer, and every public path
+  mounts inside it. A page never mounts its own chrome again
+- **`siteNav.ts` holds the footer's columns and the informational paths.**
+  `FOOTER_COLUMNS` and `INFO_PATHS` live in `components/shared/siteNav.ts` — a
+  plain data module, no JSX, beside the existing `navLinksFor`. Adding an
+  informational page is one edit there plus one route, and
+  `publicPages.test.tsx` iterates `INFO_PATHS`, so a page in the registry that
+  is not mounted fails a test instead of 404ing in production
+- **Cairn holds resumes and had no privacy policy.** Not a missing page — a
+  missing disclosure, and the resume story is the part a candidate cannot
+  discover for themselves: uploads are Cloudinary `authenticated` assets and
+  every read mints a ~10-minute signed URL. `/privacy` and `/terms` say so, and
+  both carry `LegalDraftNotice` — a `role="alert"` banner naming what is
+  genuinely unfilled (operating entity, jurisdiction, sub-processor list). The
+  behaviour they describe was written from the code and is accurate; what only
+  counsel can supply is marked missing rather than invented, because fabricated
+  legal text presented as final reads as a commitment nobody made
+- **Contact is a `mailto:`, deliberately.** A form needs an endpoint — schema,
+  rate limit, honeypot, `escapeHtml` into the mail body — and a form that POSTs
+  nowhere is the dead control the guardrail forbids. The address is
+  `SUPPORT_EMAIL` in `src/lib/contact.ts` so no page hand-writes a second
+  mailbox. The interactive version ships with its endpoint, not before
+- **`/help` answers what does *not* exist.** It states outright that withdrawing
+  an application and editing a posted job are not built yet, and that recruiters
+  wait for admin approval. An omitted answer reads as "it probably works", which
+  is how a support inbox fills up with questions the FAQ was supposed to absorb.
+  It is a `<dl>`, not an accordion — five short answers collapsed cost a click
+  each to hide nothing worth hiding
+- **External links must carry `rel="noopener noreferrer"`.**
+  `publicPages.test.tsx` walks every footer anchor whose `href` starts with
+  `http` and asserts both tokens. It passes vacuously today — the footer has no
+  external links since the social icons went — so it is a guard for the next one
+  added, not evidence of a fix. The same test asserts no link points at a
+  social platform *homepage*: `https://twitter.com` with no handle is a link to
+  somebody else's front page, which is what the placeholder icons were
 
 What the first live deployment closed:
 
