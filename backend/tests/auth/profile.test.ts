@@ -72,6 +72,16 @@ describe("updateProfile on the account collections", () => {
     expect((await request(app).get("/api/v1/user/profile")).status).toBe(401);
   });
 
+  /**
+   * All five fields `toFitSeekerInput` reads, not the three this test used to
+   * cover while calling itself "the fit fields".
+   *
+   * `experienceYears` and `location` were on the model, in `ProfileView` and in
+   * the pipeline from 4A.3, and missing from `profileUpdateBodySchema` — so no
+   * request could set either and both scored as no-penalty unknowns for every
+   * seeker. This test passed throughout, because its name claimed a completeness
+   * its body did not have.
+   */
   it("persists the fit fields and returns them on the profile view", async () => {
     const seeker = await signedUpOn("seeker", "fit@x.test");
     const res = await request(app)
@@ -79,13 +89,17 @@ describe("updateProfile on the account collections", () => {
       .set("Cookie", [`jp_seeker_at=${seeker.access}`])
       .field("salaryMin", "80000")
       .field("salaryMax", "120000")
-      .field("openToRemote", "true");
+      .field("openToRemote", "true")
+      .field("experienceYears", "6")
+      .field("location", "Kolkata");
 
     expect(res.status).toBe(200);
     expect(res.body.profile.seeker).toMatchObject({
       salaryMin: 80000,
       salaryMax: 120000,
       openToRemote: true,
+      experienceYears: 6,
+      location: "Kolkata",
     });
 
     // The fields survive a fresh read, so the fit pipeline can read them.
@@ -93,6 +107,68 @@ describe("updateProfile on the account collections", () => {
     expect(account!.profile!.salaryMin).toBe(80000);
     expect(account!.profile!.salaryMax).toBe(120000);
     expect(account!.profile!.openToRemote).toBe(true);
+    expect(account!.profile!.experienceYears).toBe(6);
+    expect(account!.profile!.location).toBe("Kolkata");
+  });
+
+  /**
+   * The model caps experience at 60. Without the schema bound this reaches
+   * Mongoose validation and answers 500 for what is plainly a bad request.
+   */
+  it("rejects an out-of-range experienceYears with 400", async () => {
+    const seeker = await signedUpOn("seeker", "range@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .field("experienceYears", "600");
+
+    expect(res.status).toBe(400);
+  });
+
+  /**
+   * A blank numeric field clears the stored value instead of writing a zero.
+   *
+   * `z.coerce.number()` reads `""` as `0`, so before `clearableInt` a seeker who
+   * emptied their salary boxes stored `salaryMin: 0, salaryMax: 0` — a band no
+   * real salary falls inside, which scores `salaryFit` at 0 for every job on the
+   * board. The distinction that has to survive the round trip is blank → `null`,
+   * absent → untouched.
+   */
+  it("clears a fit field when its form value is blank, and leaves absent ones alone", async () => {
+    const seeker = await signedUpOn("seeker", "clear@x.test");
+    await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .field("salaryMin", "8")
+      .field("salaryMax", "20")
+      .field("experienceYears", "6")
+      .field("openToRemote", "true");
+
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .field("salaryMin", "")
+      .field("salaryMax", "")
+      .field("openToRemote", "");
+    // experienceYears is not in this request at all.
+
+    expect(res.status).toBe(200);
+    expect(res.body.profile.seeker).toMatchObject({
+      salaryMin: null,
+      salaryMax: null,
+      openToRemote: null,
+      experienceYears: 6,
+    });
+
+    const account = await Seeker.findById(seeker.id);
+    // Not 0: a zero band is an active constraint no salary can satisfy, and
+    // `toFitSeekerInput` would pass it straight to `salaryFit`.
+    expect(account!.profile!.salaryMin).toBeNull();
+    expect(account!.profile!.salaryMax).toBeNull();
+    // Not false: `remoteFit` no-penalties an unknown and scores an explicit
+    // `false` at 0 against a remote role, so the two are not interchangeable.
+    expect(account!.profile!.openToRemote).toBeNull();
+    expect(account!.profile!.experienceYears).toBe(6);
   });
 
   it("ignores an attempt to change the email", async () => {

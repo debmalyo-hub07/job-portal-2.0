@@ -59,6 +59,11 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     if (body.bio !== undefined) seeker.profile!.bio = body.bio;
     // Already split, trimmed and de-blanked by the schema's transform.
     if (body.skills !== undefined) seeker.profile!.skills = body.skills;
+    // Phase 5: both are read by `toFitSeekerInput` and were returned by
+    // `toProfileView` above from 4A.3 onward with no writer anywhere, so the
+    // pipeline's experience and location factors scored `null` for every seeker.
+    if (body.experienceYears !== undefined) seeker.profile!.experienceYears = body.experienceYears;
+    if (body.location !== undefined) seeker.profile!.location = body.location;
     if (body.salaryMin !== undefined) seeker.profile!.salaryMin = body.salaryMin;
     if (body.salaryMax !== undefined) seeker.profile!.salaryMax = body.salaryMax;
     if (body.openToRemote !== undefined) seeker.profile!.openToRemote = body.openToRemote;

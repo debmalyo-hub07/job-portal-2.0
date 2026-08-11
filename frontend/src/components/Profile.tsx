@@ -56,6 +56,32 @@ const Profile = () => {
 
   const skills = profile?.seeker?.skills ?? [];
   const resumeUrl = profile?.seeker?.resumeUrl;
+  const fit = profile?.seeker;
+
+  /**
+   * One bound set and not the other is a real state — `salaryFit` reads a lone
+   * floor as "at least this" — so it is rendered as such rather than collapsed
+   * into "Not set".
+   */
+  const salaryBand =
+    fit?.salaryMin !== null && fit?.salaryMin !== undefined
+      ? fit.salaryMax !== null && fit.salaryMax !== undefined
+        ? `${fit.salaryMin}–${fit.salaryMax} LPA`
+        : `${fit.salaryMin} LPA and up`
+      : fit?.salaryMax !== null && fit?.salaryMax !== undefined
+        ? `Up to ${fit.salaryMax} LPA`
+        : "Not set";
+
+  /**
+   * `null` is "no preference", which `remoteFit` treats as no penalty — not the
+   * same answer as "prefer on-site", which scores a remote role at 0.
+   */
+  const remoteLabel =
+    fit?.openToRemote === null || fit?.openToRemote === undefined
+      ? "No preference"
+      : fit.openToRemote
+        ? "Open to remote"
+        : "Prefer on-site";
 
   if (loading || !bootstrapped) {
     return (
@@ -138,6 +164,45 @@ const Profile = () => {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="mt-(--space-card)">
+            <h2 className="font-display text-xl font-semibold text-ink">Matching preferences</h2>
+            {/*
+              The read side of the five fields `UpdateProfileDialog` writes and
+              `toFitSeekerInput` scores on. Offering a form for them and then
+              showing none of them back leaves the person who filled it in with
+              no way to check what they stored — they land on a job whose fit
+              badge says their salary band cost it points, and cannot see the
+              band. An unset field is named as *not counting*, which is the
+              opposite of scoring zero and the distinction the pipeline makes.
+            */}
+            <p className="mt-1 text-sm text-ink-muted">
+              What each job&apos;s fit is worked out from. Anything you leave unset simply stops
+              counting against a role.
+            </p>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs text-ink-muted">Experience</dt>
+                <dd className="text-ink">
+                  {fit?.experienceYears === null || fit?.experienceYears === undefined
+                    ? "Not set"
+                    : `${fit.experienceYears} years`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-muted">Preferred location</dt>
+                <dd className="text-ink">{fit?.location || "Not set"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-muted">Salary expectation</dt>
+                <dd className="text-ink">{salaryBand}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-ink-muted">Remote work</dt>
+                <dd className="text-ink">{remoteLabel}</dd>
+              </div>
+            </dl>
           </div>
 
           <div className="mt-(--space-card)">
