@@ -10,7 +10,7 @@ import {
   SheetTrigger,
 } from "../ui/sheet";
 import { LogOut, Menu, User2 } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link, NavLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { navLinksFor } from "./navLinks";
 import { Wordmark } from "./Wordmark";
@@ -67,9 +67,27 @@ const Navbar = () => {
           <ul className="hidden items-center gap-5 text-sm font-medium lg:flex">
             {links.map((link) => (
               <li key={link.to}>
-                <Link to={link.to} className="hover:text-signal-text">
+                {/*
+                  NavLink, not Link: the current page needs to say so. The
+                  underline is the visible half and `aria-current="page"` is the
+                  half a screen reader hears — colour alone would be neither
+                  accessible nor visible in a monochrome render.
+
+                  `end` so "/" is only current at the root. Without it the seeker
+                  home link matches every path in the application, which is the
+                  usual way this lands wrong.
+                */}
+                <NavLink
+                  to={link.to}
+                  end={link.to === "/"}
+                  className={({ isActive }) =>
+                    isActive
+                      ? "text-signal-text underline decoration-2 underline-offset-8"
+                      : "hover:text-signal-text"
+                  }
+                >
                   {link.label}
-                </Link>
+                </NavLink>
               </li>
             ))}
           </ul>
@@ -156,14 +174,19 @@ const Navbar = () => {
               </SheetHeader>
               <nav className="mt-6 flex flex-col gap-1 px-4">
                 {links.map((link) => (
-                  <Link
+                  <NavLink
                     key={link.to}
                     to={link.to}
+                    end={link.to === "/"}
                     onClick={() => setMenuOpen(false)}
-                    className="rounded-sharp px-2 py-2 text-base text-ink hover:bg-signal-muted"
+                    className={({ isActive }) =>
+                      `rounded-sharp px-2 py-2 text-base hover:bg-signal-muted ${
+                        isActive ? "text-signal-text" : "text-ink"
+                      }`
+                    }
                   >
                     {link.label}
-                  </Link>
+                  </NavLink>
                 ))}
                 {!user && (
                   <Link

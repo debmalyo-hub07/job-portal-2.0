@@ -1,7 +1,6 @@
 import { SearchX } from "lucide-react";
 import { useSearchParams } from "react-router";
 
-import Navbar from "./shared/Navbar";
 import FilterCard from "./FilterCard";
 import Job from "./Job";
 import { EmptyState } from "./layout/EmptyState";
@@ -45,10 +44,8 @@ const Jobs = () => {
 
   return (
     <>
-      {/* Outside PageShell: the navbar is full-bleed, and the shell's inner
-          container would clamp it to the content column. Same composition
-          AdminShell uses. */}
-      <Navbar />
+      {/* Navbar and footer come from PublicLayout — this page is one of its
+          children in the route table. */}
       <PageShell density="compact" width="wide" motion="standard">
         {/*
           The page had no heading at all before 2B-2 — it opened on a filter

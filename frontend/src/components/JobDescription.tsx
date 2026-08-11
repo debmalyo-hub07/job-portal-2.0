@@ -5,7 +5,6 @@ import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared
 
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import Navbar from "./shared/Navbar";
 import { Skeleton } from "./ui/skeleton";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -87,7 +86,6 @@ const JobDescription = () => {
   if (!singleJob) {
     return (
       <div>
-        <Navbar />
         <div className="max-w-4xl mx-auto my-10 px-4 space-y-4">
           <Skeleton className="h-9 w-2/3" />
           <Skeleton className="h-6 w-1/3" />
@@ -101,7 +99,6 @@ const JobDescription = () => {
 
   return (
     <div>
-      <Navbar />
       <article className="max-w-4xl mx-auto my-10 px-4">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

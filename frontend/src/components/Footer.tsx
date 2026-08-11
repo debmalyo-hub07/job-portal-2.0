@@ -1,54 +1,67 @@
+import { Link } from "react-router";
+
 import { Wordmark } from "@/components/shared/Wordmark";
+import { FOOTER_COLUMNS } from "@/components/shared/siteNav";
 
-const SOCIAL = [
-  {
-    href: "https://facebook.com",
-    label: "Facebook",
-    path: "M22.676 0H1.324C.593 0 0 .592 0 1.324v21.352C0 23.408.593 24 1.324 24H12.82V14.706H9.692v-3.578h3.128V8.408c0-3.1 1.893-4.787 4.657-4.787 1.325 0 2.463.1 2.794.144v3.238l-1.918.001c-1.503 0-1.794.715-1.794 1.762v2.31h3.587l-.468 3.578h-3.119V24h6.116C23.407 24 24 23.408 24 22.676V1.324C24 .592 23.407 0 22.676 0z",
-  },
-  {
-    href: "https://twitter.com",
-    label: "Twitter",
-    path: "M24 4.557a9.835 9.835 0 01-2.828.775 4.934 4.934 0 002.165-2.724 9.867 9.867 0 01-3.127 1.195 4.924 4.924 0 00-8.38 4.49A13.978 13.978 0 011.67 3.149 4.93 4.93 0 003.16 9.724a4.903 4.903 0 01-2.229-.616v.062a4.93 4.93 0 003.946 4.827 4.902 4.902 0 01-2.224.084 4.93 4.93 0 004.6 3.417A9.869 9.869 0 010 21.543a13.978 13.978 0 007.548 2.212c9.057 0 14.01-7.507 14.01-14.01 0-.213-.004-.425-.015-.636A10.012 10.012 0 0024 4.557z",
-  },
-  {
-    href: "https://linkedin.com",
-    label: "LinkedIn",
-    path: "M20.447 20.452H16.85v-5.569c0-1.327-.027-3.037-1.852-3.037-1.854 0-2.137 1.446-2.137 2.94v5.666H9.147V9.756h3.448v1.464h.05c.48-.91 1.653-1.871 3.401-1.871 3.634 0 4.307 2.39 4.307 5.498v5.605zM5.337 8.29c-1.105 0-2-.896-2-2 0-1.106.895-2 2-2 1.104 0 2 .895 2 2 0 1.104-.896 2-2 2zM7.119 20.452H3.553V9.756h3.566v10.696zM22.225 0H1.771C.791 0 0 .774 0 1.729v20.542C0 23.226.792 24 1.771 24h20.451c.979 0 1.771-.774 1.771-1.729V1.729C24 .774 23.205 0 22.225 0z",
-  },
-];
-
+/**
+ * Site chrome. Mounted by `PublicLayout`, never by a page.
+ *
+ * It used to be imported by exactly one component — `Home` — while the navbar
+ * was hand-mounted in nine, so every link the footer carried was reachable from
+ * the landing page and nowhere else. A privacy policy linked from one route is
+ * not linked.
+ *
+ * The three social icons it used to carry are gone. They pointed at
+ * facebook.com, twitter.com and linkedin.com — the platforms' own homepages,
+ * not Cairn accounts — so clicking one navigated away from the product and
+ * taught the visitor nothing. Under the no-dead-controls rule that is a dead
+ * control wearing social proof; they come back with real accounts to link.
+ */
 const Footer = () => {
   return (
-    <footer className="border-t border-line py-8">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 md:flex-row md:items-center">
-        <div>
-          {/* The lockup, not a hand-written copy of it — the third copy of the
-              wordmark is where the three would drift. It stays an h2: the
-              footer is a landmark, not the page's subject. */}
-          <h2 className="text-xl">
-            <Wordmark />
-          </h2>
-          {/* Derived, not hardcoded. The inherited footer claimed
-              "© 2024 Your Company" in a shipped build. */}
-          <p className="mt-2 text-sm text-ink-muted">
-            © {new Date().getFullYear()} Cairn. All rights reserved.
-          </p>
+    <footer className="border-t border-line bg-paper">
+      <div className="mx-auto max-w-7xl px-6 py-(--space-section)">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
+          <div>
+            {/* The lockup, not a hand-written copy of it. An h2 rather than an
+                h1: the footer is a landmark, not the page's subject. */}
+            <h2 className="text-xl">
+              <Wordmark />
+            </h2>
+            <p className="mt-3 max-w-xs text-sm text-ink-muted">
+              A cairn is a stack of stones one traveller leaves to mark the path for the next.
+            </p>
+          </div>
+
+          {FOOTER_COLUMNS.map((column) => (
+            <nav key={column.heading} aria-labelledby={`footer-${column.heading}`}>
+              <h3
+                id={`footer-${column.heading}`}
+                className="text-sm font-semibold tracking-wide text-ink"
+              >
+                {column.heading}
+              </h3>
+              <ul className="mt-3 flex flex-col gap-2">
+                {column.links.map((link) => (
+                  <li key={link.to}>
+                    <Link
+                      to={link.to}
+                      className="text-sm text-ink-muted transition-colors duration-(--dur-fast) hover:text-signal-text"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
 
-        <div className="flex gap-4">
-          {SOCIAL.map((s) => (
-            <a
-              key={s.label}
-              href={s.href}
-              aria-label={s.label}
-              className="text-ink-muted transition-colors duration-(--dur-fast) hover:text-signal-text"
-            >
-              <svg className="size-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path d={s.path} />
-              </svg>
-            </a>
-          ))}
+        <div className="mt-(--space-section) flex flex-col gap-2 border-t border-line pt-6 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between">
+          {/* Derived, not hardcoded. The inherited footer claimed
+              "© 2024 Your Company" in a shipped build. */}
+          <p>© {new Date().getFullYear()} Cairn. All rights reserved.</p>
+          <p>Built for people who are looking, and people who are hiring.</p>
         </div>
       </div>
     </footer>

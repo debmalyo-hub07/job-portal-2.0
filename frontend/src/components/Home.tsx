@@ -1,11 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import Navbar from "./shared/Navbar";
 import HeroSection from "./HeroSection";
 import CategoryCarousel from "./CategoryCarousel";
 import LatestJobs from "./LatestJobs";
-import Footer from "./Footer";
 import useGetAllJobs from "@/hooks/useGetAllJobs";
 import { homePathFor } from "@/lib/portalHome";
 import { useAppSelector } from "@/redux/store";
@@ -26,19 +24,13 @@ const Home = () => {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <Navbar />
-      {/*
-        Not PageShell: this page owns a full-bleed navbar and footer, so the
-        container lives inside rather than wrapping everything. data-density is
-        set here so the sections' --space-* tokens resolve.
-      */}
-      <div data-density="spacious" className="mx-auto max-w-7xl px-6">
-        <HeroSection />
-        <CategoryCarousel />
-        <LatestJobs />
-      </div>
-      <Footer />
+    // Navbar and footer come from PublicLayout. data-density is set here so the
+    // sections' --space-* tokens resolve; this page owns a full-bleed layout
+    // rather than PageShell's container.
+    <div data-density="spacious" className="mx-auto max-w-7xl px-6">
+      <HeroSection />
+      <CategoryCarousel />
+      <LatestJobs />
     </div>
   );
 };

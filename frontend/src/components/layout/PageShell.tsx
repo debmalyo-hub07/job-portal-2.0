@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type Density = "spacious" | "compact";
-type Width = "narrow" | "default" | "wide";
+type Width = "narrow" | "default" | "wide" | "prose";
 /** Motion budget for the surface, resolved exactly like density. */
 export type MotionTier = "ambient" | "standard" | "response";
 
@@ -10,6 +10,9 @@ const WIDTH: Record<Width, string> = {
   narrow: "max-w-2xl",
   default: "max-w-5xl",
   wide: "max-w-7xl",
+  // A reading measure for long-form text: max-w-prose (65ch) keeps a line from
+  // running past the comfortable reading length on a wide screen.
+  prose: "max-w-prose",
 };
 
 /**

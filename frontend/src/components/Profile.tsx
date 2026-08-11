@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Contact, Mail, Pen } from "lucide-react";
 import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
-import Navbar from "./shared/Navbar";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -61,7 +60,6 @@ const Profile = () => {
   if (loading || !bootstrapped) {
     return (
       <>
-        <Navbar />
         <PageShell density="compact" motion="response">
           <div className="space-y-4">
             <div className="flex items-center gap-4">
@@ -80,7 +78,6 @@ const Profile = () => {
 
   return (
     <>
-      <Navbar />
       <PageShell density="compact" motion="response">
         <section className="rounded-surface border border-line bg-paper-raised p-(--space-card)">
           <div className="flex items-start justify-between gap-4">
