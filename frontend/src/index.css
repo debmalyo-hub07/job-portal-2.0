@@ -84,11 +84,20 @@
 /* The vocabulary: distance + three switches. Notice there is no reveal-opacity
    variable. A richer reveal uses max(0, 1 − progress × N) with N already in the
    quadratic-safe range, and N itself comes from the easing library rather than
-   a token. The variables here are the four genuinely-variable quantities. */
+   a token. The variables here are the four genuinely-variable quantities.
+
+   The two switches are 1 = on, 0 = off, and the reduced-motion block below is
+   the only place they turn off. They were both 0 here from 4A.1 until Phase 5,
+   which made the collapse a no-op: on and off were byte-identical, so no
+   CSS-driven ambient or parallax could run on any surface. `motionAllows` reads
+   the data attribute rather than these variables, so the JS path was unaffected
+   and the defect stayed invisible — wiring up `useParallax` simply did nothing.
+   `motionSwitches.test.ts` asserts enabled ≠ reduced, which is the property
+   that was false and that asserting either value alone cannot catch. */
 :root {
   --motion-distance: 24px;
-  --motion-parallax: 0;
-  --motion-ambient: 0;
+  --motion-parallax: 1;
+  --motion-ambient: 1;
   --motion-feedback-scale: 1;
 }
 

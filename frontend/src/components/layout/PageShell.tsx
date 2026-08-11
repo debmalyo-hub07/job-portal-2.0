@@ -34,27 +34,44 @@ const WIDTH: Record<Width, string> = {
  * code passing a flag. Response's literals are zero/one because nothing about
  * them is reducible. Reveal opacity and feedback scale are literals in every
  * tier: neither is ever reduced.
+ *
+ * Why the parallax and ambient variables are RENAMED here
+ * (`--motion-parallax-depth`, `--motion-ambient-amplitude`) rather than declared
+ * under their :root names: a custom property cannot reference itself
+ * (`--motion-parallax: var(--motion-parallax)` is a cycle and resolves to
+ * empty), and `calc(var(--motion-parallax) * 0.5)` inherits that cycle, so the
+ * same-name form was dead on every surface from 4A.1 until Phase 5 — it read
+ * `""`, and a consumer parsing that got `NaN`. The scale step in the standard
+ * and response tiers needs the tier-scoped variable to refer to the :root one,
+ * which requires the two to have different names. The :root names stay the
+ * reducible switches; the tier-scoped names carry the resolved value.
  */
 const MOTION_VARS: Record<MotionTier, CSSProperties> = {
   ambient: {
     "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "var(--motion-distance)",
-    "--motion-parallax": "var(--motion-parallax)",
-    "--motion-ambient": "var(--motion-ambient)",
+    "--motion-parallax-depth": "var(--motion-parallax)",
+    "--motion-ambient-amplitude": "var(--motion-ambient)",
     "--motion-feedback-scale": 1,
   } as CSSProperties,
   standard: {
     "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "var(--motion-distance)",
-    "--motion-parallax": "var(--motion-parallax)",
-    "--motion-ambient": 0,
+    "--motion-parallax-depth": "var(--motion-parallax)",
+    // Half amplitude: browse and detail carry atmosphere, but it sits behind
+    // content someone is reading rather than behind a headline.
+    "--motion-ambient-amplitude": "calc(var(--motion-ambient) * 0.5)",
     "--motion-feedback-scale": 1,
   } as CSSProperties,
   response: {
     "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "0px",
-    "--motion-parallax": 0,
-    "--motion-ambient": 0,
+    "--motion-parallax-depth": 0,
+    // A whisper, not nothing. Phase 5 extends atmosphere to the workspace and
+    // console, reversing 4A's success criterion 6. Quarter amplitude and no
+    // parallax: enough that the surface is not inert, little enough that it
+    // never competes with a data table for attention.
+    "--motion-ambient-amplitude": "calc(var(--motion-ambient) * 0.25)",
     "--motion-feedback-scale": 1,
   } as CSSProperties,
 };
