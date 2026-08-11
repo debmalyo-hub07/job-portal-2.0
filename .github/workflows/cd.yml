@@ -1,9 +1,14 @@
 name: CD
 
-# Reusable, called by ci.yml with `needs: [verify, audit]`. That edge is the
-# gate: deployment cannot begin until both existing jobs pass. Triggering on
-# `workflow_run` instead would express the same intent with a weaker guarantee
-# and an extra indirection.
+# Reusable, called by ci.yml with `needs: [verify, audit]`.
+#
+# This was designed as the deployment gate: that edge meant a deploy could not
+# begin until both existing jobs passed. Since 2026-08-11 both hosts deploy on
+# push (`autoDeploy: true`, and Vercel's Git integration at its default), so
+# this workflow no longer gates anything — it runs in parallel with the hosts'
+# own builds. What survives the change is the `artifacts` job, still the only
+# check in this repository that executes the built output. See the amendment in
+# docs/adr/0007-deploy-topology.md.
 on:
   workflow_call:
 
@@ -200,10 +205,17 @@ jobs:
       # branch; a VERCEL_TOKEN can act on every project in the account, so a
       # leaked token is an account compromise rather than one unwanted deploy.
       #
+      # Both steps are redundant while auto-deploy is on: the hosts have already
+      # started building from the push. They are kept because they are the
+      # working half of restoring CI-as-gate — setting autoDeploy: false without
+      # also adding these secrets produces no automatic deploys at all, which is
+      # the state this repository spent a phase and a half in.
+      #
       # A missing secret skips its step with an explicit log line rather than
       # failing the run or quietly succeeding. Red CI for a deploy nobody
-      # configured trains people to ignore CI; a silent skip leaves "I pushed,
-      # why is it not live?" unanswerable. The log line is the difference.
+      # configured trains people to ignore CI. The skip is not free either — it
+      # is indistinguishable from success unless someone reads the log, which is
+      # exactly how it went unnoticed that no deploy was being triggered.
       - name: Trigger the API deploy
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

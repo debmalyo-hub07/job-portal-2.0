@@ -310,12 +310,14 @@ What the deploy artifacts phase closed:
   asserts `/health` reports both `status: ok` **and** `db: connected` — `status`
   alone would pass with a disconnected database — then inspects the web bundle
   for a hashed entry chunk, the `_redirects` copy, and any `_design` leak.
-  Deploys go out by **deploy hook, never a CLI token**: a hook is scoped to one
-  project and branch, a `VERCEL_TOKEN` acts on the whole account. A missing
-  secret skips its step with a `::notice::` rather than failing the run
+  Its deploy steps use a **deploy hook, never a CLI token** — a hook is scoped to
+  one project and branch, a `VERCEL_TOKEN` acts on the whole account — but they
+  are inert while auto-deploy is on, and were inert before it for want of the
+  secrets. See the Known gaps entry
 - **`secrets: inherit` on the calling job is load-bearing.** A reusable workflow
   sees none of the caller's secrets without it, and both deploy steps skip
-  quietly by design — so the omission would look exactly like success
+  quietly by design — so the omission looks exactly like success. It did, for a
+  phase and a half
 - **`VITE_API_URL` is required to *build*, and its absence fails as success
   twice over.** The value is inlined as a literal, so unset it lets Rolldown
   prove `apiClient.ts`'s import-time throw always fires, treat the rest as
@@ -576,16 +578,17 @@ Known gaps, deliberately deferred:
 - `packages/shared/src/legacy-dto.ts` is vestigial. 1C replaced the endpoints it
   described with projected DTOs, and nothing imports the `Legacy*` types any
   more
-- **CD triggers deploys, it does not verify them.** A deploy hook answers 202
-  once the deploy is queued and says nothing about whether it succeeded, so a
-  green `cd.yml` means "both hosts accepted the request". Polling each host's
-  API for the resulting deploy status needs the account-scoped tokens the hook
-  design deliberately avoids
-- **Two dashboard settings live outside the repository.** `render.yaml` carries
-  `autoDeploy: false`, but Vercel's equivalent is a project setting — left on,
-  it deploys on push while CI is still running, which is exactly what routing
-  deploys through the workflow was for. Both are recorded in the README's
-  Continuous delivery section
+- **CD does not gate deploys, and since 2026-08-11 does not trigger them
+  either.** Both hosts deploy on push (`autoDeploy: true`, Vercel's Git
+  integration at its default), so `cd.yml` runs *beside* the hosts' builds
+  rather than in front of them: a push that fails the suite has already reached
+  users. The gate it was designed to be never operated — `autoDeploy: false`
+  shipped but the two hook secrets did not, so both deploy steps skipped with a
+  `::notice::` on every run and every deploy was a manual dashboard click.
+  Restoring the gate means adding the secrets **and** setting `autoDeploy:
+  false`, in one change; doing the second alone returns to no automatic deploys
+  at all. `deployConfig.test.ts` asserts whichever value is current. See the
+  amendment in `docs/adr/0007-deploy-topology.md`
 
 See `docs/superpowers/plans/2026-08-04-phase-1c-authorization-domain.md`,
 `docs/superpowers/plans/2026-08-05-phase-2a-ink-signal-foundation.md`,

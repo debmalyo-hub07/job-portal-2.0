@@ -109,16 +109,17 @@ Deploy, and note the assigned URL (`https://jobportal-api.onrender.com`).
 ### Two settings not to touch
 
 `NODE_ENV=production` and `COOKIE_SAMESITE=none` are pinned literals in the
-blueprint. `numInstances: 1` and `autoDeploy: false` are equally load-bearing:
+blueprint. `numInstances: 1` is equally load-bearing:
 
 - **`numInstances` is a security parameter.** `rateLimitStore.ts` is a
   single-process `Map` (ADR-0004), so every threshold is per-instance. Two
   instances turn `LOGIN_LOCK_THRESHOLD` 5 into ~10 and `OTP_BUDGET_MAX_FAILURES`
   20 into ~40. The dashboard shows it as a number field beside the plan
   selector, with nothing connecting it to brute-force resistance.
-- **`autoDeploy: false` is what makes CI the gate.** On, Render deploys while
-  the suite is still running, so the revision users get is the one the host
-  picked rather than the one the workflow approved.
+
+`autoDeploy: true` (changed 2026-08-11) is a deliberate operating decision, not
+a default left in place. Both hosts now deploy on push. See "What auto-deploy
+costs" below.
 
 ## 2. Vercel — the web app
 
@@ -130,8 +131,8 @@ blueprint. `numInstances: 1` and `autoDeploy: false` are equally load-bearing:
 4. Add `VITE_API_URL` = `https://jobportal-api.onrender.com/api/v1` — the
    Render URL **including the `/api/v1` suffix**. Apply to Production, Preview
    and Development.
-5. Deploy; note the `https://<project>.vercel.app` URL.
-6. **Settings → Git → turn off automatic production deployments.**
+5. Deploy; note the `https://<project>.vercel.app` URL. Automatic production
+   deployments stay **on**, matching `autoDeploy: true` on Render.
 
 ### Why `VITE_API_URL` cannot be skipped
 
@@ -147,11 +148,28 @@ naming the variable, and `cd.yml` greps the built bundle for route literals
 because the old check (a hashed chunk name in `index.html`) is one the hollow
 bundle passes.
 
-### Auto-deploy must be turned off by hand
+### What auto-deploy costs
 
-Render's is handled by `autoDeploy: false` in the committed blueprint. Vercel's
-equivalent is a **project setting the repository cannot reach**, so it is the
-one prerequisite with no file backing it up.
+Both hosts deploy on push. Nothing gates a deploy on the suite passing, so a
+push that breaks CI still reaches users — the revision they get is the one the
+host picked, not the one the workflow approved. CI still runs, and still tells
+you; it just tells you in parallel with the deploy rather than before it.
+
+That trade was accepted on 2026-08-11, after the original design turned out to
+be half-built: `autoDeploy: false` shipped, but the `RENDER_DEPLOY_HOOK_URL`
+secret it depended on never did, so `cd.yml` skipped its deploy step with a
+`::notice::` on every run and every deploy was manual. The gate was not gating —
+it was only blocking.
+
+To restore CI-as-gate, both halves have to be present at once:
+
+1. Add `RENDER_DEPLOY_HOOK_URL` and `VERCEL_DEPLOY_HOOK_URL` under Settings →
+   Secrets and variables → Actions.
+2. Set `autoDeploy: false` in `render.yaml` and turn off automatic production
+   deployments in Vercel → Settings → Git.
+
+Order matters. Step 2 first is the state this repository was just in: no
+automatic deploys at all.
 
 ## 3. Close the URL loop
 
@@ -265,8 +283,11 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 3. Vercel project → root `frontend`, `VITE_API_URL` ending in `/api/v1`
 4. Back to Render → fix `WEB_BASE_URL` and `CLIENT_URLS`
 5. Google redirect URIs, both portals, no JS origins
-6. Auto-deploy off in Vercel
-7. Both deploy hooks into GitHub secrets
+6. Auto-deploy on in both hosts (the default; `autoDeploy: true` in
+   `render.yaml`, Vercel's left at its default)
+7. Optionally, both deploy hooks into GitHub secrets — only needed if
+   CI-as-gate is restored later; with auto-deploy on, `cd.yml`'s deploy steps
+   skip with a `::notice::` and deploys happen without them
 8. Brevo IP allowlist, after the first failed send
 9. Seed the admin, once mail works
 
@@ -274,8 +295,10 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 
 A deploy hook answers `202` once the deploy is *queued* and says nothing about
 whether it succeeded, so a green `cd.yml` means both hosts accepted the request.
-Step 7 is the verification; polling each host's API for deploy status would
-need the account-scoped tokens the hook design deliberately avoids.
+(Polling each host's API for deploy status would need the account-scoped tokens
+the hook design deliberately avoids.) With auto-deploy on, `cd.yml` no longer
+queues deploys at all — it is an artifact check only, and a green run means the
+artifacts were sound, not that anything was deployed.
 
 Nor does a green suite prove the app works cross-site. Three bugs so far reached
 production through a fully green local run — a missing `VITE_API_URL`

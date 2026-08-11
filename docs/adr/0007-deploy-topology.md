@@ -72,3 +72,35 @@ token is an account compromise rather than one unwanted deploy.
   one the host chose rather than the one the workflow approved. `autoDeploy:
   false` covers Render; Vercel's is a dashboard setting this repository cannot
   set.
+
+## Amendment, 2026-08-11: auto-deploy is on
+
+The last consequence above is **reversed**. `render.yaml` now sets
+`autoDeploy: true`, matching Vercel, and pushing to `main` deploys both apps.
+
+The gate described here was never operational. It had two halves — `autoDeploy:
+false` so the host would not deploy, and `cd.yml` POSTing a deploy hook once CI
+passed so that something would. Only the first shipped: the
+`RENDER_DEPLOY_HOOK_URL` and `VERCEL_DEPLOY_HOOK_URL` secrets were never added,
+so both deploy steps skipped with a `::notice::` on every run since the deploy
+phase. The effect was not a gated deploy but no automatic deploy at all, and
+manual dashboard clicks in place of it — which is a *worse* position than
+either design, because a hand-triggered deploy has no relationship to CI
+whatsoever.
+
+Given a half-built gate, the choice was to finish it or to drop it. Dropped,
+deliberately: this is a single-maintainer project where the deploy hook secret
+had gone unadded for a phase and a half, and a gate whose upkeep does not happen
+is a gate that only ever blocks the person maintaining it.
+
+What is given up is real and should not be minimised: **a push that fails the
+suite now reaches users.** CI still runs and still reports, in parallel with the
+hosts' builds rather than in front of them, so the feedback arrives — just after
+the deploy rather than before. `cd.yml` remains the only check that executes the
+built artifacts, and that value is unchanged.
+
+Restoring the gate requires both halves in one change: add the two hook secrets
+**and** set `autoDeploy: false`. Doing the second alone returns to the state
+this amendment is correcting. `backend/tests/deployConfig.test.ts` asserts
+whichever value is current, so the blueprint and the intent cannot drift apart
+silently.

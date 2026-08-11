@@ -380,21 +380,23 @@ The status is **200, not 302**. The router reads the original path off
 
 ### Continuous delivery
 
+**Both hosts deploy on push.** `render.yaml` sets `autoDeploy: true` and
+Vercel's Git integration is left at its default, so pushing to `main` deploys.
+
 `.github/workflows/cd.yml` runs after both CI jobs pass on `main`. It builds
 both apps, boots the real `backend/dist/server.js` against a `mongo:7` service
 container and asserts `/health` reports `status: ok` and `db: connected`, then
-inspects the web bundle. Only then does it trigger the two deploys.
+inspects the web bundle. It is an **artifact check, not a gate** — it runs in
+parallel with the hosts' own builds, so a push that fails it has already
+deployed. It will also trigger deploys itself if the two hook secrets below are
+set, which is redundant while auto-deploy is on.
 
-Two setup steps this repository cannot do for you:
-
-1. **Turn off auto-deploy in both dashboards.** Render and Vercel both deploy on
-   every push by default, which starts a deploy while CI is still running — so
-   the revision users get is the one the host chose, not the one the workflow
-   approved. `render.yaml` sets `autoDeploy: false`; Vercel's is a project
-   setting (Settings → Git → Ignored Build Step, or disconnect the Git
-   integration and deploy by hook only).
-2. **Add two repository secrets** under Settings → Secrets and variables →
-   Actions:
+That trade is deliberate (changed 2026-08-11). The original design gated
+deploys behind CI, with `autoDeploy: false` and `cd.yml` POSTing a deploy hook
+once the suite passed — but the hook secrets were never added, so `cd.yml`
+skipped both deploy steps with a `::notice::` on every run and every deploy was
+manual. Restoring the gate means doing both halves at once: add the secrets
+**and** set `autoDeploy: false`.
 
 | Secret | Where to get it |
 |---|---|
@@ -406,8 +408,8 @@ one branch, while a `VERCEL_TOKEN` can act on every project in the account.
 
 A missing secret **skips that deploy with a note in the run log** rather than
 failing the build — a red check for a deploy nobody configured teaches everyone
-to ignore red checks. The deploy is triggered, not verified: a hook returns 202
-once the deploy is queued and says nothing about whether it succeeded.
+to ignore red checks. The cost of that choice is on the record above: a skip is
+indistinguishable from success unless you read the log.
 
 ### Cookies and where you host the two apps
 

@@ -143,11 +143,14 @@ describe("deploy config", () => {
     expect(service?.healthCheckPath).toBe("/health");
   });
 
-  it("leaves deployment to CI rather than to a push", () => {
-    // Render's default deploys on every push, which would start a deploy while
-    // the suite is still running — so the revision users get is the one the
-    // host chose, not the one the workflow approved.
-    expect(service?.autoDeploy).toBe(false);
+  it("deploys on push — auto-deploy is on, as on Vercel", () => {
+    // Changed 2026-08-11, with render.yaml. The original autoDeploy: false
+    // design made CI the gate, with cd.yml POSTing the deploy hook after both
+    // jobs passed — but the hook secret was never configured, so every deploy
+    // was manual. On, the host deploys while the suite is still running; the
+    // revision users get is the one the host chose, not the one the workflow
+    // approved. That trade is now accepted, deliberately.
+    expect(service?.autoDeploy).toBe(true);
   });
 
   it("builds shared before the API, from the repository root", () => {

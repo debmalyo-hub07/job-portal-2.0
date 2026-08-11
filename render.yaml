@@ -50,11 +50,14 @@ services:
     # shared store ADR-0004 defers. See docs/adr/0007-deploy-topology.md.
     numInstances: 1
 
-    # CI is the gate. Render's default is to deploy on every push, which starts
-    # a deploy while the suite is still running — so the revision that reaches
-    # users is the one the host chose, not the one the workflow approved.
-    # .github/workflows/cd.yml POSTs the deploy hook after both CI jobs pass.
-    autoDeploy: false
+    # Changed 2026-08-11: Render now deploys on push, as Vercel already did.
+    # Previously CI was the gate and cd.yml POSTed the deploy hook after both
+    # jobs passed — but the hook secret was never configured, so every deploy
+    # was manual. autoDeploy: true matches the live call on Vercel; the cost is
+    # that a push deploys while the suite is still running, and the revision
+    # that reaches users is the one the host chose rather than the one CI
+    # approved. Accepting that trade as a deliberate operating decision.
+    autoDeploy: true
 
     envVars:
       # Pinned as a literal. env.ts defaults NODE_ENV to "development", and
