@@ -50,7 +50,24 @@ describe("HireShell", () => {
     expect(headings[0]).toHaveTextContent("Jobs");
   });
 
-  it("runs compact and response, like the console", () => {
+  /**
+   * This test used to assert the workspace ran Tier 3 feedback *only* — 4A
+   * success criterion 6. Phase 5 reverses that criterion deliberately: motion
+   * reaches every surface, and the workspace's share of it is a whisper.
+   *
+   * Rewritten rather than deleted, because the cap is the part still worth
+   * pinning. `response` is what expresses it: `--motion-reveal-distance: 0px`
+   * turns a `Reveal` into an opacity-only arrival, and `--motion-ambient-amplitude`
+   * scales to a quarter. Nothing here reads the tier or takes a flag — a page
+   * that hand-tuned a duration because "the workspace should be calmer" is the
+   * failure this asserts against.
+   *
+   * What the workspace deliberately does *not* get is an `Atmosphere`. That is a
+   * contrast finding, not a taste one: `Atmosphere.tsx` records the admin signal
+   * composited over paper at alpha 0.15 measuring 4.39:1, which fails the 4.5:1
+   * floor the whole token system holds to.
+   */
+  it("runs compact, and caps motion to a whisper rather than refusing it", () => {
     const { container } = renderRoute(
       <HireShell title="Jobs">
         <p>body</p>
@@ -59,8 +76,16 @@ describe("HireShell", () => {
     );
     const shell = container.querySelector("[data-density]");
     expect(shell).toHaveAttribute("data-density", "compact");
-    // Tier 3 feedback only: this is work, not marketing.
     expect(shell).toHaveAttribute("data-motion", "response");
+
+    // The cap, as values rather than as a claim in a comment.
+    const style = (shell as HTMLElement).style;
+    expect(style.getPropertyValue("--motion-reveal-distance")).toBe("0px");
+    expect(style.getPropertyValue("--motion-parallax-depth")).toBe("0");
+    expect(style.getPropertyValue("--motion-ambient-amplitude")).toContain("0.25");
+    // Tier 3 is never reducible and never scaled — it is how a control confirms
+    // it was pressed, on every surface.
+    expect(style.getPropertyValue("--motion-feedback-scale")).toBe("1");
   });
 
   it("builds its sub-nav from navLinksFor, so the tabs and navbar agree", () => {

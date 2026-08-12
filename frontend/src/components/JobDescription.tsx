@@ -7,6 +7,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { FitBreakdown } from "./FitBadge";
+import PageShell from "./layout/PageShell";
+import { Reveal } from "@/lib/motion";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setSingleJob } from "@/redux/jobSlice";
@@ -86,21 +88,21 @@ const JobDescription = () => {
   // page pop its values in one by one.
   if (!singleJob) {
     return (
-      <div>
-        <div className="max-w-4xl mx-auto my-10 px-4 space-y-4">
+      <PageShell width="default" motion="standard">
+        <div className="space-y-4">
           <Skeleton className="h-9 w-2/3" />
           <Skeleton className="h-6 w-1/3" />
           <Skeleton className="h-32 w-full" />
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   const posted = singleJob.createdAt ? singleJob.createdAt.split("T")[0] : "—";
 
   return (
-    <div>
-      <article className="max-w-4xl mx-auto my-10 px-4">
+    <PageShell width="default" motion="standard">
+      <article>
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-3xl font-bold">{singleJob.title}</h1>
@@ -135,57 +137,67 @@ const JobDescription = () => {
         {/*
           Directly under the header, because it answers the question the page is
           open to answer. Absent for an anonymous visitor and for a recruiter —
-          neither is the subject of a seeker's score — so the page is unchanged
-          for them rather than carrying an empty panel.
+          neither is the subject of a seeker's score. Guarded here rather than
+          leaning on `FitBreakdown`'s own null return, because the wrapper owns
+          the margin: an unguarded `Reveal` would render an empty offset div and
+          leave a gap on exactly the surfaces that have no panel.
         */}
-        <FitBreakdown fit={singleJob.fit} className="mt-8" />
+        {singleJob.fit && (
+          <Reveal className="mt-(--space-card)">
+            <FitBreakdown fit={singleJob.fit} />
+          </Reveal>
+        )}
 
-        <section className="mt-8" aria-labelledby="overview-heading">
-          <h2 id="overview-heading" className="text-xl font-display border-b border-line pb-2">
-            Overview
-          </h2>
-          {/* A description list, not headings: these are label/value pairs, and
-              marking each label as <h1> is what gave the old page seven of them. */}
-          <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-sm font-semibold text-ink-muted">Location</dt>
-              <dd>{singleJob.location}</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-semibold text-ink-muted">Experience</dt>
-              <dd>{singleJob.experienceLevel} years</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-semibold text-ink-muted">Salary</dt>
-              <dd>{singleJob.salary} LPA</dd>
-            </div>
-            <div>
-              <dt className="text-sm font-semibold text-ink-muted">Posted</dt>
-              <dd>{posted}</dd>
-            </div>
-          </dl>
-        </section>
+        <Reveal className="mt-(--space-card)" delay={0.05}>
+          <section aria-labelledby="overview-heading">
+            <h2 id="overview-heading" className="text-xl font-display border-b border-line pb-2">
+              Overview
+            </h2>
+            {/* A description list, not headings: these are label/value pairs, and
+                marking each label as <h1> is what gave the old page seven of them. */}
+            <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+              <div>
+                <dt className="text-sm font-semibold text-ink-muted">Location</dt>
+                <dd>{singleJob.location}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-semibold text-ink-muted">Experience</dt>
+                <dd>{singleJob.experienceLevel} years</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-semibold text-ink-muted">Salary</dt>
+                <dd>{singleJob.salary} LPA</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-semibold text-ink-muted">Posted</dt>
+                <dd>{posted}</dd>
+              </div>
+            </dl>
+          </section>
+        </Reveal>
 
-        <section className="mt-8" aria-labelledby="role-heading">
-          <h2 id="role-heading" className="text-xl font-display border-b border-line pb-2">
-            About the role
-          </h2>
-          <p className="mt-4 whitespace-pre-line">{singleJob.description}</p>
-          {singleJob.requirements.length > 0 && (
-            <>
-              <h3 className="text-xl font-display mt-6">What we're looking for</h3>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {singleJob.requirements.map((skill) => (
-                  <li key={skill}>
-                    <Badge variant="outline">{skill}</Badge>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+        <Reveal className="mt-(--space-card)" delay={0.1}>
+          <section aria-labelledby="role-heading">
+            <h2 id="role-heading" className="text-xl font-display border-b border-line pb-2">
+              About the role
+            </h2>
+            <p className="mt-4 whitespace-pre-line">{singleJob.description}</p>
+            {singleJob.requirements.length > 0 && (
+              <>
+                <h3 className="text-xl font-display mt-6">What we're looking for</h3>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {singleJob.requirements.map((skill) => (
+                    <li key={skill}>
+                      <Badge variant="outline">{skill}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        </Reveal>
       </article>
-    </div>
+    </PageShell>
   );
 };
 

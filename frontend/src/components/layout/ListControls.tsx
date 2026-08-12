@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AnimatedNumber } from "@/lib/numberFlow";
 
 /**
  * The search + pagination furniture every paginated list needs.
@@ -46,6 +47,12 @@ export function ListControls({
  * Page N of M, with the primitive that shipped in 2A and had never been wired
  * to a list. Rendered only when there is more than one page — a lone "1 of 1"
  * is furniture that tells the user nothing.
+ *
+ * The total animates. It is the one number in the application that changes in
+ * direct response to something the user just did — typing a keyword, setting a
+ * facet — so watching it move is feedback about whether the filter did anything,
+ * not decoration. Tier 3, which is why it runs on the workspace's `response`
+ * tier too: the two moderation lists and the seeker board all read this.
  */
 export function Pager({
   page,
@@ -61,7 +68,7 @@ export function Pager({
   if (pages <= 1) {
     return (
       <p className="text-sm text-ink-muted">
-        {total} {total === 1 ? "result" : "results"}
+        <AnimatedNumber value={total} /> {total === 1 ? "result" : "results"}
       </p>
     );
   }
@@ -69,7 +76,7 @@ export function Pager({
     <div className="flex items-center gap-3">
       <p className="text-sm text-ink-muted">
         Page <span className="font-mono">{page}</span> of{" "}
-        <span className="font-mono">{pages}</span> · {total} results
+        <span className="font-mono">{pages}</span> · <AnimatedNumber value={total} /> results
       </p>
       <div className="flex gap-2">
         <Button

@@ -12,6 +12,7 @@ import UpdateProfileDialog from "./UpdateProfileDialog";
 import useGetAppliedJobs from "@/hooks/useGetAppliedJobs";
 import { apiClient } from "@/lib/apiClient";
 import { initialsOf } from "@/lib/initials";
+import { Reveal } from "@/lib/motion";
 import { useAppSelector } from "@/redux/store";
 
 const Profile = () => {
@@ -224,12 +225,14 @@ const Profile = () => {
           </div>
         </section>
 
-        <section className="mt-(--space-section)">
-          <h2 className="font-display text-display-sm font-semibold text-ink">Applied jobs</h2>
-          <div className="mt-(--space-card)">
-            <AppliedJobTable />
-          </div>
-        </section>
+        <Reveal className="mt-(--space-section)">
+          <section>
+            <h2 className="font-display text-display-sm font-semibold text-ink">Applied jobs</h2>
+            <div className="mt-(--space-card)">
+              <AppliedJobTable />
+            </div>
+          </section>
+        </Reveal>
 
         <UpdateProfileDialog
           open={open}

@@ -10,10 +10,21 @@ import { cn } from "@/lib/utils";
 /**
  * The admin console's frame.
  *
- * `motion="response"` is deliberate and is the spec's success criterion 6: the
- * console is work, not marketing, so it gets Tier 3 feedback only — no ambient
- * loops, no scroll narrative. `density="compact"` for the same reason; these
- * are dense moderation screens, not a landing page.
+ * `motion="response"` was the spec's success criterion 6 — Tier 3 feedback only,
+ * nothing ambient, no scroll narrative. Phase 5 reverses that criterion: motion
+ * reaches every surface, and `response` becomes the **cap** rather than the
+ * refusal. It resolves `--motion-reveal-distance` to `0px`, so a `Reveal` here is
+ * an opacity-only arrival, and the dashboard's figures animate when a moderation
+ * action changes them — which is feedback about the action, not decoration.
+ *
+ * The console still gets no `Atmosphere`, on a measurement rather than a
+ * judgement: `Atmosphere.tsx` records the admin signal composited over paper at
+ * alpha 0.15 measuring 4.39:1, below the 4.5:1 floor every other pairing clears.
+ * The admin signal is the one that cannot carry a field. Nothing animates behind
+ * a moderation table either.
+ *
+ * `density="compact"` for the original reason; these are dense moderation
+ * screens, not a landing page.
  *
  * The sub-navigation reads `navLinksFor("admin")` rather than listing routes
  * again, so the console's own tabs, the desktop navbar and the mobile sheet can

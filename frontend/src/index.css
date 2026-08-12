@@ -109,6 +109,19 @@
   }
 }
 
+/* A `Reveal` holds its children at opacity 0 until an IntersectionObserver says
+   they have come into view. Print has no scroll and fires no observer, so
+   without this every revealed section below the first screen would print blank.
+   The children are in the DOM throughout — this is the one case where the
+   element is present and the paint is not, so it is a print bug rather than a
+   content bug, and !important because the state is an inline style. */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    translate: none !important;
+  }
+}
+
 /* Density — a parameter, not a per-component judgement. Spacious is the
    marketing and seeker default; compact is the recruiter workspace. Set via
    data-density on PageShell; components read the vars, never the attribute. */

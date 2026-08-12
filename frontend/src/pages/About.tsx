@@ -2,7 +2,8 @@ import { Link } from "react-router";
 import { Compass, Route, Users } from "lucide-react";
 
 import { PageShell } from "@/components/layout/PageShell";
-import { FadeIn, StaggerItem, StaggerList } from "@/lib/motion";
+import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
+import { FadeIn, Reveal } from "@/lib/motion";
 
 const PRINCIPLES = [
   {
@@ -32,43 +33,60 @@ const PRINCIPLES = [
 export default function About() {
   return (
     <PageShell width="default" motion="ambient">
-      <FadeIn>
-        <p className="mb-4 inline-flex rounded-full bg-signal-muted px-3 py-1 text-sm font-medium text-signal-text">
-          About
-        </p>
-        <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
-          Mark the way for whoever is next.
-        </h1>
-        <p className="mt-5 max-w-2xl text-lg text-ink-muted">
-          A cairn is a stack of stones one traveller leaves so the next can find the path. Looking
-          for work is the same problem: the people who have just done it know things the people
-          starting out cannot see.
-        </p>
-      </FadeIn>
+      {/* Same host shape as HeroSection: `relative isolate` because the layer is
+          absolutely positioned, and the negative inline margin lets the field
+          reach the viewport edge from inside PageShell's container. The mask
+          band is wider than the default because this hero carries an eyebrow, a
+          display heading and a three-line paragraph. */}
+      <div className="relative isolate -mx-6 px-6">
+        <Atmosphere className="-z-10" textBand={[0.25, 0.8]} />
+        <FadeIn>
+          <p className="mb-4 inline-flex rounded-full bg-signal-muted px-3 py-1 text-sm font-medium text-signal-text">
+            About
+          </p>
+          <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
+            Mark the way for whoever is next.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-ink-muted">
+            A cairn is a stack of stones one traveller leaves so the next can find the path. Looking
+            for work is the same problem: the people who have just done it know things the people
+            starting out cannot see.
+          </p>
+        </FadeIn>
+      </div>
 
-      <StaggerList className="mt-(--space-section) grid gap-6 md:grid-cols-3">
-        {PRINCIPLES.map((principle) => (
-          <StaggerItem key={principle.title}>
+      {/*
+        `Reveal`, not the `StaggerList` this used to be. A stagger animates on
+        mount, and these cards start below the fold — so the choreography had
+        always finished by the time anyone scrolled to them, which is the same as
+        having none. A per-card delay reproduces the stagger, triggered by
+        arrival instead of by mount.
+      */}
+      <div className="mt-(--space-section) grid gap-6 md:grid-cols-3">
+        {PRINCIPLES.map((principle, i) => (
+          <Reveal key={principle.title} delay={i * 0.06}>
             <div className="h-full rounded-surface border border-line bg-paper-raised p-(--space-card)">
               <principle.icon aria-hidden="true" className="mb-3 size-5 text-signal-text" />
               <h2 className="font-display text-xl font-semibold text-ink">{principle.title}</h2>
               <p className="mt-2 text-sm text-ink-muted">{principle.body}</p>
             </div>
-          </StaggerItem>
+          </Reveal>
         ))}
-      </StaggerList>
+      </div>
 
-      <section className="mt-(--space-section) border-t border-line pt-(--space-card)">
-        <h2 className="font-display text-display-sm font-semibold text-ink">Where it stands</h2>
-        <p className="mt-3 max-w-2xl text-ink-muted">
-          Cairn is early. The job board, applications, the employer workspace and the moderation
-          console all work; the board is not yet full. If you want to be told when it is,{" "}
-          <Link to="/contact" className="text-signal-text hover:underline">
-            say so
-          </Link>
-          .
-        </p>
-      </section>
+      <Reveal className="mt-(--space-section) border-t border-line pt-(--space-card)">
+        <section>
+          <h2 className="font-display text-display-sm font-semibold text-ink">Where it stands</h2>
+          <p className="mt-3 max-w-2xl text-ink-muted">
+            Cairn is early. The job board, applications, the employer workspace and the moderation
+            console all work; the board is not yet full. If you want to be told when it is,{" "}
+            <Link to="/contact" className="text-signal-text hover:underline">
+              say so
+            </Link>
+            .
+          </p>
+        </section>
+      </Reveal>
     </PageShell>
   );
 }

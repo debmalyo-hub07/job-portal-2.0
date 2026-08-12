@@ -3,7 +3,7 @@ import { Building2, LifeBuoy, ShieldQuestion } from "lucide-react";
 
 import { PageShell } from "@/components/layout/PageShell";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FadeIn } from "@/lib/motion";
+import { Reveal } from "@/lib/motion";
 import { SUPPORT_EMAIL, mailtoHref } from "@/lib/contact";
 
 const CHANNELS = [
@@ -43,19 +43,20 @@ const CHANNELS = [
  */
 export default function Contact() {
   return (
-    <PageShell width="default">
+    <PageShell width="default" motion="standard">
       <PageHeader
         title="Contact"
         description="A person reads these. Pick whichever line fits and it lands in the right place."
       />
 
-      <FadeIn>
-        <div className="grid gap-6 md:grid-cols-3">
-          {CHANNELS.map((channel) => (
-            <div
-              key={channel.title}
-              className="flex h-full flex-col rounded-surface border border-line bg-paper-raised p-(--space-card)"
-            >
+      {/* Per-card arrival rather than one wrapper fading on mount. The three
+          channels sit at the top of the page, so this one is nearly immediate —
+          the delay exists so the reader's eye is led left to right instead of
+          having three cards land at once. */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {CHANNELS.map((channel, i) => (
+          <Reveal key={channel.title} delay={i * 0.06}>
+            <div className="flex h-full flex-col rounded-surface border border-line bg-paper-raised p-(--space-card)">
               <channel.icon aria-hidden="true" className="mb-3 size-5 text-signal-text" />
               <h2 className="font-display text-xl font-semibold text-ink">{channel.title}</h2>
               <p className="mt-2 flex-1 text-sm text-ink-muted">{channel.body}</p>
@@ -66,10 +67,12 @@ export default function Contact() {
                 Email about {channel.title.toLowerCase()}
               </a>
             </div>
-          ))}
-        </div>
+          </Reveal>
+        ))}
+      </div>
 
-        <div className="mt-(--space-section) rounded-surface border border-line p-(--space-card)">
+      <Reveal className="mt-(--space-section)">
+        <div className="rounded-surface border border-line p-(--space-card)">
           <h2 className="font-display text-xl font-semibold text-ink">Or write directly</h2>
           <p className="mt-2 text-ink-muted">
             <a href={mailtoHref()} className="text-signal-text hover:underline">
@@ -84,7 +87,7 @@ export default function Contact() {
             , including what happens to your resume and why an employer account starts pending.
           </p>
         </div>
-      </FadeIn>
+      </Reveal>
     </PageShell>
   );
 }

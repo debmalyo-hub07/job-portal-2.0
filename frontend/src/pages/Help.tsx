@@ -2,7 +2,7 @@ import { Link } from "react-router";
 
 import { PageShell } from "@/components/layout/PageShell";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { FadeIn } from "@/lib/motion";
+import { Reveal } from "@/lib/motion";
 
 type Faq = { q: string; a: React.ReactNode };
 
@@ -74,41 +74,47 @@ function FaqList({ faqs }: { faqs: Faq[] }) {
  */
 export default function Help() {
   return (
-    <PageShell width="default">
+    <PageShell width="default" motion="standard">
       <PageHeader
         title="Help & FAQ"
         description="How Cairn works, including the parts that do not work yet."
       />
 
-      <FadeIn>
+      {/*
+        One `Reveal` per section rather than one `FadeIn` around all three. The
+        wrapper animated on mount, so the employer FAQs and the closing note —
+        both well below the fold — had finished before anyone could see them
+        start. No atmosphere here: someone on the help page is trying to resolve
+        a problem, and this is the surface where a drifting field is least
+        welcome and least noticed.
+      */}
+      <Reveal>
         <section aria-labelledby="faq-candidates">
-          <h2
-            id="faq-candidates"
-            className="font-display text-display-sm font-semibold text-ink"
-          >
+          <h2 id="faq-candidates" className="font-display text-display-sm font-semibold text-ink">
             If you are looking for work
           </h2>
           <FaqList faqs={CANDIDATE_FAQS} />
         </section>
+      </Reveal>
 
-        <section
-          aria-labelledby="faq-employers"
-          className="mt-(--space-section)"
-        >
+      <Reveal className="mt-(--space-section)">
+        <section aria-labelledby="faq-employers">
           <h2 id="faq-employers" className="font-display text-display-sm font-semibold text-ink">
             If you are hiring
           </h2>
           <FaqList faqs={EMPLOYER_FAQS} />
         </section>
+      </Reveal>
 
-        <p className="mt-(--space-section) rounded-surface border border-line bg-paper-raised p-(--space-card) text-ink-muted">
+      <Reveal className="mt-(--space-section)">
+        <p className="rounded-surface border border-line bg-paper-raised p-(--space-card) text-ink-muted">
           Not answered here?{" "}
           <Link to="/contact" className="text-signal-text hover:underline">
             Send us the question
           </Link>{" "}
           — the ones that recur end up on this page.
         </p>
-      </FadeIn>
+      </Reveal>
     </PageShell>
   );
 }

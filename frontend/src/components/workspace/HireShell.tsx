@@ -11,9 +11,20 @@ import { cn } from "@/lib/utils";
  * The recruiter workspace's frame, mirroring `console/AdminShell`.
  *
  * `motion="response"` and `density="compact"` for the same reason the console
- * has them: this is work, not marketing, so Tier 3 feedback only — no ambient
- * loops, no scroll narrative. `/hire` itself stays spacious, because density
- * follows the surface's job rather than the portal.
+ * has them: this is work, not marketing. Since Phase 5 that tier is a **cap, not
+ * a refusal** — 4A criterion 6 said Tier 3 only, and the reversal is deliberate.
+ * `response` resolves `--motion-reveal-distance` to `0px` and ambient amplitude
+ * to a quarter, so a `Reveal` on this surface is an opacity-only arrival and a
+ * dashboard figure still animates when it changes. No page passes a flag or
+ * shortens a duration by hand; the tier is the whole mechanism.
+ *
+ * What it does not get is an `Atmosphere`, and that is a measurement rather than
+ * a preference: `Atmosphere.tsx` records the admin signal over paper at alpha
+ * 0.15 landing on 4.39:1, under the 4.5:1 floor. Nothing animated goes behind a
+ * data table either — the table is the subject.
+ *
+ * `/hire` itself stays spacious, because density follows the surface's job rather
+ * than the portal.
  *
  * The sub-navigation reads `navLinksFor("recruiter")` rather than listing routes
  * again, so the shell's tabs, the desktop navbar and the mobile sheet can never
