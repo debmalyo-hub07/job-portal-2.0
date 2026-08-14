@@ -6,8 +6,10 @@ import type {
   PaginationQuery,
 } from "@jobportal/shared";
 import { Application, type ApplicationDocument } from "../models/application.model.js";
+import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
-import { assertJobOwned, jobExists, toJobDto } from "./job.service.js";
+import { assertJobOwned, getOwnedJob, jobExists, toJobDto } from "./job.service.js";
+import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
 
 /** Mongo's duplicate-key error, whatever driver version raised it. */
@@ -65,14 +67,8 @@ export async function listAppliedJobs(
   };
 }
 
-type PopulatedApplicant = PopulatedApplication & {
-  applicant: {
-    fullName: string;
-    email: string;
-    phone: string | null;
-    profile?: { headline?: string | null; skills?: string[] } | null;
-    resume?: { storageKey?: string | null; originalName?: string | null } | null;
-  } | null;
+type PopulatedApplicant = Omit<PopulatedApplication, "applicant"> & {
+  applicant: HydratedDocument<SeekerDocument> | null;
 };
 
 export async function listApplicants(
@@ -80,21 +76,39 @@ export async function listApplicants(
   jobId: string,
   { page, limit }: PaginationQuery,
 ): Promise<PaginatedResponse<ApplicantDto>> {
-  // 404 whether the job is missing or belongs to another recruiter.
-  await assertJobOwned(recruiterId, jobId);
+  // The document is both the ownership check and the right-hand side of every
+  // reverse fit score. Looking it up again per applicant would be an N+1 read.
+  const job = await getOwnedJob(recruiterId, jobId);
   const filter = { job: jobId };
-  const [total, applications] = await Promise.all([
-    Application.countDocuments(filter),
-    Application.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      // Projected at the query, not trimmed afterwards: the seeker record holds
-      // far more than a recruiter is entitled to see.
-      .populate({ path: "applicant", select: "fullName email phone profile resume" }),
-  ]);
+  const applications = await Application.find(filter)
+    .sort({ createdAt: -1 })
+    // Projected at the query, not trimmed afterwards: the seeker record holds
+    // far more than a recruiter is entitled to see. The full `profile` object is
+    // needed internally for scoring, but only its established DTO fields leave.
+    .populate({ path: "applicant", select: "fullName email phone profile resume" });
+
+  const ranked = (applications as unknown as PopulatedApplicant[])
+    .map((application) => ({
+      application,
+      fit: application.applicant ? scoreSeekerForJob(application.applicant, job) : null,
+    }))
+    .sort((a, b) => {
+      const scoreDelta = (b.fit?.score ?? -1) - (a.fit?.score ?? -1);
+      if (scoreDelta !== 0) return scoreDelta;
+
+      // Stable, useful tie-breakers: newer applications first, then id so two
+      // rows created in the same millisecond cannot swap between requests.
+      const dateDelta =
+        (b.application.createdAt?.getTime() ?? 0) -
+        (a.application.createdAt?.getTime() ?? 0);
+      if (dateDelta !== 0) return dateDelta;
+      return String(a.application._id).localeCompare(String(b.application._id));
+    });
+
+  const total = ranked.length;
+  const pageItems = ranked.slice((page - 1) * limit, page * limit);
   return {
-    items: (applications as unknown as PopulatedApplicant[]).map((a) => ({
+    items: pageItems.map(({ application: a, fit }) => ({
       applicationId: String(a._id),
       status: a.status as ApplicantDto["status"],
       appliedAt: a.createdAt?.toISOString() ?? "",
@@ -105,6 +119,7 @@ export async function listApplicants(
       skills: a.applicant?.profile?.skills ?? [],
       resumeUrl: signedResumeUrl(a.applicant?.resume?.storageKey),
       resumeName: a.applicant?.resume?.originalName ?? null,
+      fit,
     })),
     total,
     page,

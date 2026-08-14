@@ -8,6 +8,21 @@ import { logger as defaultLogger } from "./logger.js";
 export type LogHttpMode = "summary" | "all" | "off";
 
 const LOG_HTTP_MODES: readonly LogHttpMode[] = ["summary", "all", "off"];
+const SENSITIVE_QUERY_KEY = /(code|token|secret|password|state)/i;
+
+function requestPath(req: Request): string {
+  const raw = req.originalUrl || req.url || "/";
+  return raw.split("?", 1)[0] || "/";
+}
+
+function safeQuery(query: Request["query"]): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(query).map(([key, value]) => [
+      key,
+      SENSITIVE_QUERY_KEY.test(key) ? "[redacted]" : value,
+    ]),
+  );
+}
 
 /**
  * Reads LOG_HTTP from process.env rather than through `env()`.
@@ -55,12 +70,14 @@ export function buildHttpLogger(logger: Logger = defaultLogger, mode: LogHttpMod
         return {
           id: req.id,
           method: req.method,
-          url: req.url,
+          // OAuth authorization codes and link tokens must never reach logs.
+          // The query is available separately at debug level after redaction.
+          url: requestPath(req),
           // Only at debug: on a busy log these are noise, but when reproducing a
           // filter bug they are the first thing anyone asks for.
           ...(logger.isLevelEnabled("debug")
             ? {
-                query: req.query,
+                query: safeQuery(req.query),
                 // `id` and `portal` only. `req.auth` also carries
                 // `emailVerified`, which is account state rather than a
                 // correlation key and has no business in a request log.

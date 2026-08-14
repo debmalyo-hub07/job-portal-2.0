@@ -28,7 +28,15 @@ const SUFFIX: Record<Portal, string | null> = {
   admin: "Console",
 };
 
-export function CairnMark({ className }: { className?: string }) {
+export function CairnMark({
+  className,
+  tone = "default",
+}: {
+  className?: string;
+  tone?: "default" | "media";
+}) {
+  const inkClass = tone === "media" ? "fill-media-copy" : "fill-ink";
+
   return (
     <svg
       viewBox="0 0 24 24"
@@ -38,9 +46,9 @@ export function CairnMark({ className }: { className?: string }) {
     >
       {/* Three stones, narrowing upward. The top one carries the portal signal;
           the two below are ink, so the mark still reads at 16px in monochrome. */}
-      <ellipse cx="12" cy="19.5" rx="8.5" ry="3" className="fill-ink" />
-      <ellipse cx="12" cy="13.5" rx="6" ry="2.75" className="fill-ink" />
-      <ellipse cx="12" cy="7.75" rx="3.75" ry="2.5" className="fill-signal-text" />
+      <ellipse cx="12" cy="19.5" rx="8.5" ry="3" className={inkClass} />
+      <ellipse cx="12" cy="13.5" rx="6" ry="2.75" className={inkClass} />
+      <ellipse cx="12" cy="7.75" rx="3.75" ry="2.5" className={tone === "media" ? "fill-signal" : "fill-signal-text"} />
     </svg>
   );
 }
@@ -49,25 +57,30 @@ export function Wordmark({
   portal = "seeker",
   to,
   className,
+  tone = "default",
 }: {
   portal?: Portal;
   /** Where the mark navigates. Omit to render the lockup without a link. */
   to?: string;
   className?: string;
+  tone?: "default" | "media";
 }) {
   const suffix = SUFFIX[portal];
+  const primaryText = tone === "media" ? "text-media-copy" : "text-ink";
+  const secondaryText = tone === "media" ? "text-media-copy/65" : "text-ink-muted";
+  const signalText = tone === "media" ? "text-signal" : "text-signal-text";
 
   const lockup = (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <CairnMark />
-      <span className="font-display font-bold text-ink">
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
+      <CairnMark className="size-7" tone={tone} />
+      <span className={cn("font-display font-semibold", primaryText)}>
         Cairn
         {suffix ? (
           <>
-            <span aria-hidden="true" className="mx-1 font-normal text-ink-muted">
+            <span aria-hidden="true" className={cn("mx-1 font-normal", secondaryText)}>
               /
             </span>
-            <span className="text-signal-text">{suffix}</span>
+            <span className={signalText}>{suffix}</span>
           </>
         ) : null}
       </span>
@@ -75,7 +88,10 @@ export function Wordmark({
   );
 
   return to ? (
-    <Link to={to} className="inline-block">
+    <Link
+      to={to}
+      className="inline-block rounded-sharp outline-none focus-visible:ring-[3px] focus-visible:ring-signal-ring"
+    >
       {lockup}
     </Link>
   ) : (

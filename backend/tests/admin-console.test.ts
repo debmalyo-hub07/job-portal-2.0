@@ -5,12 +5,12 @@ import { Recruiter } from "../src/models/recruiter.model.js";
 import { Admin } from "../src/models/admin.model.js";
 import { Company } from "../src/models/company.model.js";
 import { Job } from "../src/models/job.model.js";
-import { installCaptureMailer, lastCodeFor, cookieValue, outbox } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, lastCodeFor, cookieValue, outbox } from "./auth/helpers.js";
 
 const app = buildApp();
 const PASSWORD = "correct horse battery staple";
 
-async function signedInAdmin(email: string): Promise<string> {
+async function signedInAdmin(email: string): Promise<{ access: string; csrf: string }> {
   await Admin.create({
     email,
     fullName: "Root Admin",
@@ -26,7 +26,10 @@ async function signedInAdmin(email: string): Promise<string> {
   const login = await request(app)
     .post("/api/v1/admin/auth/login")
     .send({ email, password: PASSWORD });
-  return cookieValue(login, "jp_admin_at")!;
+  return {
+    access: cookieValue(login, "jp_admin_at")!,
+    csrf: cookieValue(login, "jp_csrf")!,
+  };
 }
 
 async function pendingRecruiter(email: string): Promise<string> {
@@ -127,7 +130,7 @@ describe("admin overview", () => {
     const admin = await signedInAdmin("ov-root@example.com");
     const res = await request(app)
       .get("/api/v1/admin/overview")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.recruiters.pending).toBe(1);
@@ -164,7 +167,7 @@ describe("admin jobs list", () => {
     const admin = await signedInAdmin("jobs-root@example.com");
     const res = await request(app)
       .get("/api/v1/admin/review/jobs")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.total).toBe(1);
@@ -199,7 +202,7 @@ describe("admin jobs list", () => {
     const admin = await signedInAdmin("regex-root@example.com");
     const res = await request(app)
       .get("/api/v1/admin/review/jobs?keyword=.*")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.total).toBe(1);
@@ -234,7 +237,7 @@ describe("admin companies list", () => {
     const admin = await signedInAdmin("co-root@example.com");
     const res = await request(app)
       .get("/api/v1/admin/review/companies")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.total).toBe(1);
@@ -255,7 +258,7 @@ describe("admin deny", () => {
     outbox.length = 0;
     await request(app)
       .post(`/api/v1/admin/recruiters/${String(target!._id)}/deny`)
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .send({ reason: "Company could not be verified" })
       .expect(200);
 
@@ -270,7 +273,7 @@ describe("admin deny", () => {
 
     await request(app)
       .post(`/api/v1/admin/recruiters/${String(target!._id)}/deny`)
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .send({ reason: "   " })
       .expect(400);
   });
@@ -279,7 +282,7 @@ describe("admin deny", () => {
     const admin = await signedInAdmin("deny-root3@example.com");
     await request(app)
       .post("/api/v1/admin/recruiters/000000000000000000000000/deny")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .send({ reason: "gone" })
       .expect(404);
   });
@@ -298,7 +301,7 @@ describe("admin deny", () => {
 
     await request(app)
       .post(`/api/v1/admin/recruiters/${String(target._id)}/deny`)
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .send({ reason: "changed my mind" })
       .expect(409);
 

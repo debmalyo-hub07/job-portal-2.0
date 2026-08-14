@@ -67,6 +67,13 @@ describe("footer reach", () => {
     }
   });
 
+  it("does not advertise a private profile to signed-out visitors", async () => {
+    renderAppAt("/");
+
+    const footer = await screen.findByRole("contentinfo");
+    expect(footer.querySelector('a[href="/profile"]')).toBeNull();
+  });
+
   /**
    * The inherited footer linked facebook.com, twitter.com and linkedin.com —
    * the platforms' own homepages, not Cairn accounts. Under the project's

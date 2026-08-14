@@ -4,6 +4,7 @@ import {
   renderAccountClaimedEmail,
   renderOtpBudgetEmail,
   renderOtpEmail,
+  renderPasswordSetupEmail,
 } from "../../src/lib/emailTemplates.js";
 import { dispatch, resetMailer, sendOtpEmail, sendRendered, setMailer } from "../../src/lib/mailer.js";
 
@@ -18,6 +19,13 @@ describe("email templates", () => {
   it("tells a reset recipient their password has not changed yet", () => {
     const r = renderOtpEmail("012345", "reset_password", 10);
     expect(r.text).toMatch(/has not changed/i);
+  });
+
+  it("describes a new admin setup rather than an existing password reset", () => {
+    const r = renderPasswordSetupEmail("012345", 10);
+    expect(r.subject).toMatch(/set up/i);
+    expect(r.text).toMatch(/admin account is ready/i);
+    expect(r.text).not.toMatch(/current password/i);
   });
 
   it("renders the two notification templates with their subjects", () => {

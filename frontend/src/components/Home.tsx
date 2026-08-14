@@ -38,7 +38,7 @@ const Home = () => {
       data-density="spacious"
       data-motion="ambient"
       style={MOTION_VARS.ambient}
-      className="mx-auto max-w-7xl px-6"
+      className="overflow-x-hidden"
     >
       <HeroSection />
       <CategoryCarousel />

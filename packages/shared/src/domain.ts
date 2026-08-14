@@ -8,14 +8,23 @@ export const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Malformed id")
 
 export const companyCreateBodySchema = z.object({
   name: z.string().trim().min(2).max(80),
-});
+}).strict();
+
+const publicHttpUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(200)
+  .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), {
+    message: "must use http or https",
+  });
 
 export const companyUpdateBodySchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   description: z.string().trim().max(2000).optional(),
-  website: z.string().trim().url().max(200).optional(),
+  website: publicHttpUrlSchema.optional(),
   location: z.string().trim().max(120).optional(),
-});
+}).strict();
 
 /**
  * `requirements` arrives as the legacy comma-string; normalized here so the
@@ -45,7 +54,7 @@ export const jobCreateBodySchema = z.object({
     .transform((v) => v === "true" || v === "1" || v === "on")
     .optional(),
   companyId: objectIdSchema,
-});
+}).strict();
 
 export const jobListQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(100).default(""),
@@ -76,7 +85,7 @@ export const ownedJobsQuerySchema = paginationQuerySchema.extend({
 /** `pending` is creation-default only; a recruiter can only decide, not undo. */
 export const applicationStatusBodySchema = z.object({
   status: z.enum(["accepted", "rejected"]),
-});
+}).strict();
 
 export type CompanyCreateBody = z.infer<typeof companyCreateBodySchema>;
 export type CompanyUpdateBody = z.infer<typeof companyUpdateBodySchema>;
@@ -146,6 +155,14 @@ export type ApplicantDto = {
   skills: string[];
   resumeUrl: string | null;
   resumeName: string | null;
+  /**
+   * How this seeker scores against the job whose applicant list is open.
+   *
+   * `null` is reserved for an orphaned application whose seeker row no longer
+   * exists. Inventing an empty profile there would still produce a numeric
+   * score because unknown optional factors are deliberately no-penalty.
+   */
+  fit: ScoreBreakdown | null;
 };
 
 /**
@@ -230,6 +247,6 @@ export const profileUpdateBodySchema = z.object({
     .enum(["true", "false", "1", "0", "on", ""])
     .transform((v) => (v === "" ? null : v === "true" || v === "1" || v === "on"))
     .optional(),
-});
+}).strict();
 
 export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;

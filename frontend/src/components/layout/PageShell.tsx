@@ -52,7 +52,7 @@ export function PageShell({
     >
       <div
         className={cn(
-          "mx-auto px-6 pt-(--space-page-top) pb-(--space-section)",
+          "mx-auto px-4 pt-(--space-page-top) pb-(--space-section) sm:px-6",
           WIDTH[width],
           className,
         )}

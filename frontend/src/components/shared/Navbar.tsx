@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -9,8 +9,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { LogOut, Menu, User2 } from "lucide-react";
-import { Link, NavLink, useNavigate } from "react-router";
+import { BriefcaseBusiness, LogOut, Menu, User2 } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { navLinksFor } from "./navLinks";
 import { Wordmark } from "./Wordmark";
@@ -22,12 +22,29 @@ import { setUser } from "@/redux/authSlice";
 import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  const isHeroRoute = pathname === "/" || pathname === "/hire";
+
+  useEffect(() => {
+    if (!isHeroRoute) {
+      setScrolled(false);
+      return;
+    }
+
+    const update = () => setScrolled(window.scrollY > 24);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [isHeroRoute]);
 
   const logoutHandler = async () => {
     if (!user) return;
@@ -50,21 +67,36 @@ const Navbar = () => {
   };
 
   const isRecruiter = user?.portal === "recruiter";
+  const isPublicRecruiter = !user && (pathname === "/hire" || pathname.startsWith("/hire/"));
+  const navbarPortal = user?.portal ?? (isPublicRecruiter ? "recruiter" : "seeker");
+  const mediaTone = isHeroRoute && !scrolled;
+  const publicLogin = isPublicRecruiter ? "/hire/login" : "/login";
+  const publicSignup = isPublicRecruiter ? "/hire/signup" : "/signup";
   const links = navLinksFor(user?.portal ?? "seeker");
+  const showDesktopLinks = !user || user.portal === "seeker";
 
   return (
-    <div className="border-b border-line bg-paper">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+    <header
+      className={cn(
+        "top-0 z-40 w-full border-b transition-[background-color,border-color,box-shadow] duration-(--dur-base) backdrop-blur-xl",
+        isHeroRoute ? "fixed inset-x-0" : "sticky",
+        mediaTone
+          ? "border-transparent bg-media-shade/10 shadow-none"
+          : "border-line/80 bg-paper/95 shadow-[0_0.5rem_2rem_color-mix(in_oklab,var(--ink)_6%,transparent)]",
+      )}
+    >
+      <nav className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6">
         <Wordmark
-          portal={user?.portal ?? "seeker"}
-          to={isRecruiter ? "/hire" : "/"}
-          className="text-2xl"
+          portal={navbarPortal}
+          to={isRecruiter || isPublicRecruiter ? "/hire" : "/"}
+          className="text-[1.65rem]"
+          tone={mediaTone ? "media" : "default"}
         />
 
-        <div className="flex items-center gap-4 lg:gap-8">
+        <div className="flex items-center gap-2 lg:gap-5">
           {/* Desktop links. Below lg they live in the sheet instead — at the
               narrow end the row collided with the avatar and the theme toggle. */}
-          <ul className="hidden items-center gap-5 text-sm font-medium lg:flex">
+          <ul className={showDesktopLinks ? "hidden items-center gap-1 text-sm font-medium lg:flex" : "hidden"}>
             {links.map((link) => (
               <li key={link.to}>
                 {/*
@@ -82,8 +114,16 @@ const Navbar = () => {
                   end={link.to === "/"}
                   className={({ isActive }) =>
                     isActive
-                      ? "text-signal-text underline decoration-2 underline-offset-8"
-                      : "hover:text-signal-text"
+                      ? cn(
+                          "rounded-sharp px-3 py-2",
+                          mediaTone ? "bg-media-copy/12 text-media-copy" : "bg-paper-sunken text-ink",
+                        )
+                      : cn(
+                          "rounded-sharp px-3 py-2",
+                          mediaTone
+                            ? "text-media-copy/75 hover:bg-media-copy/10 hover:text-media-copy"
+                            : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
+                        )
                   }
                 >
                   {link.label}
@@ -92,7 +132,9 @@ const Navbar = () => {
             ))}
           </ul>
 
-          <ThemeToggle />
+          <ThemeToggle
+            className={mediaTone ? "text-media-copy hover:bg-media-copy/10 hover:text-media-copy" : undefined}
+          />
 
           {!user ? (
             /* "Sign in" hides below sm; "Get started" always shows. Both at
@@ -100,11 +142,21 @@ const Navbar = () => {
                action is the one worth keeping. Sign-in stays reachable from
                the sheet. */
             <div className="flex items-center gap-2">
-              <Button asChild variant="outline" className="hidden sm:inline-flex">
-                <Link to="/login">Sign in</Link>
+              <Button
+                asChild
+                variant="ghost"
+                className={cn(
+                  "hidden sm:inline-flex",
+                  mediaTone && "text-media-copy hover:bg-media-copy/10 hover:text-media-copy",
+                )}
+              >
+                <Link to={publicLogin}>Sign in</Link>
               </Button>
               <Button asChild variant="signal">
-                <Link to="/signup">Get started</Link>
+                <Link to={publicSignup}>
+                  {isPublicRecruiter ? <BriefcaseBusiness data-icon="inline-start" /> : null}
+                  {isPublicRecruiter ? "Post a role" : "Get started"}
+                </Link>
               </Button>
             </div>
           ) : (
@@ -164,7 +216,15 @@ const Navbar = () => {
               until now, which is why the app had no navigation at all below lg. */}
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="lg:hidden" aria-label="Open menu">
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "lg:hidden",
+                  mediaTone && "border-media-copy/35 bg-media-shade/15 text-media-copy hover:bg-media-copy/10 hover:text-media-copy",
+                )}
+                aria-label="Open menu"
+              >
                 <Menu />
               </Button>
             </SheetTrigger>
@@ -190,7 +250,7 @@ const Navbar = () => {
                 ))}
                 {!user && (
                   <Link
-                    to="/login"
+                    to={publicLogin}
                     onClick={() => setMenuOpen(false)}
                     className="rounded-sharp px-2 py-2 text-base text-ink hover:bg-signal-muted sm:hidden"
                   >
@@ -202,7 +262,7 @@ const Navbar = () => {
           </Sheet>
         </div>
       </nav>
-    </div>
+    </header>
   );
 };
 

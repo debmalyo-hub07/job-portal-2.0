@@ -49,12 +49,15 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: http://127.0.0.1:8000/api/v1
+          # Cloudflare's documented public always-pass test key. The matching
+          # secret is never needed because CI does not submit a challenge.
+          VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
 
   audit:
     runs-on: ubuntu-latest
-    # Production dependencies only, with an explicit allowlist for advisories
-    # that have no published fix. See scripts/audit-prod.mjs for why each
-    # suppression exists. Anything unlisted fails the build.
+    # Production dependencies only. The explicit allowlist is empty; every high
+    # or critical advisory fails unless a reviewer documents an unreachable
+    # code path and a concrete re-check condition in scripts/audit-prod.mjs.
     #
     # This job is NOT continue-on-error: a suppressed advisory should be a
     # deliberate, documented decision, not a permanently red check that trains

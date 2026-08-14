@@ -1,142 +1,135 @@
 import { Link } from "react-router";
 
-import { PageShell } from "@/components/layout/PageShell";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { LegalDraftNotice } from "@/components/legal/LegalDraftNotice";
+import { LegalDocumentLayout } from "@/components/legal/LegalDocumentLayout";
 import { LegalSection } from "@/components/legal/LegalSection";
 
-/**
- * The privacy policy.
- *
- * Every claim here was written against the code rather than from a template: the
- * resume paragraph describes Cloudinary authenticated assets and ~10-minute
- * signed URLs because that is what `job.service` mints, and the cookie paragraph
- * names three cookies because that is what `cookies.ts` sets. A policy that
- * describes a system nobody built is worse than none — it is a promise made in
- * public and broken in private.
- *
- * It carries `LegalDraftNotice` because the entity, jurisdiction and
- * sub-processor list are genuinely unfilled. See that component.
- */
+const SECTIONS = [
+  { id: "scope", title: "Scope" },
+  { id: "what-we-collect", title: "What we collect" },
+  { id: "how-we-use", title: "How we use it" },
+  { id: "resumes", title: "Resumes & files" },
+  { id: "who-sees-it", title: "Who sees it" },
+  { id: "cookies", title: "Cookies" },
+  { id: "processors", title: "Service providers" },
+  { id: "retention", title: "Retention" },
+  { id: "security", title: "Security" },
+  { id: "your-rights", title: "Your choices" },
+  { id: "changes", title: "Changes" },
+  { id: "contact", title: "Contact" },
+] as const;
+
 export default function Privacy() {
   return (
-    <PageShell width="prose">
-      <PageHeader
-        title="Privacy policy"
-        description="What Cairn collects, why, and how long it keeps it."
-      />
-      <LegalDraftNotice page="policy" />
+    <LegalDocumentLayout
+      title="Privacy policy"
+      description="What Cairn collects, why the platform needs it, who can see it, and the controls available to you."
+      updated="14 August 2026"
+      noticePage="privacy policy"
+      sections={[...SECTIONS]}
+    >
+      <LegalSection id="scope" title="Scope">
+        <p>
+          This policy covers the Cairn website, candidate portal, employer workspace, administrator console, authentication emails, and the API that supports them. It applies to candidates, recruiters, administrators, and visitors who browse without an account.
+        </p>
+      </LegalSection>
 
-      <div className="mt-(--space-section) flex flex-col gap-(--space-section)">
-        <LegalSection id="what-we-collect" title="What we collect">
-          <p>
-            <strong>When you create an account:</strong> your name, email address and a password,
-            which is stored only as an Argon2 hash — it is never stored, logged or recoverable in
-            plain text. If you sign in with Google we receive your name, email address and profile
-            image from Google and store the same fields.
-          </p>
-          <p>
-            <strong>When you build a profile:</strong> anything you choose to add — a headline, a
-            phone number, skills and a resume file. All of it is optional except what an
-            application needs.
-          </p>
-          <p>
-            <strong>When you apply to a job:</strong> a record linking your account to that job,
-            its status, and the time you applied.
-          </p>
-          <p>
-            <strong>Automatically:</strong> server logs containing IP address, user agent and the
-            path requested. These exist to find faults and to rate-limit abuse.
-          </p>
-        </LegalSection>
+      <LegalSection id="what-we-collect" title="What we collect">
+        <p>
+          <strong>Account information:</strong> full name, email address, optional phone number, account portal, verification state, and an optional profile image supplied through Google sign-in. Passwords are stored only as Argon2 hashes, never as recoverable text.
+        </p>
+        <p>
+          <strong>Candidate information:</strong> optional headline, biography, skills, experience, location, salary preferences, remote-work preference, and a resume. An application records the job, status, and application time.
+        </p>
+        <p>
+          <strong>Employer information:</strong> account contact details, company name and profile information, posted jobs, and applicant decisions. Recruiter accounts also carry an approval status.
+        </p>
+        <p>
+          <strong>Operational information:</strong> IP address, browser user agent, request path, request identifier, and security events required for logging, abuse prevention, session management, and fault diagnosis.
+        </p>
+      </LegalSection>
 
-        <LegalSection id="resumes" title="Resumes and files">
-          <p>
-            A resume is uploaded to Cloudinary as an <em>authenticated</em> asset, not a public
-            one. Cairn stores only its identifier. Each time an authorised reader opens it, a
-            signed URL valid for roughly ten minutes is generated on demand; there is no permanent
-            public address for your file.
-          </p>
-          <p>
-            Only an employer that owns a job you applied to can trigger that. An employer whose
-            job you did not apply to receives the same answer as one asking for a resume that does
-            not exist.
-          </p>
-        </LegalSection>
+      <LegalSection id="how-we-use" title="How we use information">
+        <p>
+          Cairn uses account data to authenticate you, verify mailbox control, recover access, maintain sessions, route you to the correct portal, and enforce portal-specific permissions.
+        </p>
+        <p>
+          Candidate profile preferences are used to calculate and explain job fit. Employer data is used to publish and attribute jobs, operate the hiring workspace, and let administrators review recruiter accounts and marketplace content.
+        </p>
+        <p>Cairn does not sell personal information and does not run third-party advertising trackers.</p>
+      </LegalSection>
 
-        <LegalSection id="who-sees-it" title="Who can see your information">
-          <p>
-            Your name, email, phone number, headline, skills and resume link are disclosed to the
-            employer that owns a job you applied to, for that application. That is the entire
-            purpose of applying and it is the only routine disclosure Cairn makes.
-          </p>
-          <p>
-            Administrators can see accounts and their status in order to review employers and
-            moderate listings. They do not receive candidate contact details as part of that work.
-          </p>
-          <p>Cairn does not sell personal information and does not run third-party ad tracking.</p>
-        </LegalSection>
+      <LegalSection id="resumes" title="Resumes and files">
+        <p>
+          Resumes are uploaded to Cloudinary as authenticated assets rather than public URLs. Cairn stores the storage identifier and file metadata. When an authorised employer opens a resume, the API creates a signed URL valid for roughly 10 minutes.
+        </p>
+        <p>
+          The employer must own the job associated with the application. An employer cannot use the platform to browse candidate resumes outside applications to its own roles.
+        </p>
+      </LegalSection>
 
-        <LegalSection id="cookies" title="Cookies">
-          <p>
-            Cairn sets three cookies, all strictly necessary and none for advertising or analytics:
-            a session cookie and a refresh cookie, both <code>httpOnly</code> so that browser
-            JavaScript cannot read them, and a CSRF cookie that lets the server verify a write came
-            from a page it served. There is no cookie banner because there is nothing optional to
-            consent to.
-          </p>
-        </LegalSection>
+      <LegalSection id="who-sees-it" title="Who can see your information">
+        <p>
+          Jobs and company details intended for the public board can be seen by any visitor. Candidate profiles are not public. When a candidate applies, the owning employer can see the applicant name, email, phone number, headline, skills, resume link, application state, and fit explanation for that role.
+        </p>
+        <p>
+          Administrators can review recruiter identity and status, jobs, companies, ownership, and marketplace counts. Routine console responses do not expose candidate contact details.
+        </p>
+      </LegalSection>
 
-        <LegalSection id="processors" title="Who processes data for us">
-          <p>
-            Cairn runs on third-party infrastructure: a managed MongoDB database, an application
-            host, a static web host, Cloudinary for files, and a transactional email provider for
-            verification and notification mail. Google is involved only if you choose Google
-            sign-in.
-          </p>
-          <p>
-            The named, contracted list of these processors is part of what is pending review — see
-            the notice at the top of this page.
-          </p>
-        </LegalSection>
+      <LegalSection id="cookies" title="Cookies and local storage">
+        <p>
+          Cairn uses strictly necessary access, refresh, and CSRF cookies. Access and refresh cookies are <code>httpOnly</code>; browser JavaScript cannot read them. The CSRF token is integrity-protected and echoed by the client on write requests.
+        </p>
+        <p>
+          The web app also stores interface preferences such as theme and a portal hint in local storage. These do not grant access; the API verifies the signed session for every protected request.
+        </p>
+      </LegalSection>
 
-        <LegalSection id="retention" title="How long we keep it">
-          <p>
-            Account and application records are kept while your account exists. Short-lived
-            security records — one-time codes, password reset tokens, refresh sessions — expire on
-            their own, in minutes or days rather than indefinitely.
-          </p>
-          <p>
-            An employer account that is denied or suspended is retained rather than deleted,
-            because the record is the evidence the address was reviewed.
-          </p>
-        </LegalSection>
+      <LegalSection id="processors" title="Service providers">
+        <p>
+          Cairn relies on a managed MongoDB database, an API host, a static web host, Cloudinary for private file storage, Brevo for transactional email, and Google when you choose Google sign-in. Each provider processes only the information needed for its role.
+        </p>
+        <p>The contracted, named sub-processor schedule remains pending legal review and will replace this summary before public launch.</p>
+      </LegalSection>
 
-        <LegalSection id="your-rights" title="Your choices">
-          <p>
-            You can correct your profile at any time from{" "}
-            <Link to="/profile" className="text-signal-text hover:underline">
-              your profile
-            </Link>
-            . Account deletion is not yet self-service — this is stated plainly rather than
-            implied, and until it ships,{" "}
-            <Link to="/contact" className="text-signal-text hover:underline">
-              ask us
-            </Link>{" "}
-            and it will be done by hand.
-          </p>
-        </LegalSection>
+      <LegalSection id="retention" title="How long information is kept">
+        <p>
+          Verified accounts, company records, jobs, and applications are retained while needed to provide the service and maintain its operational history. Unverified new accounts are automatically removed after the configured expiry period.
+        </p>
+        <p>
+          One-time codes, lockout budgets, access tokens, refresh sessions, signed file URLs, and Google linking transactions expire in minutes, hours, or days. Denied or suspended recruiter records may be retained as moderation evidence.
+        </p>
+      </LegalSection>
 
-        <LegalSection id="contact" title="Reaching us">
-          <p>
-            Questions about this policy, or a request about your own data, go through{" "}
-            <Link to="/contact" className="text-signal-text hover:underline">
-              the contact page
-            </Link>
-            .
-          </p>
-        </LegalSection>
-      </div>
-    </PageShell>
+      <LegalSection id="security" title="Security measures">
+        <p>
+          Cairn separates candidate, recruiter, and administrator accounts into distinct collections and cryptographic portal keys. Protected writes use CSRF verification, authentication endpoints are rate-limited, password reset revokes active sessions, and administrator self-registration does not exist.
+        </p>
+        <p>
+          No internet service can promise absolute security. If you believe an account or listing has been misused, use the <Link to="/contact" className="text-signal-text hover:underline">privacy and safety contact channel</Link> promptly.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="your-rights" title="Your choices and requests">
+        <p>
+          Candidates can correct profile information from the protected profile page. You may ask for access, correction, deletion, or another privacy request through the contact page. Account deletion is not yet self-service and is handled manually.
+        </p>
+        <p>
+          Google sign-in is optional. You can use password authentication instead, and administrator accounts cannot use Google sign-in at all.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="changes" title="Changes to this policy">
+        <p>
+          Cairn will update this policy when product behaviour, service providers, legal obligations, or operating details change. Material changes will be announced on the site and reflected in the date at the top of this document.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="contact" title="Contact">
+        <p>
+          Privacy questions and requests should use the <Link to="/contact" className="text-signal-text hover:underline">contact page</Link> and the privacy and safety channel.
+        </p>
+      </LegalSection>
+    </LegalDocumentLayout>
   );
 }

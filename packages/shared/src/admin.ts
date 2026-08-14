@@ -27,9 +27,22 @@ export type PendingRecruiterDto = {
  */
 export const recruiterDenyBodySchema = z.object({
   reason: z.string().trim().min(1, "A reason is required").max(500),
-});
+}).strict();
 
 export type RecruiterDenyBody = z.infer<typeof recruiterDenyBodySchema>;
+
+/**
+ * A new admin invitation. The existing admin session supplies authority and a
+ * server-held provisioning secret supplies the second control; the invited
+ * admin sets a password through the same short-lived OTP path as recovery.
+ */
+export const adminCreateBodySchema = z.object({
+  fullName: z.string().trim().min(2).max(80),
+  email: z.string().trim().toLowerCase().email().max(254),
+  provisioningKey: z.string().min(1).max(512),
+}).strict();
+
+export type AdminCreateBody = z.infer<typeof adminCreateBodySchema>;
 
 /**
  * The dashboard's counters.

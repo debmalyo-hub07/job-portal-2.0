@@ -1,6 +1,6 @@
 import express, { Router, type Express } from "express";
 import cookieParser from "cookie-parser";
-import type { Response as SupertestResponse } from "supertest";
+import type { Response as SupertestResponse, Test as SupertestRequest } from "supertest";
 import { vi } from "vitest";
 import type { Portal } from "@jobportal/shared";
 import { setMailer } from "../../src/lib/mailer.js";
@@ -95,6 +95,20 @@ export function cookieValue(res: SupertestResponse, name: string): string | unde
 export function setCookieNames(res: SupertestResponse): string[] {
   const headers = res.headers["set-cookie"] as unknown as string[] | undefined;
   return (headers ?? []).map((h) => h.split("=")[0] ?? "");
+}
+
+/** Attach the same cookie/header pair the browser client sends on mutations. */
+export function asSession(
+  portal: Portal,
+  session: Pick<Awaited<ReturnType<typeof signedUpOn>>, "access" | "csrf">,
+) {
+  return (test: SupertestRequest): void => {
+    test.set("Cookie", [
+      `jp_${portal}_at=${session.access}`,
+      `jp_csrf=${session.csrf}`,
+    ]);
+    test.set("X-CSRF-Token", session.csrf);
+  };
 }
 
 /**

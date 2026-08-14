@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { profileUpdateBodySchema, type ProfileView } from "@jobportal/shared";
 
@@ -108,6 +109,18 @@ describe("UpdateProfileDialog covers every field the endpoint accepts", () => {
 });
 
 describe("UpdateProfileDialog prefill", () => {
+  it("lets the built-in close button update the controlled state", async () => {
+    const setOpen = vi.fn();
+    render(
+      <Provider store={makeStore()}>
+        <UpdateProfileDialog open profile={FULL} setOpen={setOpen} onUpdated={() => {}} />
+      </Provider>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /close/i }));
+    expect(setOpen).toHaveBeenCalledWith(false);
+  });
+
   it("seeds the fit fields from the profile", async () => {
     renderDialog(FULL);
     // Prefill happens in an effect, so wait for the first field rather than

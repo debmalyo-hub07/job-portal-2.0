@@ -1,125 +1,140 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { ArrowRight, ClipboardList, Send, Users } from "lucide-react";
+import { ArrowRight, Building2, ListChecks, Sparkles, Users } from "lucide-react";
 
-import { PageShell } from "@/components/layout/PageShell";
 import { Button } from "@/components/ui/button";
-import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
+import { MOTION_VARS } from "@/components/layout/motionTiers";
 import { FadeIn, Reveal } from "@/lib/motion";
+import { useParallax } from "@/lib/motion/index";
 import { useAppSelector } from "@/redux/store";
+
+const CairnScene = lazy(() => import("@/components/visual/CairnScene"));
 
 const STEPS = [
   {
-    icon: ClipboardList,
-    title: "Create a company",
-    body: "One profile your whole team posts under.",
+    icon: Building2,
+    title: "Set up your company",
+    body: "A clear employer profile that gives every role the right context.",
   },
   {
-    icon: Send,
-    title: "Post a role",
-    body: "Title, requirements, salary band, location.",
+    icon: ListChecks,
+    title: "Publish the role",
+    body: "Define the work, expectations, location, and compensation in one pass.",
   },
   {
     icon: Users,
-    title: "See every applicant",
-    body: "Profile and resume, already parsed.",
+    title: "Review ranked applicants",
+    body: "See candidate fit, profile details, and resumes in a single decision view.",
   },
-];
+] as const;
 
-/**
- * The employer front door.
- *
- * Before this page existed, an anonymous visitor who wanted to hire had nowhere
- * to land: the workspace bounced them to the seeker home, so someone arriving
- * to post a job was shown "Get Your Dream Job".
- *
- * Marketing surface, so it runs spacious density even though the portal is
- * recruiter — density follows the surface's job, not the portal.
- */
 export default function HireLanding() {
   const { user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
+  const { ref: heroRef, progress } = useParallax<HTMLElement>();
 
   useEffect(() => {
     if (user?.portal === "recruiter") navigate("/hire/companies", { replace: true });
   }, [user?.portal, navigate]);
 
   return (
-    // `motion="ambient"`: this is the recruiter portal's marketing surface, and
-    // it had no `motion` prop at all — so `data-motion` was absent, the tier
-    // resolver defaulted to `response`, and every composable on the employer
-    // front door correctly refused to run. Same class of defect as the dead
-    // motion switches: nothing looked broken, the effects simply never existed.
-    <PageShell width="wide" motion="ambient">
-      {/* Atmosphere host, matching HeroSection: `relative isolate` for the
-          absolutely-positioned layer, negative inline margin so the field reaches
-          the viewport edge from inside the container. The signal here is the
-          recruiter hue, which the shader picks up from the token — the page does
-          not name a colour. */}
-      <div className="relative isolate -mx-6 px-6">
-        <Atmosphere className="-z-10" textBand={[0.22, 0.85]} />
-        <FadeIn>
-          <p className="mb-4 inline-flex rounded-full bg-signal-muted px-3 py-1 text-sm font-medium text-signal-text">
-            For employers
-          </p>
-          <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
-            Hire without the noise.
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-ink-muted">
-            Post a role, see every applicant in one place, and decide faster.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild variant="signal" size="lg">
-              <Link to="/hire/signup">
-                Start hiring <ArrowRight />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link to="/hire/login">Sign in</Link>
-            </Button>
+    <div
+      data-density="spacious"
+      data-motion="ambient"
+      style={MOTION_VARS.ambient}
+      className="overflow-x-hidden bg-paper"
+    >
+      <section
+        ref={heroRef}
+        className="relative isolate min-h-[calc(100svh-9rem)] max-h-[50rem] overflow-hidden bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
+      >
+        <img
+          src="/images/cairn-hire-hero.jpg"
+          alt="A hiring team discussing work around a table"
+          width="2400"
+          height="1600"
+          fetchPriority="high"
+          className="absolute inset-0 size-full object-cover object-center grayscale-[0.06] saturate-[0.82]"
+        />
+        <div aria-hidden="true" className="hero-media-veil absolute inset-0" />
+
+        <div
+          aria-hidden="true"
+          data-cairn-stage="recruiter"
+          className="hero-cairn-stage pointer-events-none absolute left-[18%] right-[-10%] top-0 z-10 h-[32%] sm:left-[50%] sm:right-[-4%] sm:h-[38%] lg:left-[75%] lg:right-[2%] lg:top-[40%] lg:h-[56%] xl:left-[77%] xl:right-[3%]"
+        >
+          <Suspense fallback={null}>
+            <CairnScene portal="recruiter" scrollProgress={progress} />
+          </Suspense>
+        </div>
+
+        <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-end px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
+          <div data-hero-copy="recruiter" className="max-w-[44rem]">
+            <p className="mb-5 flex items-center gap-2 text-sm font-semibold uppercase text-media-copy/75">
+              <Sparkles aria-hidden="true" className="size-4" />
+              Cairn for employers
+            </p>
+            <h1 className="font-display text-5xl font-semibold leading-[0.92] text-balance text-media-copy sm:text-7xl lg:text-[5.75rem]">
+              Build the team, without the hiring theatre.
+            </h1>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-media-copy/80 sm:text-lg">
+              Publish thoughtful roles, review applicants by fit, and keep every decision close to the work.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild variant="signal" size="lg">
+                <Link to="/hire/signup">
+                  Start hiring
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="border-media-copy/35 bg-media-copy/10 text-media-copy hover:border-media-copy/60 hover:bg-media-copy/15">
+                <Link to="/hire/login">Sign in</Link>
+              </Button>
+            </div>
           </div>
         </FadeIn>
-      </div>
+      </section>
 
-      {/*
-        A sequence, not a grid of three equal things. The steps happen in an
-        order, and the visitor's question is "what does this involve" — so they
-        are numbered and they arrive in order as the reader reaches them. The
-        `StaggerList` this replaces animated on mount, below the fold, so the
-        ordering it expressed had already played out before anyone saw it.
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="hiring-flow-heading">
+        <div className="grid gap-10 lg:grid-cols-[0.8fr_1.6fr] lg:gap-16">
+          <Reveal>
+            <p className="text-xs font-semibold uppercase text-signal-text">The workflow</p>
+            <h2 id="hiring-flow-heading" className="mt-2 font-display text-display-md font-semibold text-balance text-ink">
+              Less admin between you and a strong shortlist.
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-ink-muted">
+              Cairn keeps company context, role requirements, and applicant fit connected from the first post to the final decision.
+            </p>
+          </Reveal>
 
-        `<ol>` because the order is the content: a screen reader announces "list,
-        3 items" and the position of each, which a div grid does not carry.
-      */}
-      <ol className="mt-(--space-section) grid gap-6 md:grid-cols-3">
-        {STEPS.map((step, i) => (
-          <li key={step.title} className="h-full">
-            <Reveal delay={i * 0.08} className="h-full">
-              <div className="flex h-full flex-col rounded-surface border border-line bg-paper-raised p-(--space-card)">
-                <div className="flex items-center gap-2">
-                  <step.icon aria-hidden="true" className="size-5 text-signal-text" />
-                  {/* Mono on the step number: it is an aligned numeric sequence
-                      down a row of cards, which is the sanctioned use. */}
-                  <span aria-hidden="true" className="font-mono text-sm text-ink-muted">
-                    {i + 1} / {STEPS.length}
+          <ol className="border-t border-line">
+            {STEPS.map((step, index) => (
+              <li key={step.title}>
+                <Reveal delay={index * 0.06} className="grid gap-4 border-b border-line py-7 sm:grid-cols-[3rem_1fr_auto] sm:items-start">
+                  <span className="font-mono text-sm text-ink-muted">0{index + 1}</span>
+                  <div>
+                    <h3 className="text-xl font-semibold text-ink">{step.title}</h3>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-ink-muted">{step.body}</p>
+                  </div>
+                  <span className="hidden size-10 place-items-center rounded-sharp bg-signal-muted text-signal-text sm:grid">
+                    <step.icon aria-hidden="true" className="size-5" />
                   </span>
-                </div>
-                <h2 className="mt-3 font-display text-xl font-semibold text-ink">{step.title}</h2>
-                <p className="mt-2 text-sm text-ink-muted">{step.body}</p>
-              </div>
-            </Reveal>
-          </li>
-        ))}
-      </ol>
+                </Reveal>
+              </li>
+            ))}
+          </ol>
+        </div>
 
-      <Reveal className="mt-(--space-section) border-t border-line pt-6">
-        <p className="text-sm text-ink-muted">
-          Looking for a job instead?{" "}
-          <Link to="/" className="text-signal-text hover:underline">
-            Browse open roles
-          </Link>
-        </p>
-      </Reveal>
-    </PageShell>
+        <Reveal className="mt-14 flex flex-col gap-4 border-t border-line pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-ink-muted">Looking for your next role instead?</p>
+          <Button asChild variant="outline">
+            <Link to="/jobs">
+              Browse open roles
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </Reveal>
+      </section>
+    </div>
   );
 }

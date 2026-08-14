@@ -1,0 +1,153 @@
+.role-index-progress {
+  position: relative;
+  width: 2px;
+  height: 7rem;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.role-index-progress__fill {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  min-height: 0.75rem;
+  background: var(--signal);
+  transition: height var(--dur-slow) var(--ease-out-quint);
+}
+
+.role-index-row {
+  position: relative;
+  isolation: isolate;
+}
+
+.role-index-row::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background: var(--signal-muted);
+  opacity: 0;
+  transform: scaleX(0.985);
+  transform-origin: right center;
+  transition:
+    opacity var(--dur-base) var(--ease-out-quint),
+    transform var(--dur-slow) var(--ease-out-quint);
+}
+
+.role-index-row::after {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  content: "";
+  background: var(--signal);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  transition: transform var(--dur-base) var(--ease-out-quint);
+}
+
+.role-index-row__action {
+  transition:
+    color var(--dur-fast) var(--ease-out-quint),
+    background-color var(--dur-fast) var(--ease-out-quint),
+    border-color var(--dur-fast) var(--ease-out-quint),
+    transform var(--dur-base) var(--ease-out-quint);
+}
+
+.job-spotlight-card {
+  --job-tilt-x: 0deg;
+  --job-tilt-y: 0deg;
+  isolation: isolate;
+  transform-style: preserve-3d;
+  transform-origin: center;
+  transition:
+    border-color var(--dur-base) var(--ease-out-quint),
+    box-shadow var(--dur-slow) var(--ease-out-quint),
+    transform var(--dur-fast) var(--ease-out-quint);
+}
+
+.job-spotlight-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  background: linear-gradient(125deg, var(--signal-muted), transparent 42%);
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out-quint);
+}
+
+.job-spotlight-card__rule {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--signal);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  transition: transform var(--dur-slow) var(--ease-out-quint);
+}
+
+.job-spotlight-card__depth,
+.job-spotlight-card__arrow {
+  transition: transform var(--dur-base) var(--ease-out-quint);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .role-index-row:hover,
+  .role-index-row:focus-visible {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .role-index-row:hover::before,
+  .role-index-row:focus-visible::before {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .role-index-row:hover::after,
+  .role-index-row:focus-visible::after {
+    transform: scaleY(1);
+  }
+
+  .role-index-row:hover .role-index-row__action,
+  .role-index-row:focus-visible .role-index-row__action {
+    transform: rotate(8deg) translate3d(2px, -2px, 0);
+  }
+
+  .job-spotlight-card:hover {
+    border-color: var(--signal);
+    box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--ink) 12%, transparent);
+    transform: perspective(75rem) rotateX(var(--job-tilt-x)) rotateY(var(--job-tilt-y)) translateY(-0.35rem);
+  }
+
+  .job-spotlight-card:hover::before {
+    opacity: 1;
+  }
+
+  .job-spotlight-card:hover .job-spotlight-card__rule {
+    transform: scaleY(1);
+  }
+
+  .job-spotlight-card:hover .job-spotlight-card__depth {
+    transform: translateZ(1.1rem);
+  }
+
+  .job-spotlight-card:hover .job-spotlight-card__arrow {
+    transform: translate3d(0.15rem, -0.15rem, 1.6rem) rotate(8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-index-progress__fill,
+  .role-index-row,
+  .role-index-row::before,
+  .role-index-row::after,
+  .role-index-row__action,
+  .job-spotlight-card,
+  .job-spotlight-card::before,
+  .job-spotlight-card__rule,
+  .job-spotlight-card__depth,
+  .job-spotlight-card__arrow {
+    transition: none;
+    transform: none;
+  }
+}

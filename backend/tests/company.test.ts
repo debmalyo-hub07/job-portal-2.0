@@ -2,21 +2,21 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
-import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
-async function createCompany(access: string, name = "Acme") {
+async function createCompany(session: Awaited<ReturnType<typeof signedUpOn>>, name = "Acme") {
   return request(app)
     .post("/api/v1/company/register")
-    .set("Cookie", [`jp_recruiter_at=${access}`])
+    .use(asSession("recruiter", session))
     .send({ name });
 }
 
 describe("company routes", () => {
-  let owner: { access: string };
-  let rival: { access: string };
-  let seeker: { access: string };
+  let owner: Awaited<ReturnType<typeof signedUpOn>>;
+  let rival: Awaited<ReturnType<typeof signedUpOn>>;
+  let seeker: Awaited<ReturnType<typeof signedUpOn>>;
 
   beforeEach(async () => {
     installCaptureMailer();
@@ -29,7 +29,7 @@ describe("company routes", () => {
   });
 
   it("registers a company and returns a DTO (no Mongoose internals)", async () => {
-    const res = await createCompany(owner.access);
+    const res = await createCompany(owner);
     expect(res.status).toBe(201);
     expect(res.body.company).toMatchObject({ name: "Acme", logoUrl: null });
     expect(res.body.company._id).toBeUndefined();
@@ -40,23 +40,23 @@ describe("company routes", () => {
   it("rejects an invalid body with 400 VALIDATION_ERROR", async () => {
     const res = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send({ name: "x" });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("409s a duplicate name for the same owner but allows it for another recruiter", async () => {
-    await createCompany(owner.access);
-    const dup = await createCompany(owner.access);
+    await createCompany(owner);
+    const dup = await createCompany(owner);
     expect(dup.status).toBe(409);
     expect(dup.body.code).toBe("COMPANY_EXISTS");
-    expect((await createCompany(rival.access)).status).toBe(201);
+    expect((await createCompany(rival)).status).toBe(201);
   });
 
   it("GET /get returns only the caller's companies", async () => {
-    await createCompany(owner.access, "Mine");
-    await createCompany(rival.access, "Theirs");
+    await createCompany(owner, "Mine");
+    await createCompany(rival, "Theirs");
     const res = await request(app)
       .get("/api/v1/company/get")
       .set("Cookie", [`jp_recruiter_at=${owner.access}`]);
@@ -72,33 +72,36 @@ describe("company routes", () => {
     describe(`${method.toUpperCase()} /${route}/:id matrix`, () => {
       let companyId: string;
       beforeEach(async () => {
-        companyId = (await createCompany(owner.access)).body.company.id;
+        companyId = (await createCompany(owner)).body.company.id;
       });
-      const call = (cookies: string[]) => {
-        const r = request(app)[method](`/api/v1/company/${route}/${companyId}`).set(
-          "Cookie",
-          cookies,
-        );
+      const call = (
+        actor?: {
+          portal: "seeker" | "recruiter";
+          session: Awaited<ReturnType<typeof signedUpOn>>;
+        },
+      ) => {
+        const r = request(app)[method](`/api/v1/company/${route}/${companyId}`);
+        if (actor) r.use(asSession(actor.portal, actor.session));
         return method === "put" ? r.field("name", "Renamed") : r;
       };
-      it("anonymous → 401", async () => expect((await call([])).status).toBe(401));
+      it("anonymous → 401", async () => expect((await call()).status).toBe(401));
       it("seeker → 401 (wrong portal)", async () =>
-        expect((await call([`jp_seeker_at=${seeker.access}`])).status).toBe(401));
+        expect((await call({ portal: "seeker", session: seeker })).status).toBe(401));
       it("unrelated recruiter → 404 (no existence oracle)", async () => {
-        const res = await call([`jp_recruiter_at=${rival.access}`]);
+        const res = await call({ portal: "recruiter", session: rival });
         expect(res.status).toBe(404);
         expect(res.body.code).toBe("COMPANY_NOT_FOUND");
       });
       it("owner → 200", async () =>
-        expect((await call([`jp_recruiter_at=${owner.access}`])).status).toBe(200));
+        expect((await call({ portal: "recruiter", session: owner })).status).toBe(200));
     });
   }
 
   it("update without a file updates fields and keeps the logo untouched", async () => {
-    const companyId = (await createCompany(owner.access)).body.company.id;
+    const companyId = (await createCompany(owner)).body.company.id;
     const res = await request(app)
       .put(`/api/v1/company/update/${companyId}`)
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .field("description", "We build things");
     expect(res.status).toBe(200);
     expect(res.body.company.description).toBe("We build things");
@@ -107,21 +110,21 @@ describe("company routes", () => {
   });
 
   it("409s an update that renames a company onto the owner's existing name", async () => {
-    await createCompany(owner.access, "Acme");
-    const betaId = (await createCompany(owner.access, "Beta")).body.company.id;
+    await createCompany(owner, "Acme");
+    const betaId = (await createCompany(owner, "Beta")).body.company.id;
     const res = await request(app)
       .put(`/api/v1/company/update/${betaId}`)
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send({ name: "Acme" });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe("COMPANY_EXISTS");
   });
 
   it("accepts a plain JSON update body too", async () => {
-    const companyId = (await createCompany(owner.access)).body.company.id;
+    const companyId = (await createCompany(owner)).body.company.id;
     const res = await request(app)
       .put(`/api/v1/company/update/${companyId}`)
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send({ location: "Kolkata" });
     expect(res.status).toBe(200);
     expect(res.body.company.location).toBe("Kolkata");

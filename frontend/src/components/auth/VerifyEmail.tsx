@@ -71,6 +71,7 @@ const VerifyEmail = () => {
         <FormField label="Code" htmlFor="code" hint="Six digits, valid for 10 minutes." required>
           <Input
             id="code"
+            name="code"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
@@ -78,13 +79,13 @@ const VerifyEmail = () => {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="123456"
-            className="font-mono tracking-widest"
+            className="font-mono"
           />
         </FormField>
 
         <Button type="submit" variant="signal" className="mt-2 w-full" disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : null}
-          {busy ? "Verifying" : "Verify"}
+          {busy ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
+          {busy ? "Verifying..." : "Verify"}
         </Button>
 
         <Button type="button" variant="outline" className="mt-3 w-full" onClick={resend}>

@@ -1,51 +1,74 @@
-import { Briefcase } from "lucide-react";
+import { ArrowRight, Briefcase } from "lucide-react";
+import { Link } from "react-router";
 
 import LatestJobCards from "./LatestJobCards";
 import { EmptyState } from "./layout/EmptyState";
 import { Reveal } from "@/lib/motion";
 import { useAppSelector } from "@/redux/store";
 
+const CARD_LAYOUTS = [
+  "lg:col-span-7",
+  "lg:col-span-5",
+  "lg:col-span-4",
+  "lg:col-span-8",
+  "lg:col-span-6",
+  "lg:col-span-6",
+] as const;
+
 const LatestJobs = () => {
   const { allJobs } = useAppSelector((state) => state.job);
-  // At most two full rows of the 3-column grid, so the landing page stays a
-  // fixed height as the job count grows. Carried over from the inherited
-  // component, which capped at the same six.
   const jobs = allJobs.slice(0, 6);
 
   return (
-    <section className="pb-(--space-section)">
-      <Reveal>
-        <h2 className="font-display text-display-md font-bold text-ink">
-          Latest <span className="text-signal-text">openings</span>
-        </h2>
-      </Reveal>
+    <section aria-labelledby="latest-jobs-heading" className="relative border-b border-line bg-paper-sunken/45">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:py-28">
+        <Reveal className="grid gap-8 border-b border-line pb-9 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.55fr)] md:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase text-signal-text">Fresh opportunities</p>
+            <h2
+              id="latest-jobs-heading"
+              className="mt-4 max-w-3xl font-display text-5xl font-semibold leading-none text-ink sm:text-6xl"
+            >
+              Work worth a closer look.
+            </h2>
+          </div>
+          <div className="md:pb-1">
+            <p className="max-w-md text-sm leading-6 text-ink-muted">
+              Recently posted roles, selected for a quick read without losing the details that
+              matter.
+            </p>
+            <Link
+              to="/jobs"
+              className="group mt-5 inline-flex items-center gap-3 text-sm font-semibold text-ink transition-colors hover:text-signal-text focus-visible:rounded-sharp focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
+            >
+              See the full job board
+              <ArrowRight aria-hidden="true" className="size-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        </Reveal>
 
-      {jobs.length === 0 ? (
-        <div className="mt-8">
-          <EmptyState
-            icon={Briefcase}
-            title="No openings right now"
-            description="New roles are posted regularly. Check back soon."
-          />
-        </div>
-      ) : (
-        /*
-          `Reveal` per card rather than the `StaggerList` that was here. This
-          section is the second screen of the landing page, so the stagger fired
-          on mount and was over before the reader arrived — the choreography was
-          real and nobody ever saw it. The delay is capped by row rather than
-          growing with the index: six cards at 0.06s each would leave the last one
-          waiting a third of a second after the first, which reads as slow rather
-          than as sequence.
-        */
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {jobs.map((job, i) => (
-            <Reveal key={job.id} delay={(i % 3) * 0.06} className="h-full">
-              <LatestJobCards job={job} />
-            </Reveal>
-          ))}
-        </div>
-      )}
+        {jobs.length === 0 ? (
+          <div className="mt-10">
+            <EmptyState
+              icon={Briefcase}
+              title="No openings right now"
+              description="New roles are posted regularly. Check back soon."
+            />
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-12 lg:gap-5">
+            {jobs.map((job, index) => (
+              <Reveal
+                key={job.id}
+                delay={(index % 2) * 0.08}
+                className={`h-full ${CARD_LAYOUTS[index] ?? "lg:col-span-6"}`}
+              >
+                <LatestJobCards job={job} index={index} featured={index === 0 || index === 3} />
+              </Reveal>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 };

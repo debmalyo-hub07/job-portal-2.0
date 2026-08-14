@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { Admin } from "../src/models/admin.model.js";
-import { installCaptureMailer, lastCodeFor, cookieValue, outbox } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, lastCodeFor, cookieValue, outbox } from "./auth/helpers.js";
 
 const app = buildApp();
 const PASSWORD = "correct horse battery staple";
 
-async function pendingRecruiter(email: string): Promise<string> {
+async function pendingRecruiter(email: string): Promise<{ access: string; csrf: string }> {
   await request(app)
     .post("/api/v1/recruiter/auth/register")
     .send({ fullName: "Pending", email, password: PASSWORD });
@@ -17,7 +17,10 @@ async function pendingRecruiter(email: string): Promise<string> {
   const login = await request(app)
     .post("/api/v1/recruiter/auth/login")
     .send({ email, password: PASSWORD });
-  return cookieValue(login, "jp_recruiter_at")!;
+  return {
+    access: cookieValue(login, "jp_recruiter_at")!,
+    csrf: cookieValue(login, "jp_csrf")!,
+  };
 }
 
 /**
@@ -36,7 +39,7 @@ describe("requireApproved", () => {
     const access = await pendingRecruiter("p1@example.com");
     const res = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .send({ name: "Acme" })
       .expect(403);
     expect(res.body.code).toBe("RECRUITER_PENDING_APPROVAL");
@@ -46,7 +49,7 @@ describe("requireApproved", () => {
     const access = await pendingRecruiter("p2@example.com");
     await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .send({ title: "Dev" })
       .expect(403);
   });
@@ -55,7 +58,7 @@ describe("requireApproved", () => {
     const access = await pendingRecruiter("p4@example.com");
     await request(app)
       .get("/api/v1/application/000000000000000000000000/applicants")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .expect(403);
   });
 
@@ -63,7 +66,7 @@ describe("requireApproved", () => {
     const access = await pendingRecruiter("p5@example.com");
     await request(app)
       .post("/api/v1/application/status/000000000000000000000000/update")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .send({ status: "shortlisted" })
       .expect(403);
   });
@@ -73,7 +76,7 @@ describe("requireApproved", () => {
     await Recruiter.updateOne({ email: "p3@example.com" }, { $set: { status: "active" } });
     const res = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .send({ name: "Acme Two" });
     expect(res.status).not.toBe(403);
   });
@@ -89,11 +92,11 @@ describe("requireApproved", () => {
     const access = await pendingRecruiter("p6@example.com");
     await request(app)
       .get("/api/v1/company/get")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .expect(200);
     await request(app)
       .get("/api/v1/job/getadminjobs")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .expect(200);
   });
 });
@@ -103,7 +106,7 @@ describe("requireApproved", () => {
  * no password, then a password is set through the ordinary reset flow. No
  * password ever passes through a CLI argument or a log.
  */
-async function signedInAdmin(email: string): Promise<string> {
+async function signedInAdmin(email: string): Promise<{ access: string; csrf: string }> {
   await Admin.create({
     email,
     fullName: "Root Admin",
@@ -119,7 +122,10 @@ async function signedInAdmin(email: string): Promise<string> {
   const login = await request(app)
     .post("/api/v1/admin/auth/login")
     .send({ email, password: PASSWORD });
-  return cookieValue(login, "jp_admin_at")!;
+  return {
+    access: cookieValue(login, "jp_admin_at")!,
+    csrf: cookieValue(login, "jp_csrf")!,
+  };
 }
 
 describe("admin approval", () => {
@@ -131,7 +137,7 @@ describe("admin approval", () => {
 
     const res = await request(app)
       .get("/api/v1/admin/recruiters/pending")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.items.map((r: { email: string }) => r.email)).toContain("list1@example.com");
@@ -147,7 +153,7 @@ describe("admin approval", () => {
 
     const res = await request(app)
       .get("/api/v1/admin/recruiters/pending")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect(res.body.items.map((r: { email: string }) => r.email)).not.toContain(
@@ -162,7 +168,7 @@ describe("admin approval", () => {
 
     await request(app)
       .post(`/api/v1/admin/recruiters/${String(rec!._id)}/approve`)
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(200);
 
     expect((await Recruiter.findById(rec!._id))?.status).toBe("active");
@@ -172,7 +178,7 @@ describe("admin approval", () => {
     // requireApproved re-reads the account rather than trusting a token claim.
     const res = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .send({ name: "Approved Co" });
     expect(res.status).not.toBe(403);
   });
@@ -181,7 +187,7 @@ describe("admin approval", () => {
     const access = await pendingRecruiter("notadmin@example.com");
     await request(app)
       .get("/api/v1/admin/recruiters/pending")
-      .set("Cookie", [`jp_recruiter_at=${access}`])
+      .use(asSession("recruiter", access))
       .expect(401);
   });
 
@@ -196,7 +202,7 @@ describe("admin approval", () => {
     const admin = await signedInAdmin("root3@example.com");
     await request(app)
       .get("/api/v1/recruiter/auth/me")
-      .set("Cookie", [`jp_recruiter_at=${admin}`])
+      .set("Cookie", [`jp_recruiter_at=${admin.access}`])
       .expect(401);
   });
 
@@ -206,10 +212,10 @@ describe("admin approval", () => {
     const admin = await signedInAdmin("root4@example.com");
     const url = `/api/v1/admin/recruiters/${String(rec!._id)}/approve`;
 
-    await request(app).post(url).set("Cookie", [`jp_admin_at=${admin}`]).expect(200);
+    await request(app).post(url).use(asSession("admin", admin)).expect(200);
     const afterFirst = outbox.filter((m) => m.to === "idem@example.com").length;
 
-    await request(app).post(url).set("Cookie", [`jp_admin_at=${admin}`]).expect(200);
+    await request(app).post(url).use(asSession("admin", admin)).expect(200);
     expect((await Recruiter.findById(rec!._id))?.status).toBe("active");
     // Guarded update: the second approval matches nothing, so no second mail.
     expect(outbox.filter((m) => m.to === "idem@example.com").length).toBe(afterFirst);
@@ -219,7 +225,7 @@ describe("admin approval", () => {
     const admin = await signedInAdmin("root6@example.com");
     await request(app)
       .post("/api/v1/admin/recruiters/000000000000000000000000/approve")
-      .set("Cookie", [`jp_admin_at=${admin}`])
+      .use(asSession("admin", admin))
       .expect(404);
   });
 });

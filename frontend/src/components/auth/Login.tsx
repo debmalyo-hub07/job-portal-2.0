@@ -14,7 +14,9 @@ import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
 import { homePathFor } from "@/lib/portalHome";
+import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { TurnstileChallenge } from "./TurnstileChallenge";
 
 /**
  * The portal arrives as a prop from the route, never from component state.
@@ -26,6 +28,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/store";
  */
 const Login = ({ portal }: { portal: Portal }) => {
   const [input, setInput] = useState({ email: "", password: "" });
+  const [botToken, setBotToken] = useState<string | null>(null);
+  const [challengeKey, setChallengeKey] = useState(0);
   const { loading, user } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -38,7 +42,11 @@ const Login = ({ portal }: { portal: Portal }) => {
     e.preventDefault();
     try {
       dispatch(setLoading(true));
-      const res = await apiClient.post<AuthResponse>(`/${portal}/auth/login`, input);
+      const res = await apiClient.post<AuthResponse>(
+        `/${portal}/auth/login`,
+        input,
+        ...turnstileRequestConfig(botToken),
+      );
       // Hint written only after the server agreed. Writing it before would leave
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
@@ -53,6 +61,8 @@ const Login = ({ portal }: { portal: Portal }) => {
         return;
       }
       toast.error(getApiErrorMessage(error, "Login failed"));
+      setBotToken(null);
+      setChallengeKey((value) => value + 1);
     } finally {
       dispatch(setLoading(false));
     }
@@ -84,6 +94,7 @@ const Login = ({ portal }: { portal: Portal }) => {
             value={input.email}
             onChange={changeEventHandler}
             placeholder="you@example.com"
+            spellCheck={false}
           />
         </FormField>
 
@@ -108,9 +119,20 @@ const Login = ({ portal }: { portal: Portal }) => {
           </Link>
         </div>
 
-        <Button type="submit" variant="signal" className="w-full" disabled={loading}>
-          {loading ? <Loader2 className="animate-spin" /> : null}
-          {loading ? "Signing in" : "Sign in"}
+        <TurnstileChallenge
+          action={`${portal}_login`}
+          onToken={setBotToken}
+          resetKey={challengeKey}
+        />
+
+        <Button
+          type="submit"
+          variant="signal"
+          className="w-full"
+          disabled={loading || (turnstileEnabled && !botToken)}
+        >
+          {loading ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
+          {loading ? "Signing in..." : "Sign in"}
         </Button>
 
         {/*

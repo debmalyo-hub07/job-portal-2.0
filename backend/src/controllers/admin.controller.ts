@@ -1,8 +1,23 @@
 import type { Request, Response } from "express";
-import { adminListQuerySchema, objectIdSchema, recruiterDenyBodySchema } from "@jobportal/shared";
+import {
+  adminCreateBodySchema,
+  adminListQuerySchema,
+  objectIdSchema,
+  recruiterDenyBodySchema,
+} from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import * as approvalService from "../services/approval.service.js";
 import * as adminConsoleService from "../services/adminConsole.service.js";
+import * as adminProvisioningService from "../services/adminProvisioning.service.js";
+
+export const createAdmin = async (req: Request, res: Response): Promise<void> => {
+  const body = parseBody(adminCreateBodySchema, req.body);
+  await adminProvisioningService.createAdmin(body);
+  res.status(201).json({
+    success: true,
+    message: "Admin invited. A password setup code has been emailed.",
+  });
+};
 
 export const listPendingRecruiters = async (_req: Request, res: Response): Promise<void> => {
   const items = await approvalService.listPendingRecruiters();

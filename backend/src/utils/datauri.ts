@@ -1,10 +1,10 @@
-import DataUriParser from "datauri/parser.js";
-import path from "path";
-
-const getDataUri = (file: Express.Multer.File) => {
-  const parser = new DataUriParser();
-  const extName = path.extname(file.originalname).toString();
-  return parser.format(extName, file.buffer);
-};
+/**
+ * Cloudinary accepts a standard data URI. Building it from the validated MIME
+ * type avoids the vulnerable `datauri` package and ignores a user-controlled
+ * filename extension.
+ */
+const getDataUri = (file: Express.Multer.File) => ({
+  content: `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+});
 
 export default getDataUri;

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
 import { Job } from "../src/models/job.model.js";
-import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
@@ -11,7 +11,7 @@ async function recruiterWithCompany(email: string) {
   const session = await signedUpOn("recruiter", email);
   const res = await request(app)
     .post("/api/v1/company/register")
-    .set("Cookie", [`jp_recruiter_at=${session.access}`])
+    .use(asSession("recruiter", session))
     .send({ name: `Co-${email}` });
   return { ...session, companyId: res.body.company.id as string };
 }
@@ -21,13 +21,13 @@ describe("GET /job/getadminjobs", () => {
   let rival: Awaited<ReturnType<typeof recruiterWithCompany>>;
 
   const post = (
-    who: { access: string; companyId: string },
+    who: Awaited<ReturnType<typeof recruiterWithCompany>>,
     title: string,
     description = "Build the portal",
   ) =>
     request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${who.access}`])
+      .use(asSession("recruiter", who))
       .send({
         title,
         description,

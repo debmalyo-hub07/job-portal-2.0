@@ -1,9 +1,23 @@
 import cors from "cors";
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
 import hpp from "hpp";
 import { env } from "../config/env.js";
 import { AppError } from "../lib/AppError.js";
+
+export function enforceHttps(enabled: boolean) {
+  return function enforceHttpsMiddleware(
+    req: Request,
+    _res: Response,
+    next: NextFunction,
+  ): void {
+    if (!enabled || req.secure) {
+      next();
+      return;
+    }
+    next(new AppError(426, "HTTPS_REQUIRED", "HTTPS is required."));
+  };
+}
 
 export function applySecurity(app: Express): void {
   app.disable("x-powered-by");
@@ -12,7 +26,19 @@ export function applySecurity(app: Express): void {
   // throttles all users as one.
   app.set("trust proxy", 1);
 
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  // buildApp() is imported by the test harness before MONGO_URI is assigned;
+  // NODE_ENV is the one low-risk bootstrap value that can be read directly.
+  const production = process.env.NODE_ENV === "production";
+  app.use(enforceHttps(production));
+
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      strictTransportSecurity: production
+        ? { maxAge: 31_536_000, includeSubDomains: true }
+        : false,
+    }),
+  );
 
   app.use(
     cors({
@@ -29,7 +55,12 @@ export function applySecurity(app: Express): void {
       },
       credentials: true,
       methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "X-CSRF-Token", "X-Request-Id"],
+      allowedHeaders: [
+        "Content-Type",
+        "X-CSRF-Token",
+        "X-Request-Id",
+        "X-Turnstile-Token",
+      ],
     }),
   );
 

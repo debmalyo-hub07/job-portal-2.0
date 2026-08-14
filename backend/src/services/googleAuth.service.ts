@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import jwt from "jsonwebtoken";
 import mongoose, { type HydratedDocument } from "mongoose";
 import type { Request, Response } from "express";
-import type { Portal } from "@jobportal/shared";
+import { googleCallbackQuerySchema, type Portal } from "@jobportal/shared";
 import { env, googleRedirectUri } from "../config/env.js";
 import { googleTxnKey } from "../lib/keys.js";
 import { googleOAuth, type GoogleIdentity } from "../lib/googleOAuth.js";
@@ -70,8 +70,9 @@ export async function handleGoogleCallback(
   clearGoogleTxnCookie(res); // single-use, success or failure
 
   const raw = req.cookies?.[googleTxnCookieName()] as string | undefined;
-  const code = typeof req.query.code === "string" ? req.query.code : undefined;
-  const state = typeof req.query.state === "string" ? req.query.state : undefined;
+  const query = googleCallbackQuerySchema.safeParse(req.query);
+  if (!query.success) return { kind: "failed" };
+  const { code, state } = query.data;
   if (!raw || !code || !state) return { kind: "failed" };
 
   let txn: TxnClaims;

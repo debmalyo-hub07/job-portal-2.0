@@ -11,6 +11,10 @@
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
   --color-line: var(--line);
+  --color-media-shade: var(--media-shade);
+  --color-media-copy: var(--media-copy);
+  --color-media-surface: var(--media-surface);
+  --color-media-surface-ink: var(--media-surface-ink);
 
   /* signal (portal-scoped) */
   --color-signal: var(--signal);
@@ -49,13 +53,13 @@
   --color-ring: var(--signal-ring);
 
   /* radius — a contrast, not a constant */
-  --radius-sharp: 4px;
-  --radius-surface: 16px;
+  --radius-sharp: 6px;
+  --radius-surface: 8px;
   /* legacy names, mapped until 2B removes their consumers */
-  --radius-sm: 4px;
-  --radius-md: 4px;
-  --radius-lg: 16px;
-  --radius-xl: 16px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
 
   /* type */
   --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
@@ -68,10 +72,10 @@
   --text-base: 1rem;
   --text-lg: 1.2rem;
   --text-xl: 1.44rem;
-  --text-display-sm: 1.777rem;
-  --text-display-md: 2.369rem;
-  --text-display-lg: 3.157rem;
-  --text-display-xl: 4.209rem;
+  --text-display-sm: 1.75rem;
+  --text-display-md: 2.25rem;
+  --text-display-lg: 3.5rem;
+  --text-display-xl: 4.75rem;
 }
 
 /* Motion tiers — a parameter, not a per-component judgement. data-motion is a
@@ -127,11 +131,11 @@
    data-density on PageShell; components read the vars, never the attribute. */
 :root,
 [data-density="spacious"] {
-  --space-section: 6rem;   /* 96px */
+  --space-section: 5rem;   /* 80px */
   --space-card: 1.5rem;    /* 24px */
   --space-row: 3.5rem;     /* 56px */
   --space-field: 1.25rem;  /* 20px */
-  --space-page-top: 4rem;  /* 64px */
+  --space-page-top: 3rem;  /* 48px */
 }
 [data-density="compact"] {
   --space-section: 2rem;   /* 32px */
@@ -143,12 +147,16 @@
 
 :root {
   /* Ink & Signal light — warm neutrals at hue 95 */
-  --paper: oklch(0.99 0.004 95);
-  --paper-sunken: oklch(0.972 0.005 95);
-  --paper-raised: oklch(0.998 0.003 95);
-  --ink: oklch(0.18 0.008 95);
-  --ink-muted: oklch(0.52 0.008 95);
-  --line: oklch(0.9 0.005 95);
+  --paper: oklch(0.985 0.006 82);
+  --paper-sunken: oklch(0.958 0.009 82);
+  --paper-raised: oklch(0.998 0.003 82);
+  --ink: oklch(0.205 0.016 55);
+  --ink-muted: oklch(0.49 0.018 60);
+  --line: oklch(0.875 0.013 78);
+  --media-shade: oklch(0.145 0.018 48);
+  --media-copy: oklch(0.982 0.006 82);
+  --media-surface: oklch(0.992 0.004 82);
+  --media-surface-ink: oklch(0.205 0.016 55);
 
   /* semantics: danger 25 / warn 75 / ok 145 — icon + label always, never colour alone */
   --danger: oklch(0.55 0.19 25);
@@ -168,11 +176,11 @@
 }
 
 .dark {
-  --paper: oklch(0.165 0.006 95);
-  --paper-sunken: oklch(0.135 0.006 95);
-  --paper-raised: oklch(0.205 0.007 95);
-  --ink: oklch(0.96 0.004 95);
-  --ink-muted: oklch(0.68 0.006 95);
+  --paper: oklch(0.16 0.01 60);
+  --paper-sunken: oklch(0.125 0.009 60);
+  --paper-raised: oklch(0.205 0.012 60);
+  --ink: oklch(0.965 0.006 82);
+  --ink-muted: oklch(0.72 0.012 75);
   --line: oklch(1 0 0 / 9%);
 
   --danger: oklch(0.68 0.17 25);
@@ -186,51 +194,51 @@
 /* Signal — portal scoped, set only from the route. Default = seeker. */
 :root,
 [data-portal="seeker"] {
-  --signal: oklch(0.58 0.19 282);
-  --signal-text: oklch(0.47 0.19 282);
-  --signal-fg: oklch(0.99 0.004 95);
-  --signal-muted: oklch(0.58 0.19 282 / 12%);
-  --signal-ring: oklch(0.58 0.19 282 / 45%);
+  --signal: oklch(0.62 0.17 42);
+  --signal-text: oklch(0.45 0.15 40);
+  --signal-fg: oklch(0.99 0.004 82);
+  --signal-muted: oklch(0.62 0.17 42 / 12%);
+  --signal-ring: oklch(0.62 0.17 42 / 42%);
 }
 [data-portal="recruiter"] {
-  --signal: oklch(0.6 0.13 185);
-  --signal-text: oklch(0.45 0.11 185);
-  --signal-fg: oklch(0.99 0.004 95);
-  --signal-muted: oklch(0.6 0.13 185 / 12%);
-  --signal-ring: oklch(0.6 0.13 185 / 45%);
+  --signal: oklch(0.58 0.12 175);
+  --signal-text: oklch(0.4 0.095 175);
+  --signal-fg: oklch(0.99 0.004 82);
+  --signal-muted: oklch(0.58 0.12 175 / 12%);
+  --signal-ring: oklch(0.58 0.12 175 / 42%);
 }
 /* Admin. Hue 330 sits clear of warn, ok and danger, and is unmistakable
    against seeker violet (282) and recruiter teal (185). --signal-text is
    deliberately darker than --signal to clear 4.5:1 on paper, the same
    treatment --warn and --ok already receive. */
 [data-portal="admin"] {
-  --signal: oklch(0.58 0.19 330);
-  --signal-text: oklch(0.45 0.19 330);
-  --signal-fg: oklch(0.99 0.004 95);
-  --signal-muted: oklch(0.58 0.19 330 / 12%);
-  --signal-ring: oklch(0.58 0.19 330 / 45%);
+  --signal: oklch(0.56 0.16 320);
+  --signal-text: oklch(0.41 0.15 320);
+  --signal-fg: oklch(0.99 0.004 82);
+  --signal-muted: oklch(0.56 0.16 320 / 12%);
+  --signal-ring: oklch(0.56 0.16 320 / 42%);
 }
 .dark,
 .dark [data-portal="seeker"] {
-  --signal: oklch(0.72 0.17 282);
-  --signal-text: oklch(0.78 0.15 282);
-  --signal-fg: oklch(0.165 0.006 95);
-  --signal-muted: oklch(0.72 0.17 282 / 18%);
-  --signal-ring: oklch(0.72 0.17 282 / 55%);
+  --signal: oklch(0.72 0.15 48);
+  --signal-text: oklch(0.78 0.13 50);
+  --signal-fg: oklch(0.16 0.01 60);
+  --signal-muted: oklch(0.72 0.15 48 / 18%);
+  --signal-ring: oklch(0.72 0.15 48 / 55%);
 }
 .dark [data-portal="recruiter"] {
-  --signal: oklch(0.74 0.13 185);
-  --signal-text: oklch(0.8 0.12 185);
-  --signal-fg: oklch(0.165 0.006 95);
-  --signal-muted: oklch(0.74 0.13 185 / 18%);
-  --signal-ring: oklch(0.74 0.13 185 / 55%);
+  --signal: oklch(0.72 0.11 175);
+  --signal-text: oklch(0.8 0.1 175);
+  --signal-fg: oklch(0.16 0.01 60);
+  --signal-muted: oklch(0.72 0.11 175 / 18%);
+  --signal-ring: oklch(0.72 0.11 175 / 55%);
 }
 .dark [data-portal="admin"] {
-  --signal: oklch(0.72 0.17 330);
-  --signal-text: oklch(0.8 0.15 330);
-  --signal-fg: oklch(0.165 0.006 95);
-  --signal-muted: oklch(0.72 0.17 330 / 18%);
-  --signal-ring: oklch(0.72 0.17 330 / 55%);
+  --signal: oklch(0.72 0.15 320);
+  --signal-text: oklch(0.81 0.13 320);
+  --signal-fg: oklch(0.16 0.01 60);
+  --signal-muted: oklch(0.72 0.15 320 / 18%);
+  --signal-ring: oklch(0.72 0.15 320 / 55%);
 }
 
 @layer base {
@@ -239,11 +247,25 @@
   }
   body {
     @apply bg-paper text-ink font-sans antialiased;
+    min-width: 320px;
+    text-rendering: optimizeLegibility;
   }
   h1,
   h2,
   h3 {
     @apply font-display;
+  }
+  a,
+  button,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  ::selection {
+    background: var(--signal-muted);
+    color: var(--ink);
   }
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -252,6 +274,45 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .hero-media-veil {
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--media-shade) 86%, transparent) 0%,
+        color-mix(in oklab, var(--media-shade) 70%, transparent) 48%,
+        color-mix(in oklab, var(--media-shade) 34%, transparent) 100%
+      ),
+      linear-gradient(
+        0deg,
+        color-mix(in oklab, var(--media-shade) 56%, transparent) 0%,
+        transparent 42%
+      );
+  }
+
+  .hero-cairn-stage {
+    opacity: 0.98;
+  }
+
+  @media (min-width: 64rem) {
+    .hero-cairn-stage {
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+    }
+  }
+
+  @media (max-width: 39.999rem) {
+    .hero-media-veil {
+      background: linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--media-shade) 24%, transparent) 0%,
+        color-mix(in oklab, var(--media-shade) 60%, transparent) 44%,
+        color-mix(in oklab, var(--media-shade) 88%, transparent) 100%
+      );
     }
   }
 }

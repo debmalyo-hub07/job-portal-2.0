@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import type { Portal } from "@jobportal/shared";
+import { computeSeekerFit, type Portal } from "@jobportal/shared";
 
 import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
 import { apiClient } from "@/lib/apiClient";
@@ -62,10 +62,12 @@ describe("HireShell", () => {
    * that hand-tuned a duration because "the workspace should be calmer" is the
    * failure this asserts against.
    *
-   * What the workspace deliberately does *not* get is an `Atmosphere`. That is a
-   * contrast finding, not a taste one: `Atmosphere.tsx` records the admin signal
-   * composited over paper at alpha 0.15 measuring 4.39:1, which fails the 4.5:1
-   * floor the whole token system holds to.
+   * What the workspace deliberately does *not* get is an `Atmosphere`, and the
+   * reason is how little contrast headroom is left rather than a failure:
+   * `contrast.mjs` puts `--ink-muted` over an admin field at 4.56:1, clearing the
+   * 4.5:1 floor by 0.06 — the narrowest of its 32 pairings — and `Atmosphere.tsx`
+   * records the same composite at 4.39:1 one alpha step up. A table someone is
+   * reading down is the last place to spend that margin.
    */
   it("runs compact, and caps motion to a whisper rather than refusing it", () => {
     const { container } = renderRoute(
@@ -274,6 +276,24 @@ describe("the company forms", () => {
 describe("Applicants", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  const fit = computeSeekerFit(
+    {
+      skills: ["typescript"],
+      salaryMin: 8,
+      salaryMax: 12,
+      experienceYears: 3,
+      location: "Kolkata",
+      openToRemote: true,
+    },
+    {
+      requirements: ["typescript", "react"],
+      salary: 10,
+      experienceLevel: 2,
+      location: "Kolkata",
+      workMode: "onsite",
+    },
+  );
+
   const withOneApplicant = (status: "pending" | "accepted" | "rejected" = "pending") =>
     vi.spyOn(apiClient, "get").mockResolvedValue({
       data: {
@@ -290,6 +310,7 @@ describe("Applicants", () => {
             skills: [],
             resumeUrl: null,
             resumeName: null,
+            fit,
           },
         ],
         total: 1,
@@ -328,6 +349,18 @@ describe("Applicants", () => {
     // 2A's rule: semantic state is icon *and* label. A green pill alone tells a
     // colourblind user nothing.
     expect(await screen.findByText("Accepted")).toBeInTheDocument();
+  });
+
+  it("shows the recruiter-side fit score and its strongest explanation", async () => {
+    withOneApplicant();
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+
+    expect(await screen.findByText(`${Math.round(fit.score)}% fit`)).toBeInTheDocument();
+    expect(screen.getByText(/missing: react/i)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/you are missing/i);
   });
 });
 

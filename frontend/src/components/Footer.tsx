@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import { Wordmark } from "@/components/shared/Wordmark";
 import { FOOTER_COLUMNS } from "@/components/shared/siteNav";
+import { SocialLinks } from "@/components/shared/SocialLinks";
 
 /**
  * Site chrome. Mounted by `PublicLayout`, never by a page.
@@ -11,56 +12,54 @@ import { FOOTER_COLUMNS } from "@/components/shared/siteNav";
  * the landing page and nowhere else. A privacy policy linked from one route is
  * not linked.
  *
- * The three social icons it used to carry are gone. They pointed at
- * facebook.com, twitter.com and linkedin.com — the platforms' own homepages,
- * not Cairn accounts — so clicking one navigated away from the product and
- * taught the visitor nothing. Under the no-dead-controls rule that is a dead
- * control wearing social proof; they come back with real accounts to link.
+ * Social links are rendered only when they resolve to an explicit Cairn or
+ * owner profile. Bare platform homepages are intentionally excluded because
+ * they do not establish a destination visitors can recognise or trust.
  */
 const Footer = () => {
   return (
-    <footer className="border-t border-line bg-paper">
-      <div className="mx-auto max-w-7xl px-6 py-(--space-section)">
-        <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(4,1fr)]">
-          <div>
+    <footer className="border-t border-media-copy/10 bg-media-shade text-media-copy">
+      <div className="mx-auto max-w-7xl px-6 py-16">
+        <div className="grid gap-12 lg:grid-cols-[1.55fr_repeat(4,minmax(0,1fr))]">
+          <div className="lg:pr-10">
             {/* The lockup, not a hand-written copy of it. An h2 rather than an
                 h1: the footer is a landmark, not the page's subject. */}
             <h2 className="text-xl">
-              <Wordmark />
+              <Wordmark tone="media" />
             </h2>
-            <p className="mt-3 max-w-xs text-sm text-ink-muted">
-              A cairn is a stack of stones one traveller leaves to mark the path for the next.
+            <p className="mt-5 max-w-sm text-sm leading-6 text-media-copy/65">
+              A deliberate route from looking to hired, built for people choosing their next move and teams choosing who joins them.
             </p>
+            <SocialLinks className="mt-7 [&_a]:border-media-copy/20 [&_a]:text-media-copy/65 [&_a:hover]:border-signal [&_a:hover]:bg-media-copy/10 [&_a:hover]:text-media-copy" />
           </div>
 
-          {FOOTER_COLUMNS.map((column) => (
-            <nav key={column.heading} aria-labelledby={`footer-${column.heading}`}>
-              <h3
-                id={`footer-${column.heading}`}
-                className="text-sm font-semibold tracking-wide text-ink"
-              >
-                {column.heading}
-              </h3>
-              <ul className="mt-3 flex flex-col gap-2">
-                {column.links.map((link) => (
-                  <li key={link.to}>
-                    <Link
-                      to={link.to}
-                      className="text-sm text-ink-muted transition-colors duration-(--dur-fast) hover:text-signal-text"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          {FOOTER_COLUMNS.map((column, index) => {
+            const headingId = `footer-column-${index}`;
+
+            return (
+              <nav key={column.heading} aria-labelledby={headingId}>
+                <h3 id={headingId} className="text-sm font-semibold text-media-copy">
+                  {column.heading}
+                </h3>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {column.links.map((link) => (
+                    <li key={link.to}>
+                      <Link
+                        to={link.to}
+                        className="text-sm text-media-copy/60 transition-colors duration-(--dur-fast) hover:text-media-copy focus-visible:text-media-copy"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            );
+          })}
         </div>
 
-        <div className="mt-(--space-section) flex flex-col gap-2 border-t border-line pt-6 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between">
-          {/* Derived, not hardcoded. The inherited footer claimed
-              "© 2024 Your Company" in a shipped build. */}
-          <p>© {new Date().getFullYear()} Cairn. All rights reserved.</p>
+        <div className="mt-14 flex flex-col gap-2 border-t border-media-copy/15 pt-6 text-xs text-media-copy/50 sm:flex-row sm:items-center sm:justify-between">
+          <p>Copyright {new Date().getFullYear()} Cairn.</p>
           <p>Built for people who are looking, and people who are hiring.</p>
         </div>
       </div>

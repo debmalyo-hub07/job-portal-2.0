@@ -60,6 +60,7 @@ const ResetPassword = () => {
         <FormField label="Code" htmlFor="code" hint="Six digits, valid for 10 minutes." required>
           <Input
             id="code"
+            name="code"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
@@ -67,7 +68,7 @@ const ResetPassword = () => {
             value={input.code}
             onChange={(e) => setInput({ ...input, code: e.target.value })}
             placeholder="123456"
-            className="font-mono tracking-widest"
+            className="font-mono"
           />
         </FormField>
 
@@ -79,6 +80,7 @@ const ResetPassword = () => {
         >
           <Input
             id="newPassword"
+            name="newPassword"
             type="password"
             autoComplete="new-password"
             value={input.newPassword}
@@ -88,8 +90,8 @@ const ResetPassword = () => {
         </FormField>
 
         <Button type="submit" variant="signal" className="mt-2 w-full" disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : null}
-          {busy ? "Changing" : "Change password"}
+          {busy ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
+          {busy ? "Changing..." : "Change password"}
         </Button>
 
         <p className="mt-6 text-sm text-ink-muted">

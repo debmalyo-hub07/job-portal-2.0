@@ -1,73 +1,89 @@
-import { Search } from "lucide-react";
-
-import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
-import { useState, type FormEvent } from "react";
+import { lazy, Suspense, useState, type FormEvent } from "react";
+import { ArrowRight, Search } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { Button } from "./ui/button";
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import { FadeIn } from "@/lib/motion";
+import { useParallax } from "@/lib/motion/index";
 
-/**
- * The hero sits on the page's left axis rather than centred.
- *
- * The inherited version centred this block and then left-aligned the section
- * header directly beneath it, so the page had two competing axes within one
- * scroll. Everything now reads down one spine.
- */
+const CairnScene = lazy(() => import("./visual/CairnScene"));
+
 function HeroSection() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { ref: heroRef, progress } = useParallax<HTMLElement>();
 
-  // Navigates to the board with the keyword in the URL, rather than writing a
-  // redux field the board no longer reads. The submitted search is now a link.
-  const searchJobHandler = (e: FormEvent) => {
-    e.preventDefault();
+  const searchJobHandler = (event: FormEvent) => {
+    event.preventDefault();
     navigate(jobBoardPath(query));
   };
 
   return (
-    <FadeIn>
-      {/* The atmosphere's host: `relative` because the layer is absolutely
-          positioned, `isolate` so it cannot paint over anything outside this
-          section. The field is masked in the shader to vanish across the band
-          where the headline and paragraph sit — see Atmosphere for the contrast
-          measurements that forced that rather than a global alpha cap. */}
-      <div className="relative isolate -mx-6 px-6">
-        <Atmosphere className="-z-10" textBand={[0.3, 0.72]} />
-        <div className="flex flex-col items-start gap-5 py-(--space-section)">
-          <span className="rounded-full bg-signal-muted px-4 py-1.5 text-sm font-medium text-signal-text">
-            Hiring is open
-          </span>
-          <h1 className="max-w-3xl font-display text-display-lg font-bold text-balance text-ink">
-            Search, apply, and get your next role.
-          </h1>
-          <p className="max-w-xl text-lg text-ink-muted">
-            Find jobs, internships, and contract work matched to your skills.
+    <section
+      ref={heroRef}
+      className="relative isolate min-h-[calc(100svh-9rem)] max-h-[50rem] overflow-hidden bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
+    >
+      <img
+        src="/images/cairn-seeker-hero.jpg"
+        alt="A product team working together around a shared table"
+        width="2400"
+        height="1600"
+        fetchPriority="high"
+        className="absolute inset-0 size-full object-cover object-center grayscale-[0.08] saturate-[0.82]"
+      />
+      <div aria-hidden="true" className="hero-media-veil absolute inset-0" />
+
+      <div
+        aria-hidden="true"
+        data-cairn-stage="seeker"
+        className="hero-cairn-stage pointer-events-none absolute left-[18%] right-[-10%] top-0 z-10 h-[32%] sm:left-[50%] sm:right-[-4%] sm:h-[38%] lg:left-[75%] lg:right-[2%] lg:top-0 lg:h-[50%] xl:left-[77%] xl:right-[3%]"
+      >
+        <Suspense fallback={null}>
+          <CairnScene portal="seeker" scrollProgress={progress} />
+        </Suspense>
+      </div>
+
+      <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-end px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
+        <div data-hero-copy="seeker" className="max-w-[44rem]">
+          <p className="mb-5 text-sm font-semibold uppercase text-media-copy/75">
+            Cairn for candidates
           </p>
+          <h1 className="font-display text-5xl font-semibold leading-[0.92] text-balance text-media-copy sm:text-7xl lg:text-[6rem]">
+            Work that fits your next move.
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-7 text-media-copy/80 sm:text-lg">
+            Search focused roles, understand your fit, and keep every application moving in one place.
+          </p>
+
           <form
             onSubmit={searchJobHandler}
-            className="flex w-full max-w-xl items-center gap-2 rounded-full border border-line bg-paper-raised py-1 pr-1 pl-5"
+            className="mt-8 flex w-full max-w-2xl flex-col gap-2 rounded-surface bg-media-surface p-2 text-media-surface-ink shadow-2xl sm:flex-row"
           >
             <label htmlFor="hero-search" className="sr-only">
               Search for jobs, companies, or skills
             </label>
-            <input
-              id="hero-search"
-              type="text"
-              placeholder="Search for jobs, companies, or skills"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full border-none bg-transparent text-ink outline-none placeholder:text-ink-muted"
-            />
-            <Button type="submit" variant="signal" size="icon" className="rounded-full">
-              <Search />
-              <span className="sr-only">Search</span>
+            <div className="flex min-w-0 flex-1 items-center gap-3 px-3">
+              <Search aria-hidden="true" className="size-5 shrink-0 text-media-surface-ink/55" />
+              <input
+                id="hero-search"
+                type="search"
+                name="keyword"
+                autoComplete="off"
+                placeholder="Role, company, or skill"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-12 w-full min-w-0 border-none bg-transparent text-base text-media-surface-ink outline-none placeholder:text-media-surface-ink/55"
+              />
+            </div>
+            <Button type="submit" variant="signal" size="lg" className="sm:px-7">
+              Search roles
+              <ArrowRight data-icon="inline-end" />
             </Button>
           </form>
         </div>
-      </div>
-    </FadeIn>
+      </FadeIn>
+    </section>
   );
 }
 

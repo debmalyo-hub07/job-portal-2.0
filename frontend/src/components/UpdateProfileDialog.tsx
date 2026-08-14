@@ -151,7 +151,7 @@ const UpdateProfileDialog = ({
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={setOpen}>
       {/* `data-density="compact"` rather than hand-tuned margins: the fields read
           `--space-field`, and a modal is a dense surface by its nature. Nine
           fields exceed a short viewport, so the body scrolls rather than the

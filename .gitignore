@@ -24,7 +24,11 @@ dist-ssr
 *.sw?
 # Environment variables
 .env
-Backend/.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 
 # Brainstorming companion scratch files
 .superpowers/

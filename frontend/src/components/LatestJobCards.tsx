@@ -1,43 +1,98 @@
+import { ArrowUpRight, BriefcaseBusiness, CalendarDays, MapPin } from "lucide-react";
+import type { PointerEvent } from "react";
 import { Link } from "react-router";
 import type { JobDto } from "@jobportal/shared";
+
 import { Badge } from "./ui/badge";
-import { HoverLift } from "@/lib/motion";
+import "./landing-interactions.css";
 
 type LatestJobCardsProps = {
   job: JobDto;
+  index: number;
+  featured?: boolean;
 };
 
-const LatestJobCards = ({ job }: LatestJobCardsProps) => {
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+});
+
+const postedOn = (createdAt: string) => {
+  const date = new Date(createdAt);
+  return Number.isNaN(date.getTime()) ? "Recently" : DATE_FORMATTER.format(date);
+};
+
+const LatestJobCards = ({ job, index, featured = false }: LatestJobCardsProps) => {
+  const handlePointerMove = (event: PointerEvent<HTMLAnchorElement>) => {
+    if (event.pointerType === "touch") return;
+
+    const card = event.currentTarget;
+    const bounds = card.getBoundingClientRect();
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+
+    card.style.setProperty("--job-tilt-x", `${(-y * 4).toFixed(2)}deg`);
+    card.style.setProperty("--job-tilt-y", `${(x * 5).toFixed(2)}deg`);
+  };
+
+  const resetTilt = (event: PointerEvent<HTMLAnchorElement>) => {
+    event.currentTarget.style.setProperty("--job-tilt-x", "0deg");
+    event.currentTarget.style.setProperty("--job-tilt-y", "0deg");
+  };
+
   return (
-    <HoverLift className="h-full">
-      {/*
-        A real link, not a div with onClick. The inherited card was a clickable
-        div: no keyboard focus, no Enter, nothing for a screen reader to
-        announce as navigable.
-      */}
-      <Link
-        to={`/description/${job.id}`}
-        className="flex h-full flex-col rounded-surface border border-line bg-paper-raised p-(--space-card) transition-colors duration-(--dur-fast) hover:border-signal focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
-      >
-        <p className="font-medium text-ink">{job.company?.name}</p>
-        <p className="text-sm text-ink-muted">{job.location}</p>
+    <Link
+      to={`/description/${job.id}`}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={resetTilt}
+      className="job-spotlight-card group relative flex h-full min-h-80 flex-col overflow-hidden rounded-surface border border-line bg-paper-raised p-6 shadow-sm focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none sm:p-7"
+    >
+      <span className="job-spotlight-card__rule" aria-hidden="true" />
 
-        <h3 className="mt-3 font-display text-xl font-semibold text-ink">{job.title}</h3>
-        <p className="mt-2 line-clamp-2 text-sm text-ink-muted">{job.description}</p>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {/*
-            `position` is a department string in jobCreateBodySchema, not a
-            count — the inherited card rendered "{position} Positions", which
-            produced "Analytics Positions".
-          */}
-          <Badge variant="outline">{job.position}</Badge>
-          <Badge variant="outline">{job.jobType}</Badge>
-          {/* Geist, not mono: a lone value in a badge is not a column to scan. */}
-          <Badge variant="outline">₹{job.salary} LPA</Badge>
+      <div className="job-spotlight-card__depth flex items-start justify-between gap-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs text-ink-muted">{String(index + 1).padStart(2, "0")}</span>
+            <span className="h-px w-7 bg-line" aria-hidden="true" />
+            <p className="truncate text-sm font-semibold text-ink">{job.company?.name ?? "Independent team"}</p>
+          </div>
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted">
+            <MapPin aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{job.remote ? "Remote" : job.location}</span>
+          </p>
         </div>
-      </Link>
-    </HoverLift>
+        <span className="job-spotlight-card__arrow flex size-10 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition-colors group-hover:border-signal group-hover:bg-signal group-hover:text-signal-fg">
+          <ArrowUpRight aria-hidden="true" className="size-4" />
+          <span className="sr-only">View {job.title}</span>
+        </span>
+      </div>
+
+      <div className="job-spotlight-card__depth mt-9">
+        <h3
+          className={`max-w-2xl font-display font-semibold leading-[1.05] text-ink ${featured ? "text-3xl sm:text-4xl" : "text-3xl"}`}
+        >
+          {job.title}
+        </h3>
+        <p className={`mt-4 text-sm leading-6 text-ink-muted ${featured ? "max-w-xl" : "line-clamp-3"}`}>
+          {job.description}
+        </p>
+      </div>
+
+      <div className="job-spotlight-card__depth mt-auto pt-8">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">
+            <BriefcaseBusiness aria-hidden="true" />
+            {job.jobType}
+          </Badge>
+          <Badge variant="outline">{job.position}</Badge>
+          <Badge variant="outline">INR {job.salary} LPA</Badge>
+        </div>
+        <div className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-xs text-ink-muted">
+          <CalendarDays aria-hidden="true" className="size-3.5" />
+          Posted {postedOn(job.createdAt)}
+        </div>
+      </div>
+    </Link>
   );
 };
 

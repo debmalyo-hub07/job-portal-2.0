@@ -72,9 +72,12 @@ jobs:
           NODE_ENV: production
           PORT: 8000
           MONGO_URI: mongodb://127.0.0.1:27017/jobportal_smoke
-          API_BASE_URL: http://127.0.0.1:8000
-          WEB_BASE_URL: http://127.0.0.1:5173
-          CLIENT_URLS: http://127.0.0.1:5173
+          # The built API listens on HTTP inside the job, but production config
+          # must contain HTTPS URLs. The smoke request below supplies the proxy
+          # header that Render normally adds at the edge.
+          API_BASE_URL: https://127.0.0.1:8000
+          WEB_BASE_URL: https://127.0.0.1:5173
+          CLIENT_URLS: https://127.0.0.1:5173
           # Placeholders. Nothing here reaches Cloudinary, Brevo or Google — the
           # check boots the app and asks /health. env() refuses to start without
           # them, which is the behaviour being rehearsed.
@@ -85,15 +88,17 @@ jobs:
           BREVO_SENDER_EMAIL: smoke@example.com
           GOOGLE_CLIENT_ID: smoke
           GOOGLE_CLIENT_SECRET: smoke
+          TURNSTILE_SECRET_KEY: smoke-turnstile-secret
         run: |
           set -euo pipefail
 
-          # Four distinct throwaway secrets, generated here and never persisted.
+          # Five distinct throwaway secrets, generated here and never persisted.
           # parseEnv refuses to boot if any two are equal, so they must differ.
           export JWT_ACCESS_SECRET="$(openssl rand -base64 48)"
           export JWT_REFRESH_PEPPER="$(openssl rand -base64 48)"
           export OTP_PEPPER="$(openssl rand -base64 48)"
           export CSRF_SECRET="$(openssl rand -base64 48)"
+          export ADMIN_PROVISIONING_SECRET="$(openssl rand -base64 48)"
 
           # The exact command render.yaml runs. Not `npm start`, which would
           # exercise a different process tree than the deployment does.
@@ -104,7 +109,7 @@ jobs:
           # fast on a warm service container and occasionally is not. A fixed
           # sleep is either wasted time or a flake.
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json 2>/dev/null; then
+            if curl -fsS -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/health > /tmp/health.json 2>/dev/null; then
               break
             fi
             # A boot failure is not something to wait 30 seconds for. server.ts
@@ -144,7 +149,10 @@ jobs:
 
       - name: Build the web app and inspect the artifact
         env:
-          VITE_API_URL: http://127.0.0.1:8000/api/v1
+          VITE_API_URL: https://127.0.0.1:8000/api/v1
+          # Cloudflare's documented always-pass test site key. This is public
+          # by design and is used only to make the production build deterministic.
+          VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
         run: |
           set -euo pipefail
           rm -rf frontend/dist

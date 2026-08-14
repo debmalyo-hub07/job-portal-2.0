@@ -80,9 +80,9 @@ export function Atmosphere({
     <div
       ref={hostRef}
       aria-hidden="true"
-      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
+      className={cn("pointer-events-none absolute inset-0 overflow-hidden bg-paper", className)}
     >
-      <canvas ref={canvasRef} className="size-full" />
+      <canvas ref={canvasRef} className="size-full opacity-70" />
     </div>
   );
 }

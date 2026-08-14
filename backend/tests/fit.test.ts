@@ -5,7 +5,7 @@ import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
 import { Job } from "../src/models/job.model.js";
 import { Seeker } from "../src/models/seeker.model.js";
-import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
@@ -129,7 +129,7 @@ describe("fit on the job DTO", () => {
     const findById = vi.spyOn(Seeker, "findById");
     const res = await request(app)
       .get("/api/v1/job/get")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+      .use(asSession("recruiter", recruiter));
     expect(res.status).toBe(200);
     // `optionalAuthenticate` resolves a recruiter here too, so this is the case
     // that would otherwise score a recruiter against their own listing.
@@ -147,13 +147,13 @@ describe("fit on the job DTO", () => {
     await postedJob();
     const owned = await request(app)
       .get("/api/v1/job/getadminjobs")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+      .use(asSession("recruiter", recruiter));
     expect(owned.status).toBe(200);
     expect("fit" in owned.body.items[0]).toBe(false);
 
     const created = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+      .use(asSession("recruiter", recruiter))
       .send({
         title: "Another",
         description: "Details of the role",

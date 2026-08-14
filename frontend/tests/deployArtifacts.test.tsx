@@ -67,6 +67,28 @@ describe("SPA fallback config", () => {
     expect(config.rewrites).toContainEqual({ source: "/(.*)", destination: "/index.html" });
   });
 
+  it("vercel.json sends browser security headers without blocking Turnstile", () => {
+    const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
+    const config = JSON.parse(raw) as {
+      headers?: { source: string; headers: { key: string; value: string }[] }[];
+    };
+    const headers = new Map(config.headers?.[0]?.headers.map(({ key, value }) => [key, value]));
+
+    expect(headers.get("Strict-Transport-Security")).toMatch(/max-age=/);
+    expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(headers.get("X-Frame-Options")).toBe("DENY");
+    expect(headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    expect(headers.get("Content-Security-Policy")).toContain(
+      "script-src 'self' https://challenges.cloudflare.com",
+    );
+    expect(headers.get("Content-Security-Policy")).toContain(
+      "frame-src https://challenges.cloudflare.com",
+    );
+    expect(headers.get("Content-Security-Policy")).toContain(
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.googleusercontent.com",
+    );
+  });
+
   it("public/_redirects serves Netlify and Cloudflare with a 200, not a redirect", () => {
     // In public/ so Vite copies it into dist verbatim — no build step, and it
     // cannot drift from the output directory.
@@ -126,6 +148,7 @@ describe("the build cannot silently produce an empty bundle", () => {
     // build — better, but still a broken pipeline.
     const ci = readFileSync(join(FRONTEND, "..", ".github", "workflows", "ci.yml"), "utf8");
     expect(ci).toMatch(/VITE_API_URL:/);
+    expect(ci).toMatch(/VITE_TURNSTILE_SITE_KEY:/);
   });
 
   it("CD asserts the built bundle actually contains routes", () => {

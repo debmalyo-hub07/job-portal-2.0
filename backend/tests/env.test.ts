@@ -8,6 +8,7 @@ const valid = {
   JWT_REFRESH_PEPPER: "b".repeat(32),
   OTP_PEPPER: "c".repeat(32),
   CSRF_SECRET: "d".repeat(32),
+  ADMIN_PROVISIONING_SECRET: "e".repeat(32),
   CLIENT_URLS: "http://localhost:5173,https://app.example.com",
   API_BASE_URL: "http://localhost:8000",
   WEB_BASE_URL: "http://localhost:5173",
@@ -57,6 +58,41 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, CSRF_SECRET: valid.JWT_ACCESS_SECRET })).toThrow(
       /must all differ/,
     );
+  });
+
+  it("requires Turnstile in production", () => {
+    expect(() =>
+      parseEnv({
+        ...valid,
+        NODE_ENV: "production",
+        API_BASE_URL: "https://api.example.com",
+        WEB_BASE_URL: "https://app.example.com",
+        CLIENT_URLS: "https://app.example.com",
+      }),
+    ).toThrow(/TURNSTILE_SECRET_KEY/);
+  });
+
+  it("rejects plaintext production URLs", () => {
+    expect(() =>
+      parseEnv({
+        ...valid,
+        NODE_ENV: "production",
+        TURNSTILE_SECRET_KEY: "turnstile-secret",
+      }),
+    ).toThrow(/must use HTTPS/);
+  });
+
+  it("accepts HTTPS production URLs with Turnstile configured", () => {
+    expect(
+      parseEnv({
+        ...valid,
+        NODE_ENV: "production",
+        TURNSTILE_SECRET_KEY: "turnstile-secret",
+        API_BASE_URL: "https://api.example.com",
+        WEB_BASE_URL: "https://app.example.com",
+        CLIENT_URLS: "https://app.example.com",
+      }).NODE_ENV,
+    ).toBe("production");
   });
 
   it("strips trailing slashes from the base URLs", () => {

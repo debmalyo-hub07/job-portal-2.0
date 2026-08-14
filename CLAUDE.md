@@ -205,6 +205,27 @@ kept rendering an `<h1>` for a year after `AuthLayout` had settled on a
 `<span>`. The mark's top stone takes `--signal`, so it recolours per portal for
 free.
 
+What Phase 5 has closed so far:
+
+- **The matching pipeline is user-visible in both directions.** A signed-in
+  seeker gets an optional `JobDto.fit` on the public list and detail routes, and
+  the job card names the largest shortfall while the detail page shows all five
+  weighted factors. Anonymous visitors and recruiters get no field rather than
+  a fabricated `0%`
+- **The five seeker inputs are writable and three-valued.** Skills, experience,
+  location, salary band and remote preference round-trip through the profile
+  form. Blank numeric fields clear to `null`, and an unanswered remote preference
+  stays distinct from an explicit `false`
+- **Applicants are ranked before pagination.** The recruiter endpoint scores the
+  complete applicant set with `scoreSeekerForJob`, sorts by score with stable
+  recency/id tie-breakers, and only then slices the requested page. Sorting a
+  fetched page would advertise a ranking it had not performed. `ApplicantDto.fit`
+  carries the recruiter-voiced breakdown; the table does not recompute it
+- **Motion and atmosphere now have real consumers.** The seeker hero owns the
+  contrast-bounded WebGL field, `Reveal` drives scroll arrivals through the
+  tier tokens, and `AnimatedNumber` is confined behind the library capability
+  check. Workspace and console remain capped and carry no atmosphere
+
 What 2B-3 closed:
 
 - **A recruiter could not post a remote job.** `remote` is on
@@ -591,8 +612,9 @@ What 1C closed, so these are no longer open questions:
 - Ownership checks on every route that touches a user-owned resource. Missing
   and foreign both answer **404** with the same body — a foreign recruiter must
   not be able to prove a resource exists
-- `getApplicants` returns `ApplicantDto` — name, email, phone, headline, skills
-  and a resume link, nothing else
+- `getApplicants` returns `ApplicantDto` — the established contact/profile
+  projection, a short-lived resume link, and the derived fit breakdown for the
+  owned job. It never returns the seeker document or raw fit-input fields
 - Keyword search escapes user input before it reaches a `RegExp`
 - Resumes upload as Cloudinary `authenticated` assets; the DB stores the
   `public_id` and every read mints a ~10-minute signed URL

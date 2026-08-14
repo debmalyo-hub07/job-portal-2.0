@@ -21,10 +21,10 @@ function storeWithUser(portal: "seeker" | "recruiter") {
   return s;
 }
 
-function renderNavbar(store: ReturnType<typeof makeStore>) {
+function renderNavbar(store: ReturnType<typeof makeStore>, route = "/") {
   return render(
     <Provider store={store}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>
         <Navbar />
       </MemoryRouter>
     </Provider>,
@@ -49,6 +49,11 @@ describe("Navbar account menu", () => {
   it("shows auth links when signed out", () => {
     const { getByRole } = renderNavbar(makeStore());
     expect(getByRole("link", { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it("keeps the anonymous employer wordmark inside the hiring portal", () => {
+    const { getByRole } = renderNavbar(makeStore(), "/hire");
+    expect(getByRole("link", { name: /cairn/i })).toHaveAttribute("href", "/hire");
   });
 
   it("shows no auth links when signed in", () => {

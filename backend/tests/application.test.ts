@@ -22,14 +22,15 @@ vi.mock("../src/utils/cloudinary.js", () => ({
 
 import { buildApp } from "../src/app.js";
 import { Application } from "../src/models/application.model.js";
-import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { Seeker } from "../src/models/seeker.model.js";
+import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
 describe("application routes", () => {
-  let recruiter: { access: string };
-  let rival: { access: string };
-  let seeker: { access: string };
+  let recruiter: Awaited<ReturnType<typeof signedUpOn>>;
+  let rival: Awaited<ReturnType<typeof signedUpOn>>;
+  let seeker: Awaited<ReturnType<typeof signedUpOn>>;
   let jobId: string;
 
   beforeEach(async () => {
@@ -44,11 +45,11 @@ describe("application routes", () => {
 
     const company = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+      .use(asSession("recruiter", recruiter))
       .send({ name: "Acme" });
     const job = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+      .use(asSession("recruiter", recruiter))
       .send({
         title: "Dev",
         description: "Build",
@@ -63,28 +64,36 @@ describe("application routes", () => {
     jobId = job.body.job.id;
   });
 
-  const apply = (cookies: string[]) =>
-    request(app).post(`/api/v1/application/apply/${jobId}`).set("Cookie", cookies);
+  const apply = (
+    actor?: {
+      portal: "seeker" | "recruiter";
+      session: Awaited<ReturnType<typeof signedUpOn>>;
+    },
+  ) => {
+    const call = request(app).post(`/api/v1/application/apply/${jobId}`);
+    if (actor) call.use(asSession(actor.portal, actor.session));
+    return call;
+  };
 
   it("GET /apply/:id no longer exists — applying is not a GET", async () => {
     const res = await request(app)
       .get(`/api/v1/application/apply/${jobId}`)
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`]);
+      .use(asSession("seeker", seeker));
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("NOT_FOUND");
     expect(await Application.countDocuments({})).toBe(0);
   });
 
   it("POST apply matrix: anonymous 401, recruiter 401, seeker 201", async () => {
-    expect((await apply([])).status).toBe(401);
-    expect((await apply([`jp_recruiter_at=${recruiter.access}`])).status).toBe(401);
-    expect((await apply([`jp_seeker_at=${seeker.access}`])).status).toBe(201);
+    expect((await apply()).status).toBe(401);
+    expect((await apply({ portal: "recruiter", session: recruiter })).status).toBe(401);
+    expect((await apply({ portal: "seeker", session: seeker })).status).toBe(201);
   });
 
   it("404s an application to a job that does not exist", async () => {
     const res = await request(app)
       .post("/api/v1/application/apply/64b0c8f2a9d3e45f6a7b8c9d")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`]);
+      .use(asSession("seeker", seeker));
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("JOB_NOT_FOUND");
   });
@@ -92,29 +101,29 @@ describe("application routes", () => {
   it("400s a malformed job id", async () => {
     const res = await request(app)
       .post("/api/v1/application/apply/not-an-id")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`]);
+      .use(asSession("seeker", seeker));
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("duplicate apply → 409, including under a parallel race", async () => {
     const results = await Promise.all([
-      apply([`jp_seeker_at=${seeker.access}`]),
-      apply([`jp_seeker_at=${seeker.access}`]),
+      apply({ portal: "seeker", session: seeker }),
+      apply({ portal: "seeker", session: seeker }),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
     expect(await Application.countDocuments({})).toBe(1);
 
-    const third = await apply([`jp_seeker_at=${seeker.access}`]);
+    const third = await apply({ portal: "seeker", session: seeker });
     expect(third.status).toBe(409);
     expect(third.body.code).toBe("ALREADY_APPLIED");
   });
 
   it("seeker's applied list is an enveloped DTO", async () => {
-    await apply([`jp_seeker_at=${seeker.access}`]);
+    await apply({ portal: "seeker", session: seeker });
     const res = await request(app)
       .get("/api/v1/application/get")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`]);
+      .use(asSession("seeker", seeker));
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ total: 1, page: 1, pages: 1 });
     expect(res.body.items[0]).toMatchObject({ status: "pending" });
@@ -127,17 +136,17 @@ describe("application routes", () => {
     let applicationId: string;
 
     beforeEach(async () => {
-      await apply([`jp_seeker_at=${seeker.access}`]);
+      await apply({ portal: "seeker", session: seeker });
       const list = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+        .use(asSession("recruiter", recruiter));
       applicationId = list.body.items[0].applicationId;
     });
 
     it("owner sees exactly the ApplicantDto keys and nothing more", async () => {
       const res = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+        .use(asSession("recruiter", recruiter));
       expect(res.status).toBe(200);
       const applicant = res.body.items[0];
       expect(applicant).toMatchObject({
@@ -152,6 +161,7 @@ describe("application routes", () => {
           "appliedAt",
           "applicationId",
           "email",
+          "fit",
           "fullName",
           "headline",
           "phone",
@@ -161,12 +171,72 @@ describe("application routes", () => {
           "status",
         ].sort(),
       );
+      expect(applicant.fit).toMatchObject({
+        score: expect.any(Number),
+        factors: expect.arrayContaining([
+          expect.objectContaining({ key: "skills", reason: expect.any(String) }),
+        ]),
+      });
+      expect(applicant.fit.factors.map((factor: { reason: string }) => factor.reason).join(" "))
+        .not.toMatch(/\byou(r|'re)?\b/i);
+    });
+
+    it("ranks the complete applicant set before slicing it into pages", async () => {
+      const high = await signedUpOn("seeker", "high-fit@example.com");
+      const low = await signedUpOn("seeker", "low-fit@example.com");
+
+      await Seeker.findByIdAndUpdate(high.id, {
+        $set: {
+          "profile.skills": ["ts"],
+          "profile.salaryMin": 8,
+          "profile.salaryMax": 12,
+          "profile.experienceYears": 3,
+          "profile.location": "Remote",
+          "profile.openToRemote": true,
+        },
+      });
+      await Seeker.findByIdAndUpdate(low.id, {
+        $set: {
+          "profile.skills": [],
+          "profile.salaryMin": 40,
+          "profile.salaryMax": 50,
+          "profile.experienceYears": 0,
+          "profile.location": "Mumbai",
+          "profile.openToRemote": false,
+        },
+      });
+
+      // Applied in this order on purpose: the weakest applicant is newest. A
+      // service that paginates by createdAt and sorts only the page would put
+      // them on page 1 and could never recover the true global order.
+      expect((await apply({ portal: "seeker", session: high })).status).toBe(201);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect((await apply({ portal: "seeker", session: low })).status).toBe(201);
+
+      const pages = await Promise.all(
+        [1, 2, 3].map((page) =>
+          request(app)
+            .get(`/api/v1/application/${jobId}/applicants?page=${page}&limit=1`)
+            .use(asSession("recruiter", recruiter)),
+        ),
+      );
+
+      expect(pages.every((res) => res.status === 200)).toBe(true);
+      const [first, second, third] = pages;
+      expect(first).toBeDefined();
+      expect(second).toBeDefined();
+      expect(third).toBeDefined();
+      const ranked = [first!, second!, third!];
+      expect(first!.body).toMatchObject({ total: 3, page: 1, pages: 3 });
+      expect(first!.body.items[0].email).toBe("high-fit@example.com");
+      const scores = ranked.map((res) => res.body.items[0].fit.score as number);
+      expect(scores).toEqual([...scores].sort((a, b) => b - a));
     });
 
     it("hands the recruiter a signed resume link, not the stored key", async () => {
       await request(app)
         .post("/api/v1/user/profile/update")
-        .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+        .use(asSession("seeker", seeker))
         .attach("file", Buffer.from("%PDF-1.4 fake"), {
           filename: "cv.pdf",
           contentType: "application/pdf",
@@ -174,7 +244,7 @@ describe("application routes", () => {
 
       const res = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+        .use(asSession("recruiter", recruiter));
       expect(res.body.items[0].resumeUrl).toContain("sig=");
       expect(res.body.items[0].resumeUrl).not.toBe("resumes/abc123");
       expect(res.body.items[0].resumeName).toBe("cv.pdf");
@@ -183,13 +253,13 @@ describe("application routes", () => {
     it("unrelated recruiter → 404 on applicants and on status update", async () => {
       const list = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
-        .set("Cookie", [`jp_recruiter_at=${rival.access}`]);
+        .use(asSession("recruiter", rival));
       expect(list.status).toBe(404);
       expect(list.body.code).toBe("JOB_NOT_FOUND");
 
       const upd = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
-        .set("Cookie", [`jp_recruiter_at=${rival.access}`])
+        .use(asSession("recruiter", rival))
         .send({ status: "accepted" });
       expect(upd.status).toBe(404);
       // Same code and message a missing application would produce: a foreign
@@ -200,26 +270,26 @@ describe("application routes", () => {
     it("owner updates status; operator-shaped status is a 400, not a 500", async () => {
       const bad = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+        .use(asSession("recruiter", recruiter))
         .send({ status: { $gt: "" } });
       expect(bad.status).toBe(400);
       expect(bad.body.code).toBe("VALIDATION_ERROR");
 
       const pending = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+        .use(asSession("recruiter", recruiter))
         .send({ status: "pending" });
       expect(pending.status).toBe(400);
 
       const ok = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`])
+        .use(asSession("recruiter", recruiter))
         .send({ status: "accepted" });
       expect(ok.status).toBe(200);
 
       const list = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
-        .set("Cookie", [`jp_recruiter_at=${recruiter.access}`]);
+        .use(asSession("recruiter", recruiter));
       expect(list.body.items[0].status).toBe("accepted");
     });
 
@@ -229,14 +299,14 @@ describe("application routes", () => {
         (
           await request(app)
             .get(`/api/v1/application/${jobId}/applicants`)
-            .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+            .use(asSession("seeker", seeker))
         ).status,
       ).toBe(401);
       expect(
         (
           await request(app)
             .post(`/api/v1/application/status/${applicationId}/update`)
-            .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+            .use(asSession("seeker", seeker))
             .send({ status: "accepted" })
         ).status,
       ).toBe(401);

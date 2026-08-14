@@ -39,8 +39,10 @@ export function navLinksFor(portal: Portal): NavLink[] {
     // advertised two boards where the second was strictly the weaker one.
     case "seeker":
       return [
-        { to: "/", label: "Home" },
         { to: "/jobs", label: "Jobs" },
+        { to: "/hire", label: "For employers" },
+        { to: "/about", label: "About" },
+        { to: "/help", label: "Help" },
       ];
   }
 }

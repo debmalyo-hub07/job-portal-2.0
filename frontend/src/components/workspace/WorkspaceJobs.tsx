@@ -1,4 +1,4 @@
-import { Briefcase, Edit2, Eye, MoreHorizontal } from "lucide-react";
+import { Briefcase, Edit2, Eye, MoreHorizontal, Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import HireShell from "./HireShell";
@@ -41,7 +41,12 @@ export function WorkspaceJobs() {
     <HireShell
       title="Jobs"
       description="Roles you have posted."
-      actions={<Button onClick={() => navigate("/hire/jobs/create")}>Post a job</Button>}
+      actions={
+        <Button variant="signal" onClick={() => navigate("/hire/jobs/create")}>
+          <Plus data-icon="inline-start" />
+          Post a job
+        </Button>
+      }
     >
       <ListControls label="Search jobs" keyword={keyword} onKeyword={setKeyword}>
         {data ? (
@@ -50,7 +55,7 @@ export function WorkspaceJobs() {
       </ListControls>
 
       {isPending ? (
-        <div className="space-y-2">
+        <div className="grid gap-2">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton key={i} className="h-12 rounded-surface" />
           ))}
@@ -75,7 +80,7 @@ export function WorkspaceJobs() {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -99,20 +104,20 @@ export function WorkspaceJobs() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" aria-label={`Actions for ${job.title}`}>
-                          <MoreHorizontal className="size-4" />
+                          <MoreHorizontal />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onSelect={() => navigate(`/hire/companies/${job.company?.id ?? ""}`)}
                         >
-                          <Edit2 className="size-4" />
+                          <Edit2 />
                           Edit company
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() => navigate(`/hire/jobs/${job.id}/applicants`)}
                         >
-                          <Eye className="size-4" />
+                          <Eye />
                           Applicants
                         </DropdownMenuItem>
                       </DropdownMenuContent>

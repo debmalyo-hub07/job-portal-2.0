@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
 import { Job } from "../src/models/job.model.js";
-import { installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
@@ -11,7 +11,7 @@ async function recruiterWithCompany(email: string) {
   const session = await signedUpOn("recruiter", email);
   const res = await request(app)
     .post("/api/v1/company/register")
-    .set("Cookie", [`jp_recruiter_at=${session.access}`])
+    .use(asSession("recruiter", session))
     .send({ name: `Co-${email}` });
   return { ...session, companyId: res.body.company.id as string };
 }
@@ -47,7 +47,7 @@ describe("job routes", () => {
   it("posts a job against an owned company", async () => {
     const res = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send(jobBody(owner.companyId));
     expect(res.status).toBe(201);
     expect(res.body.job.company.name).toBe("Co-owner@example.com");
@@ -60,7 +60,7 @@ describe("job routes", () => {
   it("404s posting a job against someone else's company", async () => {
     const res = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${rival.access}`])
+      .use(asSession("recruiter", rival))
       .send(jobBody(owner.companyId));
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("COMPANY_NOT_FOUND");
@@ -69,7 +69,7 @@ describe("job routes", () => {
   it("404s posting a job against a company that does not exist", async () => {
     const res = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send(jobBody("64b0c8f2a9d3e45f6a7b8c9d"));
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("COMPANY_NOT_FOUND");
@@ -78,7 +78,7 @@ describe("job routes", () => {
   it("rejects an invalid post body with 400 VALIDATION_ERROR", async () => {
     const res = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send({ title: "x" });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
@@ -88,7 +88,7 @@ describe("job routes", () => {
     for (let i = 0; i < 3; i++) {
       await request(app)
         .post("/api/v1/job/post")
-        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .use(asSession("recruiter", owner))
         .send(jobBody(owner.companyId, `Dev ${i}`));
     }
     const res = await request(app).get("/api/v1/job/get?limit=2&keyword=dev");
@@ -105,7 +105,7 @@ describe("job routes", () => {
     // it is a two-character literal present in exactly one title.
     await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send(jobBody(owner.companyId, "Literal .* match"));
 
     const wildcard = await request(app).get(`/api/v1/job/get?keyword=${encodeURIComponent(".*")}`);
@@ -131,7 +131,7 @@ describe("job routes", () => {
     const post = (title: string, body: Record<string, unknown>) =>
       request(app)
         .post("/api/v1/job/post")
-        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .use(asSession("recruiter", owner))
         .send({
           title,
           description: "Build",
@@ -215,7 +215,7 @@ describe("job routes", () => {
   it("GET /get/:id serves a DTO, 400s a malformed id and 404s an unknown one", async () => {
     const created = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send(jobBody(owner.companyId));
     const id = created.body.job.id as string;
 
@@ -233,7 +233,7 @@ describe("job routes", () => {
   it("getadminjobs matrix: anonymous 401, seeker 401, recruiter sees only own", async () => {
     await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send(jobBody(owner.companyId));
     expect((await request(app).get("/api/v1/job/getadminjobs")).status).toBe(401);
     const seeker = await signedUpOn("seeker", "s@example.com");
@@ -247,14 +247,14 @@ describe("job routes", () => {
 
     const theirs = await request(app)
       .get("/api/v1/job/getadminjobs")
-      .set("Cookie", [`jp_recruiter_at=${rival.access}`]);
+      .use(asSession("recruiter", rival));
     expect(theirs.status).toBe(200);
     expect(theirs.body.items).toHaveLength(0);
     expect(theirs.body).toMatchObject({ total: 0, page: 1, pages: 0 });
 
     const mine = await request(app)
       .get("/api/v1/job/getadminjobs")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`]);
+      .use(asSession("recruiter", owner));
     expect(mine.body.items).toHaveLength(1);
     expect(mine.body.items[0].title).toBe("TypeScript Dev");
   });
@@ -262,7 +262,7 @@ describe("job routes", () => {
   it("rejects a jobType the seeker board cannot filter for", async () => {
     const res = await request(app)
       .post("/api/v1/job/post")
-      .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+      .use(asSession("recruiter", owner))
       .send({ ...jobBody(owner.companyId), jobType: "Full Time" });
     // Free text was accepted, stored, and rendered on the job card while
     // FilterCard's exact-equality facet could never match it.
@@ -274,7 +274,7 @@ describe("job routes", () => {
     for (const type of ["Full-time", "Part-time", "Internship", "Contract"]) {
       const res = await request(app)
         .post("/api/v1/job/post")
-        .set("Cookie", [`jp_recruiter_at=${owner.access}`])
+        .use(asSession("recruiter", owner))
         .send({ ...jobBody(owner.companyId), jobType: type });
       expect(res.status).toBe(201);
       expect(res.body.job.jobType).toBe(type);

@@ -25,7 +25,7 @@ export function signedResumeUrl(storageKey: string | null | undefined): string |
   if (!storageKey) return null;
   // Rows written before this change hold a full public URL, not a key. They stay
   // readable rather than breaking; new uploads all take the branch below.
-  if (storageKey.startsWith("http")) return storageKey;
+  if (/^https:\/\/res\.cloudinary\.com\//i.test(storageKey)) return storageKey;
   return getCloudinary().utils.private_download_url(storageKey, "pdf", {
     resource_type: "raw",
     type: "authenticated",

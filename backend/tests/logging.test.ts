@@ -128,6 +128,19 @@ describe("http request logging", () => {
     expect(JSON.stringify(records)).not.toContain("super-secret-token-value");
   });
 
+  it("does not emit OAuth query credentials", async () => {
+    const { app, records } = appWithCapture({ level: "debug" });
+    await request(app)
+      .get("/oauth/callback?code=one-time-code&state=state-secret&scope=email")
+      .expect(404);
+
+    expect(JSON.stringify(records)).not.toContain("one-time-code");
+    expect(JSON.stringify(records)).not.toContain("state-secret");
+    const record = records[0] as { req?: Record_ };
+    expect(record.req?.url).toBe("/oauth/callback");
+    expect(record.req?.query).toMatchObject({ code: "[redacted]", state: "[redacted]" });
+  });
+
   describe("health-check suppression", () => {
     it("skips /health under summary", async () => {
       const { app, records } = appWithCapture({ logHttp: "summary" });

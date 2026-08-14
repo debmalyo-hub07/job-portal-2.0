@@ -14,7 +14,9 @@ A cairn is a stack of stones one traveller leaves to mark the path for the next.
 > route touching a user-owned resource, recruiter approval has a UI rather than
 > needing curl, both the seeker board and the recruiter workspace are faceted,
 > paginated and built on the design system, and the site has a footer that
-> links it plus public about, contact, help, privacy and terms pages. See
+> links it plus public about, contact, help, privacy and terms pages. Seeker job
+> cards now explain their profile fit, and recruiter applicant lists are ranked
+> by the reverse score before pagination. See
 > [Roadmap](#roadmap).
 
 ## Tech stack
@@ -101,8 +103,9 @@ grandfathered.
 | `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path**, or Mongoose silently uses one called `test`. |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48`. Minimum 32 characters. |
 | `JWT_REFRESH_PEPPER` | `openssl rand -base64 48`. Must differ from the above. |
-| `OTP_PEPPER` | `openssl rand -base64 48`. Must differ from the other three. |
-| `CSRF_SECRET` | `openssl rand -base64 48`. Must differ from the other three. The API refuses to boot if any two of the four match. |
+| `OTP_PEPPER` | `openssl rand -base64 48`. Must differ from the other four. |
+| `CSRF_SECRET` | `openssl rand -base64 48`. Must differ from the other four. |
+| `ADMIN_PROVISIONING_SECRET` | `openssl rand -base64 48`. Required for an existing admin to invite another admin; must differ from the other four. |
 | `CLIENT_URLS` | Comma-separated browser origins allowed by CORS. Local: `http://localhost:5173` |
 | `API_BASE_URL` | Public origin of this API. The two Google redirect URIs are derived from it. Local: `http://localhost:8000` |
 | `WEB_BASE_URL` | Public origin of the frontend. Local: `http://localhost:5173` |
@@ -111,6 +114,7 @@ grandfathered.
 | `BREVO_API_KEY` | Brevo → SMTP & API → API Keys → Create a new API key |
 | `BREVO_SENDER_EMAIL` | A sender address verified in Brevo |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | Google Cloud Console → APIs & Services → Credentials → Create OAuth client ID → Web application |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile widget secret. Server-only and required in production. |
 
 The redirect URI is not configured directly. Both are derived from `API_BASE_URL`
 — `<API_BASE_URL>/api/v1/seeker/auth/google/callback` and the `recruiter`
@@ -349,17 +353,20 @@ fail silently at their defaults. The rest of this section is reference.
 **API — Render.** [`render.yaml`](render.yaml) is a blueprint: point Render at
 this repository and it reads the build command, start command, health check,
 instance count and the full list of required variables from that file. Every
-value is `sync: false`, so Render prompts for each one and the repository never
-carries a secret. Two variables are pinned as literals and should not be
-overridden — see [ADR-0007](docs/adr/0007-deploy-topology.md) for why
-`NODE_ENV=production` and `numInstances: 1` are not cosmetic.
+operator-supplied value is `sync: false`, so Render prompts for it and the
+repository never carries a secret. `NODE_ENV=production` and
+`COOKIE_SAMESITE=none` are pinned as reviewed literals; see
+[ADR-0007](docs/adr/0007-deploy-topology.md) for why `NODE_ENV=production` and
+`numInstances: 1` are not cosmetic.
 
-**Web — Vercel.** Root directory `frontend`, output `dist`, and one variable:
+**Web — Vercel.** Root directory `frontend`, output `dist`, and two public build
+variables:
 
 ```
 Build:  npm ci && npm run build -w @jobportal/shared && npm run build -w @jobportal/web
 Output: dist
 Env:    VITE_API_URL=https://<your-api-host>/api/v1
+        VITE_TURNSTILE_SITE_KEY=<Cloudflare public site key>
 ```
 
 ### The SPA fallback is not optional
@@ -479,6 +486,24 @@ resource now resolves it by a predicate that includes the caller, and a resource
 you do not own answers exactly as a missing one does. The remaining known issues
 are listed in SECURITY.md under "Not yet fixed" — none is an access-control
 defect, but read them before pointing this at real user data.
+
+### Security boundary summary
+
+- The browser never receives `MONGO_URI`, database credentials, or server secrets.
+  MongoDB has no safe browser-facing "public database key"; all database access
+  stays behind the API.
+- MongoDB does not implement SQL-style row-level security. The service layer is
+  the equivalent boundary: private queries include the authenticated owner (or
+  the job owner transitively), and foreign records return the same 404 as missing
+  records. Configure an Atlas database user with only the target database role.
+- Passwords use Argon2id; legacy bcrypt hashes are upgraded after login. OTPs and
+  refresh tokens are peppered or hashed before storage. Email and phone fields are
+  still application-readable for login and recruiter workflows; database
+  encryption at rest and encrypted backups must be enabled and verified in Atlas.
+- Production rejects plaintext API URLs, uses secure `httpOnly` session cookies,
+  CSRF checks on cookie-authenticated mutations, Cloudflare Turnstile on account
+  entry points, strict input schemas, content-sniffed uploads, and a production
+  dependency audit.
 
 ## Acknowledgements
 

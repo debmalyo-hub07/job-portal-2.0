@@ -64,7 +64,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
     <div className="space-y-12">
       {/* Token Swatches */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Tokens</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Tokens</h4>
         <div className="flex flex-wrap gap-4">
           {[
             { name: "paper", class: "bg-paper" },
@@ -90,7 +90,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Type Ramp */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Typography</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Typography</h4>
         <div className="space-y-2">
           <p className="font-display text-display-xl text-ink">Display XL</p>
           <p className="font-display text-display-lg text-ink">Display Large</p>
@@ -107,7 +107,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Buttons */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Button</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Button</h4>
         <div className="flex flex-wrap gap-4">
           <Button variant="default">Default</Button>
           <Button variant="signal">Signal</Button>
@@ -127,7 +127,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Badges */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Badge</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Badge</h4>
         <div className="flex flex-wrap items-center gap-4">
           <Badge variant="default">Default</Badge>
           <Badge variant="signal">Signal</Badge>
@@ -149,7 +149,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Form Controls */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Form Controls</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Form Controls</h4>
         <div className="grid max-w-md gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
@@ -168,7 +168,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Avatar */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Avatar</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Avatar</h4>
         <div className="flex items-center gap-4">
           <Avatar>
             <AvatarImage src="https://github.com/shadcn.png" alt="User" />
@@ -182,7 +182,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Radio & Select */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Radio & Select</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Radio & Select</h4>
         <RadioGroup defaultValue="option-one" className="gap-2">
           <div className="flex items-center gap-2">
             <RadioGroupItem value="option-one" id="option-one" />
@@ -207,7 +207,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Overlays */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Overlays</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Overlays</h4>
         <div className="flex flex-wrap gap-4">
           <Dialog>
             <DialogTrigger asChild>
@@ -279,7 +279,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Tabs */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Tabs</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Tabs</h4>
         <Tabs defaultValue="tab1" className="w-[400px]">
           <TabsList>
             <TabsTrigger value="tab1">Tab 1</TabsTrigger>
@@ -300,7 +300,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Table */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Table</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Table</h4>
         <Table>
           <TableHeader>
             <TableRow>
@@ -331,7 +331,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Card */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Card</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Card</h4>
         <HoverLift>
           <Card className="max-w-md">
             <CardHeader>
@@ -352,7 +352,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Skeleton & Separator */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Skeleton & Separator</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Skeleton & Separator</h4>
         <div className="space-y-2">
           <Skeleton className="h-4 w-[250px]" />
           <Skeleton className="h-4 w-[200px]" />
@@ -363,7 +363,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Pagination */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Pagination</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Pagination</h4>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
@@ -392,7 +392,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Carousel */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Carousel</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Carousel</h4>
         <Carousel className="w-full max-w-xs">
           <CarouselContent>
             {[1, 2, 3].map((i) => (
@@ -412,7 +412,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Toast */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Toast</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Toast</h4>
         <Button
           variant="outline"
           onClick={() =>
@@ -427,7 +427,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
 
       {/* Motion */}
       <section className="space-y-4">
-        <h4 className="text-sm font-medium uppercase tracking-wide text-ink-muted">Motion</h4>
+        <h4 className="text-sm font-medium uppercase text-ink-muted">Motion</h4>
         <StaggerList className="grid gap-4 md:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <StaggerItem key={i}>

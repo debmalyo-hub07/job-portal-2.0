@@ -22,9 +22,9 @@ accounts now start `pending` and an admin approves them.
 
 The remaining known issues are in [Not yet
 fixed](#not-yet-fixed--known-and-scheduled) below. None is an access-control
-defect; the open items are a performance ceiling on search, an orphaned
-Cloudinary asset on logo replacement, and a mis-shaped error envelope on
-over-size uploads. Read them before pointing this at real user data.
+defect; the open items are a performance ceiling on search and an orphaned
+Cloudinary asset on logo replacement. Read them before pointing this at real
+user data.
 
 Phases 2A and 2B-1 were frontend work and changed no security boundary. The one
 adjacent change: the client no longer holds a portal in component state or
@@ -110,13 +110,29 @@ comes from `npm run seed:admin`, and later ones from an existing admin.
 `authenticateAny` and `optionalAuthenticate` deliberately exclude admin, so an
 admin cookie can never satisfy a domain route that meant "some signed-in user".
 
+### Fixed in the security hardening pass
+
+- Production startup requires HTTPS base URLs and a server-only Cloudflare
+  Turnstile secret; plaintext requests receive `426 HTTPS_REQUIRED` and HSTS is
+  enabled at the API and web edges.
+- Registration, login, and password-recovery initiation verify a short-lived
+  Turnstile response. Authenticated mutations require the MAC-bound CSRF token.
+- Zod request schemas reject unknown fields, URLs are restricted to HTTP(S), and
+  uploaded bytes are sniffed with `file-type` instead of trusting the browser MIME
+  declaration. Oversize files return `413 FILE_TOO_LARGE`.
+- OAuth codes, state, secrets, provisioning keys, cookies, and tokens are removed
+  from request logs. Response DTOs remain field-by-field projections.
+- The web deployment sends HSTS, CSP, frame protection, referrer, permissions, and
+  content-type headers. The CSP explicitly permits only Turnstile, the configured
+  Render API pattern, local assets, Cloudinary media, and verified Google avatar
+  media.
+
 ### Not yet fixed — known and scheduled
 
 | Defect | Impact | Fixed in |
 |---|---|---|
 | Keyword search is an unindexed regex scan | Full collection scan per search. Injection and ReDoS are closed; this is a performance ceiling, not a vulnerability | 3 |
 | Replacing a company logo orphans the previous Cloudinary asset | Storage growth; the orphan stays publicly readable | unscheduled |
-| An over-size upload surfaces as a 500 | `MulterError` is not mapped to an `AppError`, so the envelope is wrong and the log reads as an unhandled error | unscheduled |
 
 ## Authentication design (Phase 1B, as built)
 
@@ -193,6 +209,29 @@ Single-process, in-memory. See
 means an attacker gets 2× every limit above, so Redis becomes mandatory at that
 point.
 
+## Database and encryption boundary
+
+This deployment does **not** expose a database key to the browser. `MONGO_URI`
+is a server credential and belongs only in Render or the local API `.env`; a
+MongoDB connection string is not equivalent to a restricted Supabase-style
+public key.
+
+MongoDB also has no SQL-style row-level-security switch to enable. Record access
+is enforced in the API service layer: owned resources are queried with the
+authenticated owner id, applications reach recruiter ownership through their
+job, and admin routes require an admin-signed session. `sanitizeFilter` is
+enabled globally and request inputs are schema-validated before queries run.
+
+Passwords are Argon2id hashes. OTPs and refresh tokens are stored only as keyed
+hashes. Resume objects use Cloudinary's authenticated delivery mode and short-
+lived signed URLs. Email, phone, names, and application content remain readable
+to the application because the product must query or display them; there is no
+application-level field encryption for that PII. Production therefore depends
+on Atlas TLS, provider-managed encryption at rest, encrypted backups, and a
+database user limited to the one application database. Those are Atlas settings
+and must be verified in the deployment dashboard; the repository cannot enable
+or prove them.
+
 ## Credential rotation runbook
 
 Run this if a secret is committed, leaked, or merely suspected. **Rotation is
@@ -207,9 +246,13 @@ cloneable for the life of those commits.
 | MongoDB Atlas | Atlas → Database Access → edit user → Edit Password, or delete the user outright |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48`. Invalidates every existing session — expected and desirable, since the old key can forge a token for any user id. |
 | `JWT_REFRESH_PEPPER` | `openssl rand -base64 48` |
+| `OTP_PEPPER` | `openssl rand -base64 48`. Invalidates outstanding verification and recovery codes. |
+| `CSRF_SECRET` | `openssl rand -base64 48`. Existing CSRF tokens stop validating; users may need to refresh or sign in again. |
+| `ADMIN_PROVISIONING_SECRET` | `openssl rand -base64 48`. Distribute the replacement only through a private channel. |
 | Cloudinary | Console → Settings → Access Keys → regenerate |
 | Brevo | SMTP & API → API Keys → delete and recreate |
 | Google OAuth | Cloud Console → Credentials → Reset secret |
+| Cloudflare Turnstile | Turnstile dashboard → rotate secret key; update Render before revoking the old value. |
 
 ### 2. Purge the file from history
 
@@ -270,7 +313,8 @@ the repository from 4.5 MB to 292 KB. Verified absent from all remaining commits
 ## Practices
 
 - `.env` is gitignored; only `.env.example` is tracked, with names and no values
-- Secrets require 32+ characters, enforced at startup
+- Application-generated auth secrets require 32+ characters and must all differ,
+  enforced at startup
 - Dependencies are audited in CI by `scripts/audit-prod.mjs`, which checks
   **production dependencies only** and fails on any high or critical advisory
   that is not explicitly allowlisted
@@ -281,10 +325,6 @@ the repository from 4.5 MB to 292 KB. Verified absent from all remaining commits
 
 ## Allowlisted advisories
 
-Each entry in `scripts/audit-prod.mjs` records why the advisory is suppressed
-and what would make it relevant again. Adding one deserves the same scrutiny as
-any other security decision.
-
-| Advisory | Package | Why suppressed |
-|---|---|---|
-| [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2) | `react-router` | RSC Mode CSRF bypass. This app is a plain Vite SPA with no React Server Components, so the vulnerable path is absent from the bundle. The advisory range (7.12.0–8.2.0) extends past 7.18.2, the latest published release — there is no patched version to move to. Re-check when react-router publishes outside the range, or if this app adopts RSC. |
+The production allowlist is currently empty. Every high or critical production
+advisory fails CI. A future exception must record why the vulnerable code path is
+unreachable and the exact condition that requires the decision to be revisited.

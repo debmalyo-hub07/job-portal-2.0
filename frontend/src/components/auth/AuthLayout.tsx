@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 import type { Portal } from "@jobportal/shared";
 
@@ -7,15 +8,6 @@ import { AUTH_COPY } from "./authCopy";
 import { PortalPanel } from "./PortalPanel";
 import { Wordmark } from "@/components/shared/Wordmark";
 
-/**
- * Full-height split: form column, portal panel.
- *
- * Deliberately no marketing navbar — the inherited pages mounted <Navbar/> and
- * then floated a w-1/2 card in the remaining space, leaving two thirds of the
- * viewport empty. The wordmark lives in the form column instead.
- *
- * Below `md` the panel is hidden and the form takes the full width.
- */
 export function AuthLayout({
   portal,
   title,
@@ -30,29 +22,41 @@ export function AuthLayout({
   const copy = AUTH_COPY[portal];
 
   return (
-    <div className="grid min-h-screen bg-paper md:grid-cols-2">
-      <div className="flex flex-col justify-center px-6 py-12 md:px-12">
-        <FadeIn className="mx-auto w-full max-w-sm">
+    <div className="grid min-h-screen bg-paper md:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]">
+      <div className="flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14">
+        <div className="flex items-center justify-between gap-4">
           <Wordmark portal={portal} to={copy.homeHref} className="text-xl" />
+          <Link
+            to={copy.homeHref}
+            className="inline-flex items-center gap-2 rounded-sharp text-sm font-medium text-ink-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-signal-ring"
+          >
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Back
+          </Link>
+        </div>
 
-          <h1 className="mt-10 font-display text-display-sm font-semibold text-ink">
-            {title}
-          </h1>
-          {subtitle ? <p className="mt-2 text-sm text-ink-muted">{subtitle}</p> : null}
-
-          <div className="mt-8">{children}</div>
-
-          {/* Admin has no sibling portal to advertise, so the whole rule-and-
-              link block goes rather than leaving a bordered empty paragraph. */}
-          {copy.crossLinkHref && copy.crossLinkLabel && copy.crossLinkText ? (
-            <p className="mt-10 border-t border-line pt-6 text-sm text-ink-muted">
-              {copy.crossLinkLabel}{" "}
-              <Link to={copy.crossLinkHref} className="text-signal-text hover:underline">
-                {copy.crossLinkText}
-              </Link>
+        <div className="flex flex-1 items-center py-12">
+          <FadeIn className="mx-auto w-full max-w-md">
+            <p className="text-xs font-semibold uppercase text-signal-text">
+              {portal === "seeker" ? "Candidate account" : portal === "recruiter" ? "Employer account" : "Admin access"}
             </p>
-          ) : null}
-        </FadeIn>
+            <h1 className="mt-3 font-display text-[2.5rem] font-semibold leading-tight text-balance text-ink">
+              {title}
+            </h1>
+            {subtitle ? <p className="mt-3 text-sm leading-6 text-ink-muted">{subtitle}</p> : null}
+
+            <div className="mt-8">{children}</div>
+
+            {copy.crossLinkHref && copy.crossLinkLabel && copy.crossLinkText ? (
+              <p className="mt-9 border-t border-line pt-6 text-sm text-ink-muted">
+                {copy.crossLinkLabel}{" "}
+                <Link to={copy.crossLinkHref} className="font-semibold text-ink hover:text-signal-text">
+                  {copy.crossLinkText}
+                </Link>
+              </p>
+            ) : null}
+          </FadeIn>
+        </div>
       </div>
 
       <PortalPanel portal={portal} />

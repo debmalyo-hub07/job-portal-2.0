@@ -81,7 +81,7 @@ services:
       # behaves, refusing to boot and naming every variable it is missing.
       - key: MONGO_URI
         sync: false
-      # Four independent secrets. The API refuses to boot if any two are equal.
+      # Five independent secrets. The API refuses to boot if any two are equal.
       - key: JWT_ACCESS_SECRET
         sync: false
       - key: JWT_REFRESH_PEPPER
@@ -89,6 +89,11 @@ services:
       - key: OTP_PEPPER
         sync: false
       - key: CSRF_SECRET
+        sync: false
+      - key: ADMIN_PROVISIONING_SECRET
+        sync: false
+      # Cloudflare Turnstile server secret. Production auth fails closed without it.
+      - key: TURNSTILE_SECRET_KEY
         sync: false
       # Both Google redirect URIs are derived from API_BASE_URL, and Google
       # matches redirect_uri byte-for-byte — so this must be the public Render

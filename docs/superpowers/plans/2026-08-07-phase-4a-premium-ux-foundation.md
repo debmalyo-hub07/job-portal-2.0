@@ -265,6 +265,13 @@ regex scan and the exact-vs-ranked decision moves with it.
 
 **Out of scope:** similar roles (same scorer, `≥2` shared skills — a 4D sub-task gated on the recruiter table being real).
 
+**Status (4C/4D):** complete for profile capture and both visible scoring
+directions. The seeker public job DTO carries an optional `fit` breakdown, and
+the recruiter applicant DTO carries `fit` for the owned job. Applicant ranking
+is global before pagination, with score → recency → id tie-breakers; sorting a
+page after `skip`/`limit` was rejected because it would only rank the visible
+slice. Similar roles remains a separate follow-up.
+
 ---
 
 ## Sub-phase 4A.6 — Seeder (added after Phase 4A design)

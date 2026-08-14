@@ -31,10 +31,12 @@ describe("env files are BOM-free", () => {
     });
   }
 
-  it("ships a .env.example documenting VITE_API_URL", () => {
+  it("ships a .env.example documenting required public build variables", () => {
     const example = resolve(ROOT, ".env.example");
     expect(existsSync(example)).toBe(true);
-    expect(readFileSync(example, "utf8")).toMatch(/^VITE_API_URL=/m);
+    const source = readFileSync(example, "utf8");
+    expect(source).toMatch(/^VITE_API_URL=/m);
+    expect(source).toMatch(/^VITE_TURNSTILE_SITE_KEY=/m);
   });
 
   it("apiClient fails loudly when VITE_API_URL is missing", () => {

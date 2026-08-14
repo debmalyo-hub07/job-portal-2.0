@@ -1,4 +1,4 @@
-import { Building2, Edit2, MoreHorizontal } from "lucide-react";
+import { Building2, Edit2, MoreHorizontal, Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import HireShell from "./HireShell";
@@ -47,13 +47,16 @@ export function WorkspaceCompanies() {
       title="Companies"
       description="Organisations you post under."
       actions={
-        <Button onClick={() => navigate("/hire/companies/create")}>New company</Button>
+        <Button variant="signal" onClick={() => navigate("/hire/companies/create")}>
+          <Plus data-icon="inline-start" />
+          New company
+        </Button>
       }
     >
       <ListControls label="Filter companies" keyword={keyword} onKeyword={setKeyword} />
 
       {isPending ? (
-        <div className="space-y-2">
+        <div className="grid gap-2">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-12 rounded-surface" />
           ))}
@@ -79,7 +82,7 @@ export function WorkspaceCompanies() {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -113,14 +116,14 @@ export function WorkspaceCompanies() {
                           size="sm"
                           aria-label={`Actions for ${company.name}`}
                         >
-                          <MoreHorizontal className="size-4" />
+                          <MoreHorizontal />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onSelect={() => navigate(`/hire/companies/${company.id}`)}
                         >
-                          <Edit2 className="size-4" />
+                          <Edit2 />
                           Edit
                         </DropdownMenuItem>
                       </DropdownMenuContent>

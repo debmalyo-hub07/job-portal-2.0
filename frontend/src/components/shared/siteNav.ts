@@ -20,8 +20,8 @@ export const FOOTER_COLUMNS: NavColumn[] = [
     heading: "For candidates",
     links: [
       { to: "/jobs", label: "Browse jobs" },
-      { to: "/profile", label: "Your profile" },
       { to: "/signup", label: "Create an account" },
+      { to: "/login", label: "Candidate sign in" },
     ],
   },
   {
@@ -37,7 +37,7 @@ export const FOOTER_COLUMNS: NavColumn[] = [
     links: [
       { to: "/about", label: "About" },
       { to: "/contact", label: "Contact" },
-      { to: "/help", label: "Help & FAQ" },
+      { to: "/help", label: "FAQ" },
     ],
   },
   {

@@ -93,7 +93,14 @@ export const appRoutes: RouteObject[] = [
           { path: "/", element: <Home /> },
           { path: "/jobs", element: <Jobs /> },
           { path: "/description/:id", element: <JobDescription /> },
-          { path: "/profile", element: <Profile /> },
+          {
+            path: "/profile",
+            element: (
+              <ProtectedRoute portal="seeker">
+                <Profile />
+              </ProtectedRoute>
+            ),
+          },
           { path: "/hire", element: <HireLanding /> },
           // The informational surfaces. `siteNav.ts` lists the same paths for
           // the footer, and publicPages.test.tsx asserts the two agree — a page
@@ -128,7 +135,6 @@ export const appRoutes: RouteObject[] = [
       // the hero search and every category chip, so it is in browser histories
       // and shared links. See BrowseRedirect for why the query rides along.
       { path: "/browse", element: <BrowseRedirect /> },
-      { path: "/profile", element: <Profile /> },
       // The recruiter workspace. Under /hire since Phase 3A — /admin belongs to
       // the admin portal now, so the whole recruiter surface (marketing, auth,
       // workspace) sits under one prefix and resolves one signal colour.

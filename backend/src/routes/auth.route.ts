@@ -3,6 +3,7 @@ import type { Portal } from "@jobportal/shared";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { csrfProtection } from "../middleware/csrf.js";
 import { authenticate } from "../middleware/authenticate.js";
+import { botProtection } from "../middleware/botProtection.js";
 import {
   confirmGoogleLinkHandler,
   forgotPasswordHandler,
@@ -53,12 +54,22 @@ export function buildAuthRouter(portal: Portal): Router {
   // rate-limit or reason about; the first admin comes from `seed:admin` and the
   // rest are created by an existing admin.
   if (portal !== "admin") {
-    router.post("/register", rlRegister, registerHandler(portal));
+    router.post(
+      "/register",
+      rlRegister,
+      botProtection(`${portal}_register`),
+      registerHandler(portal),
+    );
   }
   router.post("/verify-email", rlRedeem, verifyEmailHandler(portal));
   router.post("/resend-code", rlOtpRequest, resendCodeHandler(portal));
-  router.post("/login", rlLogin, loginHandler(portal));
-  router.post("/forgot-password", rlOtpRequest, forgotPasswordHandler(portal));
+  router.post("/login", rlLogin, botProtection(`${portal}_login`), loginHandler(portal));
+  router.post(
+    "/forgot-password",
+    rlOtpRequest,
+    botProtection(`${portal}_recovery`),
+    forgotPasswordHandler(portal),
+  );
   router.post("/reset-password", rlRedeem, resetPasswordHandler(portal));
 
   // Only the session-bearing mutations carry CSRF. Everything above runs

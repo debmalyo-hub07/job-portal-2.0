@@ -21,12 +21,12 @@ export const registerBodySchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919876543210").optional(),
-});
+}).strict();
 
 export const loginBodySchema = z.object({
   email: emailSchema,
   password: z.string().min(1).max(128),
-});
+}).strict();
 
 export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, "must be 6 digits");
 
@@ -45,20 +45,28 @@ export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, "must be 6 digit
 export const verifyEmailBodySchema = z.object({
   email: emailSchema,
   code: otpCodeSchema,
-});
+}).strict();
 
 export const resetPasswordBodySchema = z.object({
   email: emailSchema,
   code: otpCodeSchema,
   newPassword: passwordSchema,
-});
+}).strict();
 
-export const forgotPasswordBodySchema = z.object({ email: emailSchema });
-export const resendVerificationBodySchema = z.object({ email: emailSchema });
+export const forgotPasswordBodySchema = z.object({ email: emailSchema }).strict();
+export const resendVerificationBodySchema = z.object({ email: emailSchema }).strict();
 
 export const confirmGoogleLinkBodySchema = z.object({
   token: z.string().min(1).max(2048),
-});
+}).strict();
+
+/** Google may add harmless fields; only these two security inputs are consumed. */
+export const googleCallbackQuerySchema = z
+  .object({
+    code: z.string().min(1).max(4096).optional(),
+    state: z.string().min(1).max(512).optional(),
+  })
+  .passthrough();
 
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type ConfirmGoogleLinkBody = z.infer<typeof confirmGoogleLinkBodySchema>;

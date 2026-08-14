@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { ApplicantDto } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
+import { FitBadge } from "@/components/FitBadge";
 import { Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,10 @@ const STATUS: Record<
  * And the decision invalidates the query, so the row updates; the old table
  * POSTed, toasted success and never refetched, leaving the row showing its
  * previous status until a manual reload.
+ *
+ * Fit is server-owned. The API scores every applicant against this job and sorts
+ * the complete set before pagination, so this table explains the order instead
+ * of recomputing a second version of the business rule.
  */
 export function Applicants() {
   const params = useParams();
@@ -90,7 +95,7 @@ export function Applicants() {
           description="Applications appear here as seekers apply to this role."
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -98,6 +103,7 @@ export function Applicants() {
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Resume</TableHead>
+                <TableHead>Fit</TableHead>
                 <TableHead>Applied</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -124,6 +130,17 @@ export function Applicants() {
                         </a>
                       ) : (
                         "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-56">
+                      {item.fit ? (
+                        <FitBadge
+                          fit={item.fit}
+                          perfectLabel="Matches every requirement"
+                          className="flex-col items-start gap-1"
+                        />
+                      ) : (
+                        <span className="text-ink-muted">&mdash;</span>
                       )}
                     </TableCell>
                     <TableCell className="font-mono text-sm">

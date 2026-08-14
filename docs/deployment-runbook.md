@@ -10,9 +10,10 @@ are silently destructive if left at their defaults.
 
 ## 0. Before either dashboard
 
-You need working credentials for **MongoDB Atlas**, **Cloudinary**, **Brevo**
-and **Google OAuth**. The API refuses to boot without them and names each one
-it is missing, so a missing value is a named boot failure rather than a mystery.
+You need working credentials for **MongoDB Atlas**, **Cloudinary**, **Brevo**,
+**Google OAuth**, and **Cloudflare Turnstile**. The API refuses to boot without
+its required production configuration and names each missing value, so a missing
+setting is a named boot failure rather than a mystery.
 
 ### Give production its own database
 
@@ -34,6 +35,18 @@ same OTP rows, with nothing to indicate the two environments were merged.
 Render's free plan has no static outbound IP, so Atlas must allow `0.0.0.0/0`
 under Network Access. Keep the database user scoped to this one database — the
 open allowlist means the password is the only thing standing in front of it.
+
+### Atlas data protection
+
+Do not create or use a browser-facing database key. The API alone holds
+`MONGO_URI`; the browser talks only to the API. MongoDB has no SQL-style
+row-level-security setting, so the application enforces record ownership in its
+service queries and Atlas must enforce least privilege underneath it.
+
+Before storing real data, verify in Atlas that TLS is required, encryption at
+rest and encrypted backups are enabled for the chosen tier, and the database
+user has access only to this application's database. Those are provider settings
+that the code cannot enable or inspect.
 
 ### Brevo will reject the first sends
 
@@ -68,9 +81,9 @@ cannot fail on a mail outage — deliberate, because awaiting the send would
 reintroduce a timing oracle on forgot-password. The consequence is that the only
 evidence of a failed send is a `transactional email failed` line in the logs.
 
-### Generate four fresh secrets
+### Generate five fresh secrets
 
-Each is validated at `min(32)` and all four must differ; the API refuses to boot
+Each is validated at `min(32)` and all five must differ; the API refuses to boot
 otherwise. Do not reuse the development values.
 
 ```bash
@@ -78,6 +91,7 @@ openssl rand -base64 48   # JWT_ACCESS_SECRET
 openssl rand -base64 48   # JWT_REFRESH_PEPPER
 openssl rand -base64 48   # OTP_PEPPER
 openssl rand -base64 48   # CSRF_SECRET
+openssl rand -base64 48   # ADMIN_PROVISIONING_SECRET
 ```
 
 ## 1. Render — the API
@@ -93,16 +107,18 @@ fresh deploy stops and asks rather than starting with blanks.
 | Variable | Value |
 |---|---|
 | `MONGO_URI` | Atlas → Connect → Drivers, **with a database name** |
-| `JWT_ACCESS_SECRET` | the four generated above, all different |
+| `JWT_ACCESS_SECRET` | the five generated above, all different |
 | `JWT_REFRESH_PEPPER` | |
 | `OTP_PEPPER` | |
 | `CSRF_SECRET` | |
+| `ADMIN_PROVISIONING_SECRET` | Private second factor for an existing admin to invite another admin |
 | `API_BASE_URL` | the Render URL, no trailing slash |
 | `WEB_BASE_URL` | **placeholder** — corrected in step 3 |
 | `CLIENT_URLS` | **placeholder** — corrected in step 3 |
 | `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | Cloudinary → Dashboard → Product Environment Credentials |
 | `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` | Brevo → SMTP & API → API Keys; sender must be verified |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | the OAuth client from step 4 |
+| `TURNSTILE_SECRET_KEY` | Server secret for the production Cloudflare Turnstile widget |
 
 Deploy, and note the assigned URL (`https://jobportal-api.onrender.com`).
 
@@ -131,10 +147,14 @@ costs" below.
 4. Add `VITE_API_URL` = `https://jobportal-api.onrender.com/api/v1` — the
    Render URL **including the `/api/v1` suffix**. Apply to Production, Preview
    and Development.
-5. Deploy; note the `https://<project>.vercel.app` URL. Automatic production
+5. Create a Cloudflare Turnstile widget for the Vercel hostname and add its
+   **public site key** as `VITE_TURNSTILE_SITE_KEY` for Production, Preview, and
+   Development. The build intentionally refuses to run without it. Keep the
+   matching **secret key** only in Render as `TURNSTILE_SECRET_KEY`.
+6. Deploy; note the `https://<project>.vercel.app` URL. Automatic production
    deployments stay **on**, matching `autoDeploy: true` on Render.
 
-### Why `VITE_API_URL` cannot be skipped
+### Why the public build variables cannot be skipped
 
 It is a **build-time** requirement, not only a runtime one. The value is inlined
 as a literal, so with it unset Rolldown proves `apiClient.ts`'s import-time
@@ -147,6 +167,11 @@ white page with a clean console.
 naming the variable, and `cd.yml` greps the built bundle for route literals
 because the old check (a hashed chunk name in `index.html`) is one the hollow
 bundle passes.
+
+`VITE_TURNSTILE_SITE_KEY` is deliberately public and is safe to include in the
+bundle. It identifies a Turnstile widget; it does not verify challenges. The
+matching `TURNSTILE_SECRET_KEY` stays on the API and production requests fail
+closed if it is absent or verification fails.
 
 ### What auto-deploy costs
 
@@ -269,9 +294,12 @@ Four checks, in this order — each isolates a different layer.
    `/nonsense` into the address bar. In-app navigation cannot test this: that is
    `history.pushState` and never reaches the host. `/nonsense` should render the
    not-found page, not a blank screen.
-4. **A real session.** Register a seeker, receive the OTP, verify, and confirm
-   you are still signed in after a reload. Sign-in succeeding but the next
-   request arriving anonymous means `COOKIE_SAMESITE` is not `none`.
+4. **A real session.** Complete the Turnstile challenge, register a seeker,
+   receive the OTP, verify, and confirm you are still signed in after a reload.
+   A missing widget usually means `VITE_TURNSTILE_SITE_KEY` was not present at
+   build time or the deployed hostname is absent from the Turnstile widget.
+   Sign-in succeeding but the next request arriving anonymous means
+   `COOKIE_SAMESITE` is not `none`.
 
 Render's free plan sleeps after inactivity: the first request after an idle
 period takes 30–60 seconds and looks like a hang. That is not a fault.
@@ -280,16 +308,18 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 
 1. Atlas allows `0.0.0.0/0`, and the production URI names its own database
 2. Render blueprint deploy → gives the API URL
-3. Vercel project → root `frontend`, `VITE_API_URL` ending in `/api/v1`
-4. Back to Render → fix `WEB_BASE_URL` and `CLIENT_URLS`
-5. Google redirect URIs, both portals, no JS origins
-6. Auto-deploy on in both hosts (the default; `autoDeploy: true` in
+3. Create the Turnstile widget for the Vercel hostname; put the public site key
+   in Vercel and the matching server secret in Render
+4. Vercel project → root `frontend`, `VITE_API_URL` ending in `/api/v1`
+5. Back to Render → fix `WEB_BASE_URL` and `CLIENT_URLS`
+6. Google redirect URIs, both portals, no JS origins
+7. Auto-deploy on in both hosts (the default; `autoDeploy: true` in
    `render.yaml`, Vercel's left at its default)
-7. Optionally, both deploy hooks into GitHub secrets — only needed if
+8. Optionally, both deploy hooks into GitHub secrets — only needed if
    CI-as-gate is restored later; with auto-deploy on, `cd.yml`'s deploy steps
    skip with a `::notice::` and deploys happen without them
-8. Brevo IP allowlist, after the first failed send
-9. Seed the admin, once mail works
+9. Brevo IP allowlist, after the first failed send
+10. Seed the admin, once mail works
 
 ## What a green deploy does not prove
 

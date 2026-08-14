@@ -21,7 +21,7 @@ vi.mock("../../src/utils/cloudinary.js", () => ({
 }));
 
 import { buildApp } from "../../src/app.js";
-import { signedUpOn, installCaptureMailer } from "./helpers.js";
+import { asSession, signedUpOn, installCaptureMailer } from "./helpers.js";
 import { Seeker } from "../../src/models/seeker.model.js";
 import { Company } from "../../src/models/company.model.js";
 import { Job } from "../../src/models/job.model.js";
@@ -35,7 +35,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "edit@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("fullname", "Edited Name")
       .field("skills", "ts, node,, mongo");     // note the empty entry
 
@@ -55,12 +55,12 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "read@x.test");
     await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("bio", "hello").field("skills", "ts").field("phoneNumber", "+919876543210");
 
     const res = await request(app)
       .get("/api/v1/user/profile")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`]);
+      .use(asSession("seeker", seeker));
     expect(res.status).toBe(200);
     expect(res.body.profile).toMatchObject({
       phone: "+919876543210",
@@ -86,7 +86,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "fit@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("salaryMin", "80000")
       .field("salaryMax", "120000")
       .field("openToRemote", "true")
@@ -119,7 +119,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "range@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("experienceYears", "600");
 
     expect(res.status).toBe(400);
@@ -138,7 +138,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "clear@x.test");
     await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("salaryMin", "8")
       .field("salaryMax", "20")
       .field("experienceYears", "6")
@@ -146,7 +146,7 @@ describe("updateProfile on the account collections", () => {
 
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("salaryMin", "")
       .field("salaryMax", "")
       .field("openToRemote", "");
@@ -171,15 +171,16 @@ describe("updateProfile on the account collections", () => {
     expect(account!.profile!.experienceYears).toBe(6);
   });
 
-  it("ignores an attempt to change the email", async () => {
+  it("rejects an attempt to change the email", async () => {
     const seeker = await signedUpOn("seeker", "keep@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("email", "attacker@x.test");
-    expect(res.status).toBe(200);
-    // Silently ignored, not honoured: the takeover path stays shut. If 1C adds a
-    // real email-change flow this assertion is what tells you to update it.
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("VALIDATION_ERROR");
+    // Rejected and not honoured: the takeover path stays shut. If a real
+    // email-change flow is added, it needs its own verification contract.
     const account = await Seeker.findById(seeker.id);
     expect(account!.email).toBe("keep@x.test");
   });
@@ -189,7 +190,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "nofile@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("bio", "no resume today");
     expect(res.status).toBe(200);
     const account = await Seeker.findById(seeker.id);
@@ -204,7 +205,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "brandnew@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .field("fullname", "Brand New");
     expect(res.status).toBe(200);
   });
@@ -213,7 +214,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "resume@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .attach("file", Buffer.from("%PDF-1.4 fake"), {
         filename: "cv.pdf",
         contentType: "application/pdf",
@@ -234,8 +235,22 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "gif@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .attach("file", Buffer.from("GIF89a"), { filename: "cv.gif", contentType: "image/gif" });
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("UNSUPPORTED_FILE_TYPE");
+  });
+
+  it("rejects a PDF MIME claim when the bytes are not a PDF", async () => {
+    const seeker = await signedUpOn("seeker", "spoofed-pdf@x.test");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .use(asSession("seeker", seeker))
+      .attach("file", Buffer.from("<html>not a pdf</html>"), {
+        filename: "cv.pdf",
+        contentType: "application/pdf",
+      });
+
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("UNSUPPORTED_FILE_TYPE");
   });
@@ -244,7 +259,7 @@ describe("updateProfile on the account collections", () => {
     const seeker = await signedUpOn("seeker", "operator@x.test");
     const res = await request(app)
       .post("/api/v1/user/profile/update")
-      .set("Cookie", [`jp_seeker_at=${seeker.access}`])
+      .use(asSession("seeker", seeker))
       .send({ fullname: { $gt: "" } });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");

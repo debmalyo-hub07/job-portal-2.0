@@ -78,6 +78,15 @@ export function useRecruiterDecision() {
   });
 }
 
+export function useCreateAdmin() {
+  return useMutation({
+    mutationFn: async (input: { fullName: string; email: string; provisioningKey: string }) => {
+      const res = await apiClient.post<{ success: true; message: string }>("/admin/admins", input);
+      return res.data;
+    },
+  });
+}
+
 /**
  * The keyword + page state for a console list, read from the URL.
  *

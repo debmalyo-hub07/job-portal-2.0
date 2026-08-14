@@ -8,7 +8,7 @@ import { z } from "zod";
  * break it, and adding a variable cannot silently escape the check.
  *
  * `parseEnv` remains the only validated way in — it adds the cross-field rule
- * that the four secrets must all differ, which the schema alone does not know.
+ * that the five secrets must all differ, which the schema alone does not know.
  */
 export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -20,6 +20,7 @@ export const envSchema = z.object({
   JWT_REFRESH_PEPPER: z.string().min(32, "must be at least 32 characters"),
   OTP_PEPPER: z.string().min(32, "must be at least 32 characters"),
   CSRF_SECRET: z.string().min(32, "must be at least 32 characters"),
+  ADMIN_PROVISIONING_SECRET: z.string().min(32, "must be at least 32 characters"),
   ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
 
@@ -77,6 +78,9 @@ export const envSchema = z.object({
 
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+  /** Required by parseEnv in production; optional for local development/tests. */
+  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -92,18 +96,36 @@ export function parseEnv(raw: NodeJS.ProcessEnv | Record<string, unknown>): Env 
 
   const parsed = result.data;
 
-  // Reusing one value across four purposes means a leak of any one compromises
-  // all four, and it defeats the point of deriving per-portal keys from a
+  if (parsed.NODE_ENV === "production" && !parsed.TURNSTILE_SECRET_KEY) {
+    throw new Error(
+      "Invalid environment configuration:\n  TURNSTILE_SECRET_KEY: required in production",
+    );
+  }
+
+  if (parsed.NODE_ENV === "production") {
+    const insecureUrls = [parsed.API_BASE_URL, parsed.WEB_BASE_URL, ...parsed.CLIENT_URLS].filter(
+      (url) => new URL(url).protocol !== "https:",
+    );
+    if (insecureUrls.length > 0) {
+      throw new Error(
+        "Invalid environment configuration:\n  API_BASE_URL, WEB_BASE_URL and CLIENT_URLS must use HTTPS in production",
+      );
+    }
+  }
+
+  // Reusing one value across five purposes means a leak of any one compromises
+  // all five, and it defeats the point of deriving per-portal keys from a
   // dedicated secret.
   const secrets = [
     parsed.JWT_ACCESS_SECRET,
     parsed.JWT_REFRESH_PEPPER,
     parsed.OTP_PEPPER,
     parsed.CSRF_SECRET,
+    parsed.ADMIN_PROVISIONING_SECRET,
   ];
   if (new Set(secrets).size !== secrets.length) {
     throw new Error(
-      "Invalid environment configuration:\n  JWT_ACCESS_SECRET, JWT_REFRESH_PEPPER, OTP_PEPPER and CSRF_SECRET must all differ",
+      "Invalid environment configuration:\n  JWT_ACCESS_SECRET, JWT_REFRESH_PEPPER, OTP_PEPPER, CSRF_SECRET and ADMIN_PROVISIONING_SECRET must all differ",
     );
   }
 

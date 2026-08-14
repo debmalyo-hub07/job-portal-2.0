@@ -27,14 +27,16 @@ export function ListControls({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-(--space-card) flex flex-wrap items-end justify-between gap-4">
-      <div className="w-full max-w-sm space-y-2">
-        <Label htmlFor="list-search">{label}</Label>
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 rounded-surface border border-line bg-paper-raised p-4 shadow-sm">
+      <div className="w-full max-w-sm">
+        <Label htmlFor="list-search" className="mb-2 block text-xs font-semibold uppercase text-ink-muted">{label}</Label>
         <Input
           id="list-search"
           type="search"
           value={keyword}
           onChange={(e) => onKeyword(e.target.value)}
+          name="list-search"
+          autoComplete="off"
           placeholder="Search by name or location"
         />
       </div>

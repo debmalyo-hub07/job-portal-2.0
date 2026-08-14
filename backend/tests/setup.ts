@@ -10,6 +10,7 @@ process.env.JWT_ACCESS_SECRET = "test-access-secret-at-least-32-characters";
 process.env.JWT_REFRESH_PEPPER = "test-refresh-pepper-at-least-32-chars!";
 process.env.OTP_PEPPER = "test-otp-pepper-at-least-32-characters!!";
 process.env.CSRF_SECRET = "test-csrf-secret-at-least-32-characters";
+process.env.ADMIN_PROVISIONING_SECRET = "test-admin-provisioning-secret-32-chars";
 process.env.CLIENT_URLS = "http://localhost:5173";
 process.env.API_BASE_URL = "http://localhost:8000";
 process.env.WEB_BASE_URL = "http://localhost:5173";

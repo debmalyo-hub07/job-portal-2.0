@@ -40,6 +40,13 @@ function requireApiUrl() {
             "Variables) or in frontend/.env.local for a local build.",
         );
       }
+      if (!env.VITE_TURNSTILE_SITE_KEY) {
+        throw new Error(
+          "VITE_TURNSTILE_SITE_KEY is not set. Production auth requires the " +
+            "public Cloudflare Turnstile site key (Vercel -> Settings -> " +
+            "Environment Variables).",
+        );
+      }
     },
   };
 }

@@ -34,7 +34,8 @@ describe("the retired /browse board", () => {
 
   it("is gone from the seeker navigation", () => {
     const targets = navLinksFor("seeker").map((l) => l.to);
-    expect(targets).toEqual(["/", "/jobs"]);
+    expect(targets).toContain("/jobs");
+    expect(targets).not.toContain("/browse");
   });
 });
 

@@ -9,7 +9,7 @@
  * than plausible, so it cannot be mistaken for a live mailbox. The compile-time
  * home for it means changing it is one edit.
  */
-export const SUPPORT_EMAIL = "hello@cairn.example";
+export const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL?.trim() || "hello@cairn.example";
 
 /**
  * A `mailto:` with an optional prefilled subject.

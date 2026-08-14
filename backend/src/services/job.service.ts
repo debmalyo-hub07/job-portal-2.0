@@ -171,6 +171,16 @@ export async function listOwnedJobs(
   return paginate(filter, query);
 }
 
+/** The owned job document, for services that need more than an existence check. */
+export async function getOwnedJob(
+  ownerId: string,
+  jobId: string,
+): Promise<HydratedDocument<JobDocument>> {
+  const job = await Job.findOne({ _id: jobId, created_by: ownerId });
+  if (!job) throw notFound();
+  return job;
+}
+
 /** Missing and foreign are indistinguishable by design: both 404. */
 export async function assertJobOwned(ownerId: string, jobId: string): Promise<void> {
   const job = await Job.findOne({ _id: jobId, created_by: ownerId }).select("_id");

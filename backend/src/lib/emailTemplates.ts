@@ -27,6 +27,14 @@ export function renderOtpEmail(code: string, purpose: OtpPurpose, minutes: numbe
   };
 }
 
+export function renderPasswordSetupEmail(code: string, minutes: number): Rendered {
+  return {
+    subject: "Set up your Cairn admin password",
+    html: WRAPPER(`<h1 style="font-size:1.25rem">Your admin account is ready</h1><p>Enter this code on the admin password setup screen to choose your password. It expires in ${minutes} minutes.</p>${CODE(code)}`),
+    text: `Your admin account is ready\n\nCode: ${code}\nExpires in ${minutes} minutes.\n\nUse the admin password setup screen to choose your password.`,
+  };
+}
+
 /** Sent when a Google sign-in takes over an unverified account (Task 9, resolution branch 2c). */
 export function renderAccountClaimedEmail(): Rendered {
   return {

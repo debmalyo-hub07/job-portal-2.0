@@ -5,7 +5,7 @@ import { env } from "../config/env.js";
 import { burnPasswordTime, hashPassword, needsRehash, verifyPassword } from "../lib/password.js";
 import { generateOtp, hashOtp } from "../lib/otp.js";
 import { dispatch, sendOtpEmail, sendRendered } from "../lib/mailer.js";
-import { renderOtpBudgetEmail } from "../lib/emailTemplates.js";
+import { renderOtpBudgetEmail, renderPasswordSetupEmail } from "../lib/emailTemplates.js";
 import { OtpCode, type OtpPurpose } from "../models/otpCode.model.js";
 import { OtpBudget, type OtpBudgetDocument } from "../models/otpBudget.model.js";
 import {
@@ -82,7 +82,12 @@ export async function register(portal: Portal, input: RegisterBody): Promise<voi
  * Rate limiting is the caller's job (Task 10) — this function is also called
  * from the migration script, which must not be throttled.
  */
-async function issueOtp(portal: Portal, account: AccountDoc, purpose: OtpPurpose): Promise<void> {
+async function issueOtp(
+  portal: Portal,
+  account: AccountDoc,
+  purpose: OtpPurpose,
+  deliver: (code: string) => Promise<void> = (code) => sendOtpEmail(account.email, code, purpose),
+): Promise<void> {
   const code = generateOtp();
 
   // Supersede any live code for this subject+purpose. Without this, every
@@ -111,7 +116,7 @@ async function issueOtp(portal: Portal, account: AccountDoc, purpose: OtpPurpose
   // outage fail registration, and would make forgot-password's response time
   // reveal whether an address exists (Task 8 reuses this function on both of
   // its branches).
-  dispatch(sendOtpEmail(account.email, code, purpose));
+  dispatch(deliver(code));
 }
 
 /**
@@ -453,7 +458,9 @@ export async function issuePasswordSetupCode(
   portal: Portal,
   account: AccountDoc,
 ): Promise<void> {
-  await issueOtp(portal, account, "reset_password");
+  await issueOtp(portal, account, "reset_password", (code) =>
+    sendRendered(account.email, renderPasswordSetupEmail(code, env().OTP_TTL_MINUTES)),
+  );
 }
 
 /**
