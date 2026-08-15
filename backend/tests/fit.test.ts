@@ -179,22 +179,39 @@ describe("fit on the job DTO", () => {
    * by fit has to confront the pagination question rather than half-answer it.
    */
   it("leaves the ordering to createdAt, not to the score", async () => {
-    await postedJob({ title: "Perfect match", requirements: ["typescript"] });
-    const newer = await postedJob({ title: "Nothing in common", requirements: ["cobol"] });
-    // Two creates can land in the same millisecond, which would make the sort
-    // order — and therefore this test — a coin flip. `timestamps: false` stops
-    // the update from clobbering the value it is setting.
-    await Job.updateOne(
-      { _id: newer._id },
-      { $set: { createdAt: new Date(Date.now() + 60_000) } },
-      { timestamps: false },
-    );
+    const olderAt = new Date("2025-01-01T00:00:00.000Z");
+    const newerAt = new Date("2025-01-01T00:01:00.000Z");
+    await postedJob({
+      title: "Perfect match",
+      requirements: ["typescript"],
+      createdAt: olderAt,
+      updatedAt: olderAt,
+    });
+    await postedJob({
+      title: "Nothing in common",
+      requirements: ["cobol"],
+      createdAt: newerAt,
+      updatedAt: newerAt,
+    });
 
     const seeker = await seekerWithProfile("fit-order@x.test", { skills: ["typescript"] });
     const res = await request(app).get("/api/v1/job/get").set("Cookie", asSeeker(seeker.access));
 
     expect(res.body.items[0].title).toBe("Nothing in common");
     expect(res.body.items[0].fit.score).toBeLessThan(res.body.items[1].fit.score);
+  });
+
+  it("uses the ObjectId as a stable tie-breaker for equal creation times", async () => {
+    const createdAt = new Date("2025-01-01T00:00:00.000Z");
+    await postedJob({ title: "First", createdAt, updatedAt: createdAt });
+    await postedJob({ title: "Second", createdAt, updatedAt: createdAt });
+
+    const res = await request(app).get("/api/v1/job/get");
+
+    expect(res.body.items.map((job: { title: string }) => job.title)).toEqual([
+      "Second",
+      "First",
+    ]);
   });
 
   it("reads the profile once per request, not once per job", async () => {

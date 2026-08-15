@@ -95,7 +95,9 @@ async function paginate(
   const [total, jobs] = await Promise.all([
     Job.countDocuments(filter),
     Job.find(filter)
-      .sort({ createdAt: -1 })
+      // `createdAt` has millisecond precision, so concurrent inserts can tie.
+      // ObjectId order makes the sort total and keeps pagination stable.
+      .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company"),
