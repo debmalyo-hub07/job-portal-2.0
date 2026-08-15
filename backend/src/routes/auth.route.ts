@@ -4,6 +4,7 @@ import { rateLimit } from "../middleware/rateLimit.js";
 import { csrfProtection } from "../middleware/csrf.js";
 import { authenticate } from "../middleware/authenticate.js";
 import { botProtection } from "../middleware/botProtection.js";
+import { requireMailerAvailable } from "../middleware/requireMailerAvailable.js";
 import {
   confirmGoogleLinkHandler,
   forgotPasswordHandler,
@@ -33,20 +34,25 @@ function emailKey(req: Request): string {
 /**
  * One router, mounted twice; the mount path is the ONLY place a portal is
  * named, and app.ts passes it as a literal. Limits are the spec's:
- * registration 10/h/IP, login 5/15min per IP+email, OTP request 3/h/email,
+ * registration 10/h/IP, login 5/15min per IP+email, OTP request
+ * 3/h/portal+email,
  * OTP redemption 10/h/IP, Google start 10/h/IP.
  *
  * The rateLimit key already embeds method+path, so every endpoint gets its
- * own bucket — and because the path EXCLUDES the mount prefix, a bucket is
- * shared across the two portals for the same key. That is the conservative
- * direction: alternating mounts must not double an attacker's allowance.
+ * own bucket. OTP requests also include the server-selected portal: seeker,
+ * recruiter and admin accounts are distinct subjects, and one account must
+ * not consume another account's allowance just because the mailbox matches.
  */
 export function buildAuthRouter(portal: Portal): Router {
   const router = Router();
 
   const rlRegister = rateLimit({ windowMs: 3_600_000, max: 10 });
   const rlLogin = rateLimit({ windowMs: 900_000, max: 5, keyFn: (req) => `${req.ip ?? "unknown"}:${emailKey(req)}` });
-  const rlOtpRequest = rateLimit({ windowMs: 3_600_000, max: 3, keyFn: emailKey });
+  const rlOtpRequest = rateLimit({
+    windowMs: 3_600_000,
+    max: 3,
+    keyFn: (req) => `${portal}:${emailKey(req)}`,
+  });
   const rlRedeem = rateLimit({ windowMs: 3_600_000, max: 10 });
   const rlGoogle = rateLimit({ windowMs: 3_600_000, max: 10 });
 
@@ -58,16 +64,18 @@ export function buildAuthRouter(portal: Portal): Router {
       "/register",
       rlRegister,
       botProtection(`${portal}_register`),
+      requireMailerAvailable,
       registerHandler(portal),
     );
   }
   router.post("/verify-email", rlRedeem, verifyEmailHandler(portal));
-  router.post("/resend-code", rlOtpRequest, resendCodeHandler(portal));
+  router.post("/resend-code", rlOtpRequest, requireMailerAvailable, resendCodeHandler(portal));
   router.post("/login", rlLogin, botProtection(`${portal}_login`), loginHandler(portal));
   router.post(
     "/forgot-password",
     rlOtpRequest,
     botProtection(`${portal}_recovery`),
+    requireMailerAvailable,
     forgotPasswordHandler(portal),
   );
   router.post("/reset-password", rlRedeem, resetPasswordHandler(portal));

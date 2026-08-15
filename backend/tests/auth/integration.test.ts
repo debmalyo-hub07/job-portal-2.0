@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { buildApp } from "../../src/app.js";
+import { dispatch } from "../../src/lib/mailer.js";
+import { OtpCode } from "../../src/models/otpCode.model.js";
+import { Seeker } from "../../src/models/seeker.model.js";
 import { cookieValue, installCaptureMailer, lastCodeFor } from "./helpers.js";
 
 const app = buildApp();
@@ -59,7 +62,7 @@ describe("the whole journey, through the real app", () => {
     expect(other.status).toBe(401);
   });
 
-  it("throttles OTP requests at 3 per hour per email", async () => {
+  it("throttles OTP requests at 3 per hour per portal and email", async () => {
     await request(app).post("/api/v1/seeker/auth/register").send({
       fullName: "Limited", email: "limited@x.test", password: "correct horse battery staple",
     });
@@ -68,6 +71,56 @@ describe("the whole journey, through the real app", () => {
     }
     const fourth = await request(app).post("/api/v1/seeker/auth/resend-code").send({ email: "limited@x.test" });
     expect(fourth.status).toBe(429);
+  });
+
+  it("does not let one portal consume another portal's OTP request allowance", async () => {
+    const email = "multi-portal-limited@x.test";
+    for (let i = 0; i < 3; i += 1) {
+      const response = await request(app)
+        .post("/api/v1/admin/auth/forgot-password")
+        .send({ email });
+      expect(response.status).toBe(200);
+    }
+
+    const fourthAdmin = await request(app)
+      .post("/api/v1/admin/auth/forgot-password")
+      .send({ email });
+    expect(fourthAdmin.status).toBe(429);
+
+    const firstSeeker = await request(app)
+      .post("/api/v1/seeker/auth/forgot-password")
+      .send({ email });
+    expect(firstSeeker.status).toBe(200);
+  });
+
+  it("returns 503 without writing an OTP when transactional email is unavailable", async () => {
+    const before = await OtpCode.countDocuments();
+    dispatch(Promise.reject(new Error("provider unavailable")));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const response = await request(app)
+      .post("/api/v1/seeker/auth/forgot-password")
+      .send({ email: "mail-down@x.test" });
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe("EMAIL_UNAVAILABLE");
+    expect(await OtpCode.countDocuments()).toBe(before);
+  });
+
+  it("does not create an account when transactional email is unavailable", async () => {
+    dispatch(Promise.reject(new Error("provider unavailable")));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const response = await request(app).post("/api/v1/seeker/auth/register").send({
+      fullName: "Mail Down",
+      email: "mail-down-register@x.test",
+      password: "correct horse battery staple",
+    });
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe("EMAIL_UNAVAILABLE");
+    expect(await Seeker.countDocuments()).toBe(0);
+    expect(await OtpCode.countDocuments()).toBe(0);
   });
 
   it("no longer serves the legacy auth endpoints", async () => {

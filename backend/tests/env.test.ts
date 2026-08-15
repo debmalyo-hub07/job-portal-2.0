@@ -72,6 +72,20 @@ describe("parseEnv", () => {
     ).toThrow(/TURNSTILE_SECRET_KEY/);
   });
 
+  it("requires an explicit MongoDB database name in production", () => {
+    expect(() =>
+      parseEnv({
+        ...valid,
+        NODE_ENV: "production",
+        MONGO_URI: "mongodb+srv://user:password@cluster.example.mongodb.net/?retryWrites=true",
+        TURNSTILE_SECRET_KEY: "turnstile-secret",
+        API_BASE_URL: "https://api.example.com",
+        WEB_BASE_URL: "https://app.example.com",
+        CLIENT_URLS: "https://app.example.com",
+      }),
+    ).toThrow(/MONGO_URI.*database name/s);
+  });
+
   it("rejects plaintext production URLs", () => {
     expect(() =>
       parseEnv({

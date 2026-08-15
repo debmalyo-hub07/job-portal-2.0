@@ -52,7 +52,8 @@ const VerifyEmail = () => {
       await apiClient.post(`/${portal}/auth/resend-code`, { email });
       toast.success("If that address needs a code, one is on its way.");
     } catch (error) {
-      // Capped at 3/hour/email. The raw message is not the useful sentence here.
+      // Capped at 3/hour for this portal and email. The raw message is not the
+      // useful sentence here.
       if (getApiErrorCode(error) === "RATE_LIMITED") {
         toast.error("Too many codes requested. Try again later.");
         return;

@@ -3,6 +3,7 @@ import { Admin } from "../models/admin.model.js";
 import { issuePasswordSetupCode } from "../services/auth.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
+import { assertMailerAvailable } from "../lib/mailer.js";
 
 export interface SeedAdminInput {
   email: string;
@@ -41,6 +42,8 @@ export async function seedAdmin(input: SeedAdminInput): Promise<{ created: boole
   if (count > 0 && !input.force) {
     throw new Error(`An admin already exists (${count}). Re-run with --force to create another.`);
   }
+
+  await assertMailerAvailable();
 
   const admin = await Admin.create({
     email,

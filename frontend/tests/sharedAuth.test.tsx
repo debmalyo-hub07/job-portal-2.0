@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router";
-import { render } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router";
+import { render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
+import { toast } from "sonner";
 
 import { makeStore } from "./helpers/renderRoute";
 import VerifyEmail from "@/components/auth/VerifyEmail";
@@ -18,10 +19,20 @@ vi.mock("@/hooks/usePublicJobCount", () => ({
   usePublicJobCount: () => ({ count: null, ready: true }),
 }));
 
+afterEach(() => vi.restoreAllMocks());
+
+function LocationProbe() {
+  const { pathname } = useLocation();
+  return <div data-testid="location" data-pathname={pathname} />;
+}
+
 function renderAt(ui: ReactElement, route: string) {
   return render(
     <Provider store={makeStore()}>
-      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>
+        {ui}
+        <LocationProbe />
+      </MemoryRouter>
     </Provider>,
   );
 }
@@ -147,5 +158,27 @@ describe("shared auth pages resolve every portal from ?portal=", () => {
 
     expect(post).toHaveBeenCalledWith("/seeker/auth/forgot-password", expect.anything());
     post.mockRestore();
+  });
+
+  it("keeps the email form open when the OTP request is rate limited", async () => {
+    vi.spyOn(apiClient, "post").mockRejectedValue({
+      isAxiosError: true,
+      message: "Request failed with status code 429",
+      response: {
+        status: 429,
+        data: { code: "RATE_LIMITED", message: "Too many requests." },
+      },
+    });
+    const errorToast = vi.spyOn(toast, "error").mockImplementation(() => "toast-id");
+
+    const view = renderAt(<ForgotPassword />, "/forgot-password?portal=admin");
+    await userEvent.type(view.getByLabelText(/email/i), "a@b.test");
+    await userEvent.click(view.getByRole("button", { name: /send reset code/i }));
+
+    await waitFor(() => {
+      expect(errorToast).toHaveBeenCalledWith("Too many codes requested. Try again later.");
+    });
+    expect(view.getByTestId("location")).toHaveAttribute("data-pathname", "/forgot-password");
+    expect(view.getByRole("button", { name: /send reset code/i })).toBeEnabled();
   });
 });

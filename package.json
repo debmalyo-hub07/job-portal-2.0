@@ -19,6 +19,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "audit:prod": "node scripts/audit-prod.mjs",
+    "check:mail": "npm run check:mail --workspace @jobportal/api",
     "lint:colour": "npm run lint:colour --workspace @jobportal/web",
     "ci": "npm run build --workspace @jobportal/shared && npm run typecheck && npm run lint && npm run lint:colour && npm run test && npm run build"
   }

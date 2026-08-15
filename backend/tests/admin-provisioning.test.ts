@@ -2,6 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { buildApp } from "../src/app.js";
+import { dispatch } from "../src/lib/mailer.js";
 import { Admin } from "../src/models/admin.model.js";
 import {
   cookieValue,
@@ -111,5 +112,21 @@ describe("admin provisioning", () => {
       .set("X-CSRF-Token", root.csrf)
       .send(body)
       .expect(409);
+  });
+
+  it("does not create an admin while transactional email is unavailable", async () => {
+    const root = await signedInAdmin();
+    dispatch(Promise.reject(new Error("provider unavailable")));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const response = await request(app)
+      .post("/api/v1/admin/admins")
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_csrf=${root.csrf}`])
+      .set("X-CSRF-Token", root.csrf)
+      .send(body);
+
+    expect(response.status).toBe(503);
+    expect(response.body.code).toBe("EMAIL_UNAVAILABLE");
+    expect(await Admin.findOne({ email: body.email })).toBeNull();
   });
 });

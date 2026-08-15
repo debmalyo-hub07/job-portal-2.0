@@ -194,7 +194,7 @@ independent counters.
 |---|---|---|
 | Global per IP | 100 / min | Active |
 | Login per IP + email | 5 / 15 min | Active |
-| OTP request per email | 3 / hour | Active |
+| OTP request per portal + email | 3 / hour | Active |
 | Registration per IP | 10 / hour | Active |
 | OTP redemption per IP | 10 / hour | Active |
 | Google sign-in start per IP | 10 / hour | Active |

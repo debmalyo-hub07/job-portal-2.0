@@ -6,7 +6,15 @@ import {
   renderOtpEmail,
   renderPasswordSetupEmail,
 } from "../../src/lib/emailTemplates.js";
-import { dispatch, resetMailer, sendOtpEmail, sendRendered, setMailer } from "../../src/lib/mailer.js";
+import {
+  describeMailerError,
+  dispatch,
+  isMailerAvailable,
+  resetMailer,
+  sendOtpEmail,
+  sendRendered,
+  setMailer,
+} from "../../src/lib/mailer.js";
 
 describe("email templates", () => {
   it("puts the code in both the html and text bodies", () => {
@@ -37,6 +45,11 @@ describe("email templates", () => {
 });
 
 describe("dispatch", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    resetMailer();
+  });
+
   it("swallows a rejection so the request path cannot fail on a mail outage", async () => {
     // `logger` is a Pino instance; spy on the instance method, not the module.
     const { logger } = await import("../../src/lib/logger.js");
@@ -50,6 +63,52 @@ describe("dispatch", () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it("strips request headers and credentials from provider errors", () => {
+    const details = describeMailerError({
+      reason: "status-code",
+      statusCode: 401,
+      body: { code: "unauthorized", message: "IP is not authorised" },
+      headers: { "api-key": "must-never-be-logged" },
+    });
+
+    expect(details).toEqual({
+      reason: "status-code",
+      statusCode: 401,
+      code: "unauthorized",
+      message: "IP is not authorised",
+    });
+    expect(JSON.stringify(details)).not.toContain("must-never-be-logged");
+  });
+
+  it("opens the availability circuit on failure and closes it after recovery", async () => {
+    setMailer({ async send() {} });
+    expect(await isMailerAvailable()).toBe(true);
+
+    dispatch(Promise.reject(new Error("brevo down")));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(await isMailerAvailable()).toBe(false);
+
+    setMailer({ async send() {} });
+    expect(await isMailerAvailable()).toBe(true);
+  });
+
+  it("rechecks an unavailable provider after the retry interval", async () => {
+    vi.useFakeTimers();
+    const verify = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("brevo down"))
+      .mockResolvedValue(undefined);
+    setMailer({ async send() {}, verify });
+
+    expect(await isMailerAvailable()).toBe(false);
+    expect(await isMailerAvailable()).toBe(false);
+    expect(verify).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(60_000);
+    expect(await isMailerAvailable()).toBe(true);
+    expect(verify).toHaveBeenCalledTimes(2);
   });
 });
 

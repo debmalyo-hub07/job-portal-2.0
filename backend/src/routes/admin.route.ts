@@ -2,6 +2,7 @@ import express from "express";
 import { authenticate } from "../middleware/authenticate.js";
 import { csrfProtection } from "../middleware/csrf.js";
 import { rateLimit } from "../middleware/rateLimit.js";
+import { requireMailerAvailable } from "../middleware/requireMailerAvailable.js";
 import {
   listPendingRecruiters,
   approveRecruiter,
@@ -33,6 +34,7 @@ router
     authenticate("admin"),
     csrfProtection,
     rateLimit({ windowMs: 3_600_000, max: 5 }),
+    requireMailerAvailable,
     createAdmin,
   );
 // Under /review/* rather than /jobs and /companies, matching the client route

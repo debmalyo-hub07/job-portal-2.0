@@ -100,7 +100,7 @@ grandfathered.
 
 | Variable | How to obtain |
 |---|---|
-| `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path**, or Mongoose silently uses one called `test`. |
+| `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path.** Production refuses to boot without one. |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48`. Minimum 32 characters. |
 | `JWT_REFRESH_PEPPER` | `openssl rand -base64 48`. Must differ from the above. |
 | `OTP_PEPPER` | `openssl rand -base64 48`. Must differ from the other four. |
@@ -234,7 +234,7 @@ guarded. See [Create the first admin](#create-the-first-admin).
 |---|---|---|
 | POST | `/register` | Create an account. Issues **no session**; sends a code |
 | POST | `/verify-email` | Redeem the code. This is what issues the first session |
-| POST | `/resend-code` | New verification code, 3/hour/email |
+| POST | `/resend-code` | New verification code, 3/hour/portal+email |
 | POST | `/login` | Password login |
 | POST | `/logout` | Revoke this session's refresh family and clear cookies |
 | POST | `/refresh` | Rotate the refresh token and mint a new access token |
@@ -333,6 +333,7 @@ it from production builds.
 | `npm run lint` | Lint all workspaces |
 | `npm run ci` | Everything CI runs, in order. Takes over two minutes |
 | `npm run audit:prod` | Audit production dependencies only |
+| `npm run check:mail` | Authenticate with Brevo and verify the configured sender without sending an email |
 | `npm run lint:colour --workspace @jobportal/web` | Fail on any colour outside the token system |
 | `npm run test:visual --workspace @jobportal/web` | Playwright screenshots + portal assertions, needs a dev server |
 | `npm run migrate:phase1c --workspace @jobportal/api` | Drop the legacy `users` collection. Run once per existing database |

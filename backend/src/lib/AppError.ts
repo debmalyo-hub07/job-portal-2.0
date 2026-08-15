@@ -30,4 +30,7 @@ export class AppError extends Error {
   static tooManyRequests(code: string, message: string): AppError {
     return new AppError(429, code, message);
   }
+  static serviceUnavailable(code: string, message: string): AppError {
+    return new AppError(503, code, message);
+  }
 }

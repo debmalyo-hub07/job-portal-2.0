@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "lint": "eslint src",
+    "check:mail": "tsx src/scripts/check-mail.ts",
     "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "migrate:phase3a": "tsx src/scripts/migrate-phase3a.ts"

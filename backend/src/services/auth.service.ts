@@ -108,14 +108,13 @@ async function issueOtp(
     expiresAt: new Date(Date.now() + env().OTP_TTL_MINUTES * 60_000),
   });
 
-  // Mail last, and ENQUEUED rather than awaited — dispatch() is Task 4's
-  // fire-and-forget. Two reasons. Ordering: a Brevo failure after the store
-  // leaves a consistent database (account exists unverified, resend recovers),
-  // whereas mailing first and failing to store hands the user a code that can
-  // never work. Availability and timing: awaiting the send would let a Brevo
-  // outage fail registration, and would make forgot-password's response time
-  // reveal whether an address exists (Task 8 reuses this function on both of
-  // its branches).
+  // Mail last, and ENQUEUED rather than awaited. Ordering: a provider failure
+  // after the store leaves a consistent database (account exists unverified,
+  // resend recovers), whereas mailing first and failing to store hands the user
+  // a code that can never work. Timing: awaiting the send would make
+  // forgot-password reveal whether an address exists. The route-level readiness
+  // gate handles known outages before any account or OTP write; dispatch opens
+  // that circuit if the provider fails after the check.
   dispatch(deliver(code));
 }
 
@@ -277,9 +276,10 @@ async function clearOtpBudget(
 }
 
 /**
- * Uniform 200 whether the address is unknown, unverified, or already verified
- * — and uniform WORK on every branch, or this endpoint is a free existence
- * probe. The ghost write costs the same database round-trips as the real one.
+ * While mail is available, returns a uniform 200 whether the address is
+ * unknown, unverified, or already verified — and does uniform WORK on every
+ * branch, or this endpoint is a free existence probe. The route returns a
+ * uniform 503 before reaching this service while the mail circuit is open.
  */
 export async function resendVerification(portal: Portal, email: string): Promise<void> {
   const account = await findAccountByEmail(portal, email);
@@ -423,12 +423,12 @@ async function holdUntil(started: number, floorMs: number): Promise<void> {
 }
 
 /**
- * Always 200, and the same work on both branches: a real account gets a real
- * OTP row and an ENQUEUED send; an absent address gets the ghost write and no
- * send. Neither branch awaits Brevo — dispatch() is fire-and-forget precisely
- * so the 50-300ms provider round-trip never shows up in the response time —
- * and the floor absorbs the residual skew. "Uniform in body" without this is
- * still an existence oracle; see the spec's hardening section.
+ * While mail is available, returns 200 with the same work on both branches: a
+ * real account gets a real OTP row and an ENQUEUED send; an absent address gets
+ * the ghost write and no send. The route returns a uniform 503 before reaching
+ * this service while the mail circuit is open. Neither branch awaits Brevo, so
+ * provider latency never becomes an existence oracle; the floor absorbs the
+ * residual database skew.
  */
 export async function forgotPassword(portal: Portal, email: string): Promise<void> {
   const started = Date.now();

@@ -94,7 +94,17 @@ const ResetPassword = () => {
           {busy ? "Changing..." : "Change password"}
         </Button>
 
-        <p className="mt-6 text-sm text-ink-muted">
+        <p className="mt-5 text-sm text-ink-muted">
+          Didn&apos;t receive a code?{" "}
+          <Link
+            to={`/forgot-password?portal=${portal}&email=${encodeURIComponent(input.email)}`}
+            className="text-signal-text hover:underline"
+          >
+            Request a new one
+          </Link>
+        </p>
+
+        <p className="mt-3 text-sm text-ink-muted">
           Remembered it?{" "}
           <Link to={copy.loginHref} className="text-signal-text hover:underline">
             Back to sign in

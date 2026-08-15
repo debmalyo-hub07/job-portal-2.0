@@ -85,6 +85,24 @@ export const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/** The explicit database path in a Mongo URI, or null when Mongo would use `test`. */
+export function mongoDatabaseName(uri: string): string | null {
+  const schemeEnd = uri.indexOf("://");
+  if (schemeEnd === -1) return null;
+
+  const pathStart = uri.indexOf("/", schemeEnd + 3);
+  if (pathStart === -1) return null;
+
+  const path = uri.slice(pathStart + 1).split("?", 1)[0]?.trim();
+  if (!path) return null;
+
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
 export function parseEnv(raw: NodeJS.ProcessEnv | Record<string, unknown>): Env {
   const result = envSchema.safeParse(raw);
   if (!result.success) {
@@ -99,6 +117,12 @@ export function parseEnv(raw: NodeJS.ProcessEnv | Record<string, unknown>): Env 
   if (parsed.NODE_ENV === "production" && !parsed.TURNSTILE_SECRET_KEY) {
     throw new Error(
       "Invalid environment configuration:\n  TURNSTILE_SECRET_KEY: required in production",
+    );
+  }
+
+  if (parsed.NODE_ENV === "production" && !mongoDatabaseName(parsed.MONGO_URI)) {
+    throw new Error(
+      "Invalid environment configuration:\n  MONGO_URI: must include an explicit database name in production",
     );
   }
 

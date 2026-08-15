@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 import { logger } from "../lib/logger.js";
+import { mongoDatabaseName } from "./env.js";
 
 /**
  * Injection backstop behind Zod. An operator-shaped VALUE in a filter — the
@@ -15,7 +16,16 @@ mongoose.set("sanitizeFilter", true);
 
 export async function connectDB(uri: string): Promise<void> {
   await mongoose.connect(uri);
-  logger.info({ host: mongoose.connection.host }, "MongoDB connected");
+  logger.info(
+    { host: mongoose.connection.host, database: mongoose.connection.name },
+    "MongoDB connected",
+  );
+  if (!mongoDatabaseName(uri)) {
+    logger.warn(
+      { database: mongoose.connection.name },
+      "MONGO_URI has no database name; MongoDB used its implicit default",
+    );
+  }
 }
 
 export async function disconnectDB(): Promise<void> {

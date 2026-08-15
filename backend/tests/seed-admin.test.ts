@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { dispatch } from "../src/lib/mailer.js";
 import { Admin } from "../src/models/admin.model.js";
 import { seedAdmin } from "../src/scripts/seed-admin.js";
 import { installCaptureMailer, outbox } from "./auth/helpers.js";
@@ -55,5 +56,15 @@ describe("seedAdmin", () => {
     const mail = outbox.find((m) => m.to === "root@example.com");
     const code = /\b(\d{6})\b/.exec(mail?.text ?? "")?.[1];
     expect(code).toBeTruthy();
+  });
+
+  it("does not create an admin while transactional email is unavailable", async () => {
+    dispatch(Promise.reject(new Error("provider unavailable")));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    await expect(
+      seedAdmin({ email: "root@example.com", fullName: "Root Admin" }),
+    ).rejects.toMatchObject({ statusCode: 503, code: "EMAIL_UNAVAILABLE" });
+    expect(await Admin.countDocuments()).toBe(0);
   });
 });

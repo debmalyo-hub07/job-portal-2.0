@@ -24,11 +24,11 @@ mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/jobportal
                                                  ^^^^^^^^^^
 ```
 
-Without it Mongoose silently connects to one called `test`. That is not
-hypothetical — the development URI in this project has no database name, so all
-local data lives in `test` on the shared cluster. A production URI written the
-same way would land in the *same* database: same collections, same accounts,
-same OTP rows, with nothing to indicate the two environments were merged.
+Without it Mongoose connects to one called `test`. Production now refuses to
+boot when the path has no database name, and every successful connection logs
+the selected database. Development still permits the fallback for existing
+local environments, but emits a warning so local and deployed accounts cannot
+be mistaken for one another silently.
 
 ### Atlas network access
 
@@ -48,38 +48,51 @@ rest and encrypted backups are enabled for the chosen tier, and the database
 user has access only to this application's database. Those are provider settings
 that the code cannot enable or inspect.
 
-### Brevo will reject the first sends
+### Brevo API IP blocking and Render
 
-Brevo enforces an IP allowlist and Render's egress IP is not on it. Until it is,
-every mail call 401s **while registration still returns 201** — so signup
-dead-ends with no email and no error. Deploy first, send one test registration,
-then add the IP Brevo reports. This also blocks admin seeding (step 6).
+Brevo automatically activates unknown-IP blocking after its API-key learning
+phase. Render does not give this service one permanent outbound address, so a
+later send can leave through a different address and Brevo will reject it with
+401 until somebody approves that address. Repeatedly approving notifications is
+not a stable deployment configuration.
 
-Diagnose it without sending anything:
+For this Render topology, deactivate blocking for **API keys** in Brevo:
+
+1. Account menu → **Settings** → **Security** → **Authorized IPs**
+2. Under **Blocking unauthorized IP addresses**, find **API keys**
+3. Click **Deactivate for API**, then **Deactivate blocking**
+
+Brevo documents the same control in
+<https://help.brevo.com/hc/en-us/articles/5740111683858-Authorize-and-block-IP-addresses-for-API-and-SMTP-security>.
+
+The application uses the Brevo API, not an SMTP key, so the SMTP row is unrelated.
+This is a Brevo dashboard control; their public API does not expose it. Keep the
+API key only in Render, rotate it after any exposure, and use the startup check
+below. If source-IP filtering is mandatory, the alternative is a static-egress
+gateway or hosting plan, not approving Render addresses one at a time.
+
+Diagnose the key and sender without sending anything from a local terminal or
+Render shell:
 
 ```bash
-curl -sS -w "\nHTTP %{http_code}\n" https://api.brevo.com/v3/account \
-  -H "api-key: $BREVO_API_KEY"
+npm run check:mail
 ```
 
-A 401 naming an unrecognised IP is this problem and nothing else. Authorise at
-<https://app.brevo.com/security/authorised_ips>.
+A 401 naming an unrecognised IP means API-key IP blocking is still active.
 
-Two IPs need authorising, and they are not interchangeable:
+The server verifies the API key and sender at startup. A failed readiness check
+or transactional send opens a mail circuit for one minute. Registration,
+verification-code resend, password recovery, and admin provisioning then return
+`503 EMAIL_UNAVAILABLE` before writing an account or OTP. The first request that
+races with a newly failing provider can still have been accepted before the
+asynchronous send rejects; that rejection opens the circuit for later requests.
+After one minute, the next code request checks Brevo again and closes the circuit
+automatically when the provider has recovered.
 
-- **Your dev IP**, for local development. Residential addresses are reassigned,
-  so expect to redo this periodically.
-- **Render's outbound ranges**, for production. Find them under the service's
-  **Connect → Outbound** tab — they are per-region and are *not* listed in
-  Render's docs, which only show `216.24.60.0/24` as an example of CIDR
-  notation. They are shared across every service in the region, so the allowlist
-  is a weak control; `BREVO_API_KEY` staying secret is what actually protects
-  the account.
-
-`mailer.ts` dispatches fire-and-forget (`void work.catch`) so registration
-cannot fail on a mail outage — deliberate, because awaiting the send would
-reintroduce a timing oracle on forgot-password. The consequence is that the only
-evidence of a failed send is a `transactional email failed` line in the logs.
+Actual delivery remains asynchronous so password recovery does not reveal
+whether an address exists through provider latency. Accepted messages are logged
+by provider message id, and provider failures are reduced to safe status fields
+that cannot contain credentials, recipient addresses, or OTP content.
 
 ### Generate five fresh secrets
 
@@ -318,7 +331,7 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 8. Optionally, both deploy hooks into GitHub secrets — only needed if
    CI-as-gate is restored later; with auto-deploy on, `cd.yml`'s deploy steps
    skip with a `::notice::` and deploys happen without them
-9. Brevo IP allowlist, after the first failed send
+9. Brevo API unknown-IP blocking deactivated; `npm run check:mail` passes
 10. Seed the admin, once mail works
 
 ## What a green deploy does not prove

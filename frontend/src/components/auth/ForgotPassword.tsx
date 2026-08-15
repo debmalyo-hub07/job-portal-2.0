@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -10,13 +10,14 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { usePortalParam } from "@/hooks/usePortalParam";
-import { getApiErrorCode } from "@/lib/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { TurnstileChallenge } from "./TurnstileChallenge";
 
 const ForgotPassword = () => {
   const portal = usePortalParam();
-  const [email, setEmail] = useState("");
+  const [params] = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [busy, setBusy] = useState(false);
   const [botToken, setBotToken] = useState<string | null>(null);
   const [challengeKey, setChallengeKey] = useState(0);
@@ -26,29 +27,28 @@ const ForgotPassword = () => {
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setBusy(true);
-    let advance = true;
     try {
       await apiClient.post(
         `/${portal}/auth/forgot-password`,
         { email },
         ...turnstileRequestConfig(botToken),
       );
+      toast.success("If that address has an account, a reset code is on its way.");
+      navigate(`/reset-password?portal=${portal}&email=${encodeURIComponent(email)}`);
     } catch (error) {
-      if (getApiErrorCode(error) === "BOT_VERIFICATION_FAILED") {
-        advance = false;
-        setBotToken(null);
-        setChallengeKey((value) => value + 1);
+      const code = getApiErrorCode(error);
+      setBotToken(null);
+      setChallengeKey((value) => value + 1);
+
+      if (code === "BOT_VERIFICATION_FAILED") {
         toast.error("Verification failed. Try again.");
+      } else if (code === "RATE_LIMITED") {
+        toast.error("Too many codes requested. Try again later.");
+      } else {
+        toast.error(getApiErrorMessage(error, "Could not request a reset code"));
       }
-      // Swallowed on purpose. The endpoint is non-committal about whether the
-      // address exists — it sends a ghost OTP either way — and a UI that says
-      // "no account with that email" hands back the enumeration oracle the
-      // backend just spent effort closing. Every outcome looks identical.
     } finally {
       setBusy(false);
-      if (advance) {
-        navigate(`/reset-password?portal=${portal}&email=${encodeURIComponent(email)}`);
-      }
     }
   };
 
