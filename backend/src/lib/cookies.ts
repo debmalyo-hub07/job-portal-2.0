@@ -27,15 +27,17 @@ export function refreshCookieName(portal: Portal): string {
   return prefixed(`jp_${portal}_rt`);
 }
 
-export const CSRF_COOKIE = "jp_csrf";
-
 /**
- * The name the CSRF cookie is actually stored under. Anything that READS the
- * cookie must use this — in production the browser holds `__Host-jp_csrf`,
- * and reading the bare name there matches nothing.
+ * The CSRF cookie is portal-scoped, exactly like the access and refresh
+ * cookies: `jp_seeker_csrf`, `jp_recruiter_csrf`, `jp_admin_csrf`. A single
+ * global name would let a second portal's sign-in overwrite the first
+ * portal's token cookie — the later session would work and the earlier one's
+ * mutations would 403 with a token that no longer matches the cookie. The
+ * token itself is MAC-bound and session-independent, so nothing else about
+ * the double-submit check changes; only which cookie a portal reads.
  */
-export function csrfCookieName(): string {
-  return prefixed(CSRF_COOKIE);
+export function csrfCookieName(portal: Portal): string {
+  return prefixed(`jp_${portal}_csrf`);
 }
 
 /**
@@ -67,8 +69,8 @@ export function setRefreshCookie(res: Response, portal: Portal, token: string): 
 }
 
 /** Readable by design — the client must echo it in a header. */
-export function setCsrfCookie(res: Response, token: string): void {
-  res.cookie(csrfCookieName(), token, { ...base(), httpOnly: false });
+export function setCsrfCookie(res: Response, portal: Portal, token: string): void {
+  res.cookie(csrfCookieName(portal), token, { ...base(), httpOnly: false });
 }
 
 /**
@@ -81,7 +83,7 @@ export function clearAuthCookies(res: Response, portal: Portal): void {
   const opts = base();
   res.clearCookie(accessCookieName(portal), opts);
   res.clearCookie(refreshCookieName(portal), opts);
-  res.clearCookie(csrfCookieName(), { ...opts, httpOnly: false });
+  res.clearCookie(csrfCookieName(portal), { ...opts, httpOnly: false });
 }
 
 const GOOGLE_TXN_COOKIE = "jp_gtxn";

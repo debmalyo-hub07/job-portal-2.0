@@ -51,7 +51,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       // Hint written only after the server agreed. Writing it before would leave
       // a failed login pointing the refresh interceptor at the wrong portal.
       setPortalHint(portal);
-      setCsrfToken(res.data.csrfToken ?? null);
+      setCsrfToken(portal, res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
       navigate(returnPathFor(portal, location.state) ?? homePathFor(portal), { replace: true });
     } catch (error) {

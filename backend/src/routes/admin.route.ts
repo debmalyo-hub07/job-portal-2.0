@@ -32,7 +32,7 @@ router
   .route("/admins")
   .post(
     authenticate("admin"),
-    csrfProtection,
+    csrfProtection(),
     rateLimit({ windowMs: 3_600_000, max: 5 }),
     requireMailerAvailable,
     createAdmin,
@@ -46,9 +46,9 @@ router.route("/review/companies").get(authenticate("admin"), listCompanies);
 router.route("/recruiters/pending").get(authenticate("admin"), listPendingRecruiters);
 router
   .route("/recruiters/:id/approve")
-  .post(authenticate("admin"), csrfProtection, approveRecruiter);
+  .post(authenticate("admin"), csrfProtection(), approveRecruiter);
 router
   .route("/recruiters/:id/deny")
-  .post(authenticate("admin"), csrfProtection, denyRecruiter);
+  .post(authenticate("admin"), csrfProtection(), denyRecruiter);
 
 export default router;

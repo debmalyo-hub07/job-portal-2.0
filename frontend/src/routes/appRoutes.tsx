@@ -29,10 +29,10 @@ import { buildAuthRoutes } from "@/routes/authRoutes";
 import {
   AdminHomeRedirect,
   BrowseRedirect,
+  RecruiterHomeRedirect,
   RootLayout,
   WorkspaceRedirect,
 } from "@/routes/routeElements";
-import HireLanding from "@/pages/HireLanding";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import Help from "@/pages/Help";
@@ -104,10 +104,6 @@ export const appRoutes: RouteObject[] = [
               </ProtectedRoute>
             ),
           },
-          {
-            path: "/hire",
-            element: <HireLanding />,
-          },
           // The informational surfaces. `siteNav.ts` lists the same paths for
           // the footer, and publicPages.test.tsx asserts the two agree — a page
           // mounted but unlinked is how /jobs stayed orphaned for a phase.
@@ -124,6 +120,9 @@ export const appRoutes: RouteObject[] = [
       ...buildAuthRoutes("recruiter", "/hire"),
       // No signup on admin: the API's admin router mounts no /register either.
       ...buildAuthRoutes("admin", "/admin", { withSignup: false }),
+      // Bare portal URLs are session doors. Public auth screens remain
+      // reachable, but typing /hire or /admin never renders workspace data.
+      { path: "/hire", element: <RecruiterHomeRedirect /> },
       // The admin console has no marketing page, but AuthLayout links its
       // wordmark at the portal's own home. Send it to the only door there is.
       { path: "/admin", element: <AdminHomeRedirect /> },

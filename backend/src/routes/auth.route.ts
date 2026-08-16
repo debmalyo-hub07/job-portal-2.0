@@ -83,8 +83,13 @@ export function buildAuthRouter(portal: Portal): Router {
   // Only the session-bearing mutations carry CSRF. Everything above runs
   // before any session exists, where CSRF protects nothing. refresh is the
   // textbook target — it acts on a cookie the browser attaches by itself.
-  router.post("/refresh", csrfProtection, refreshHandler(portal));
-  router.post("/logout", csrfProtection, logoutHandler(portal));
+  //
+  // csrfProtection(portal) passes the mount's portal explicitly: these two run
+  // BEFORE authenticate (refresh *establishes* the identity), so req.auth is
+  // not set yet and the factory cannot resolve the portal from it. The literal
+  // here is the same one app.ts mounted this router with.
+  router.post("/refresh", csrfProtection(portal), refreshHandler(portal));
+  router.post("/logout", csrfProtection(portal), logoutHandler(portal));
 
   // No Google on the admin portal: the highest-privilege portal gains nothing
   // from a third-party identity path, and `resolveIdentity` would refuse to

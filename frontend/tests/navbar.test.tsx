@@ -42,7 +42,7 @@ describe("Navbar account menu", () => {
   });
 
   it("renders the fallback for a recruiter too", () => {
-    const { getByText } = renderNavbar(storeWithUser("recruiter"));
+    const { getByText } = renderNavbar(storeWithUser("recruiter"), "/hire/companies");
     expect(getByText("AM")).toBeInTheDocument();
   });
 
@@ -57,19 +57,25 @@ describe("Navbar account menu", () => {
   });
 
   it.each([
-    ["seeker", "/"],
-    ["recruiter", "/hire"],
-  ] as const)("links the signed-in %s wordmark to its landing page", (portal, home) => {
-    const { getByRole } = renderNavbar(storeWithUser(portal));
+    ["seeker", "/", "/"],
+    ["recruiter", "/hire/companies", "/hire/companies"],
+  ] as const)("links the signed-in %s wordmark to its portal home", (portal, route, home) => {
+    const { getByRole } = renderNavbar(storeWithUser(portal), route);
     expect(getByRole("link", { name: /cairn/i })).toHaveAttribute("href", home);
   });
 
-  it.each([
-    ["seeker", "/"],
-    ["recruiter", "/hire"],
-  ] as const)("includes a Home link for a signed-in %s", (portal, home) => {
-    const { getAllByRole } = renderNavbar(storeWithUser(portal));
-    expect(getAllByRole("link", { name: "Home" }).some((link) => link.getAttribute("href") === home)).toBe(true);
+  it("includes a Home link for a signed-in seeker", () => {
+    const { getAllByRole } = renderNavbar(storeWithUser("seeker"));
+    expect(getAllByRole("link", { name: "Home" }).some((link) => link.getAttribute("href") === "/")).toBe(true);
+  });
+
+  it("uses workspace links for a signed-in recruiter", () => {
+    const { getByRole, queryByRole } = renderNavbar(
+      storeWithUser("recruiter"),
+      "/hire/companies",
+    );
+    expect(getByRole("link", { name: "Companies" })).toHaveAttribute("href", "/hire/companies");
+    expect(queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
   });
 
   it("shows no auth links when signed in", () => {

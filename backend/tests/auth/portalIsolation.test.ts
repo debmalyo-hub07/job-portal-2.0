@@ -31,7 +31,7 @@ describe("portal isolation", () => {
       .set("X-CSRF-Token", seeker.csrf)
       .set("Cookie", [
         `jp_recruiter_rt=${encodeURIComponent(seeker.refresh)}`,   // smuggled
-        `jp_csrf=${encodeURIComponent(seeker.csrf)}`,
+        `jp_recruiter_csrf=${encodeURIComponent(seeker.csrf)}`,
       ]);
     // The stored row says seeker, so whatever comes back is seeker-scoped.
     // Escalation would look like a jp_recruiter_at Set-Cookie here.

@@ -37,7 +37,7 @@ const VerifyEmail = () => {
       });
       // Verification *does* issue a session, unlike registration.
       setPortalHint(portal);
-      setCsrfToken(res.data.csrfToken ?? null);
+      setCsrfToken(portal, res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
       navigate(homePathFor(portal), { replace: true });
     } catch (error) {

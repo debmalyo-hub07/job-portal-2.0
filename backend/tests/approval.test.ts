@@ -19,7 +19,7 @@ async function pendingRecruiter(email: string): Promise<{ access: string; csrf: 
     .send({ email, password: PASSWORD });
   return {
     access: cookieValue(login, "jp_recruiter_at")!,
-    csrf: cookieValue(login, "jp_csrf")!,
+    csrf: cookieValue(login, "jp_recruiter_csrf")!,
   };
 }
 
@@ -124,7 +124,7 @@ async function signedInAdmin(email: string): Promise<{ access: string; csrf: str
     .send({ email, password: PASSWORD });
   return {
     access: cookieValue(login, "jp_admin_at")!,
-    csrf: cookieValue(login, "jp_csrf")!,
+    csrf: cookieValue(login, "jp_admin_csrf")!,
   };
 }
 

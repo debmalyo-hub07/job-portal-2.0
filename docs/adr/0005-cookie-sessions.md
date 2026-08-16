@@ -176,3 +176,16 @@ Adding the MAC makes the server the only party able to mint a valid pair, so a
 planted cookie fails verification even when the two submitted halves agree. The
 `__Host-` prefix helps but does not close this on its own — it constrains which
 *origin* can set the cookie, not whether the value is authentic.
+
+## Amendment 2026-08-16 - portal-scoped CSRF state
+
+The CSRF cookie now follows the access and refresh cookies' portal-specific
+naming: `jp_seeker_csrf`, `jp_recruiter_csrf`, and `jp_admin_csrf`, with
+`__Host-` in production. A global CSRF cookie let a second portal login
+overwrite the first portal's token, so the later session worked while mutations
+from the earlier session failed.
+
+Session responses return the matching token in their body and the web client
+keeps one in-memory token per portal. Refresh, logout, and authenticated domain
+mutations read only the portal selected by a route literal or authenticated
+server identity. See ADR-0008 for the corresponding browser-session decision.

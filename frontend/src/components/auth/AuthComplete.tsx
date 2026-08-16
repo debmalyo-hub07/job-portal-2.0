@@ -24,7 +24,7 @@ const AuthComplete = () => {
     apiClient
       .get<AuthResponse>(`/${portal}/auth/me`)
       .then((res) => {
-        setCsrfToken(res.data.csrfToken ?? null);
+        setCsrfToken(portal, res.data.csrfToken ?? null);
         dispatch(setUser(res.data.user));
         // `replace` on both paths: without it, Back returns to a callback URL
         // carrying a spent `code` and `state`, which fails and looks like a bug.

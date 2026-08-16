@@ -62,18 +62,18 @@ describe("admin console routes", () => {
    * The gate that matters. A seeker reaching a moderation table would be
    * reading every recruiter's email address.
    *
-   * Each wrong portal ends at its own home. Asserting the resting place catches
-   * a redirect that lands somewhere the user cannot use.
+   * A session for another portal does not authorize this destination. The
+   * visitor lands at the admin sign-in instead of rendering console content.
    */
   it.each(CONSOLE_PATHS)("bounces a seeker off %s", async (path) => {
     const view = renderAppAt(path, { store: storeWith("seeker") });
-    await waitFor(() => expect(view.pathname()).toBe(homePathFor("seeker")));
+    await waitFor(() => expect(view.pathname()).toBe(loginPathFor("admin")));
     view.unmount();
   });
 
-  it.each(CONSOLE_PATHS)("bounces a recruiter off %s to their workspace", async (path) => {
+  it.each(CONSOLE_PATHS)("bounces a recruiter off %s to admin sign-in", async (path) => {
     const view = renderAppAt(path, { store: storeWith("recruiter") });
-    await waitFor(() => expect(view.pathname()).toBe(homePathFor("recruiter")));
+    await waitFor(() => expect(view.pathname()).toBe(loginPathFor("admin")));
     view.unmount();
   });
 

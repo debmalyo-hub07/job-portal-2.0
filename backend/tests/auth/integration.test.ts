@@ -22,7 +22,7 @@ describe("the whole journey, through the real app", () => {
       email: "e2e@x.test", code: await lastCodeFor("e2e@x.test"),
     });
     expect(verify.status).toBe(200);
-    const csrf = cookieValue(verify, "jp_csrf")!;
+    const csrf = cookieValue(verify, "jp_seeker_csrf")!;
 
     expect((await agent.get("/api/v1/seeker/auth/me")).status).toBe(200);
 
@@ -34,7 +34,7 @@ describe("the whole journey, through the real app", () => {
 
     const refreshed = await agent.post("/api/v1/seeker/auth/refresh").set("X-CSRF-Token", csrf);
     expect(refreshed.status).toBe(200);
-    const csrf2 = cookieValue(refreshed, "jp_csrf")!;
+    const csrf2 = cookieValue(refreshed, "jp_seeker_csrf")!;
 
     expect((await agent.get("/api/v1/seeker/auth/me")).status).toBe(200);
 

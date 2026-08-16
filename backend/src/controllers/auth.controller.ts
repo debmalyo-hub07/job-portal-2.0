@@ -184,13 +184,13 @@ export function meHandler(portal: Portal): RequestHandler {
     //
     // Echoing discloses nothing: this is behind `authenticate(portal)`, and the
     // caller demonstrably already holds the cookie, since they just sent it.
-    const presented = req.cookies?.[csrfCookieName()] as string | undefined;
+    const presented = req.cookies?.[csrfCookieName(portal)] as string | undefined;
     let csrfToken: string;
     if (presented && verifyCsrfToken(presented)) {
       csrfToken = presented;
     } else {
       csrfToken = mintCsrfToken();
-      setCsrfCookie(res, csrfToken);
+      setCsrfCookie(res, portal, csrfToken);
     }
     res.json({ success: true, user: auth.toSessionUser(portal, account), csrfToken });
   };

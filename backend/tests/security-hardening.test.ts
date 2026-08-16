@@ -26,7 +26,7 @@ describe("security hardening", () => {
 
     const accepted = await request(app)
       .post("/api/v1/company/register")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`, `jp_csrf=${recruiter.csrf}`])
+      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`, `jp_recruiter_csrf=${recruiter.csrf}`])
       .set("X-CSRF-Token", recruiter.csrf)
       .send({ name: "With Token" });
 

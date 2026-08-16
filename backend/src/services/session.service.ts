@@ -84,7 +84,7 @@ export async function issueSession(
   const csrfToken = mintCsrfToken();
   setAccessCookie(res, portal, signAccessToken(String(subjectId), portal));
   setRefreshCookie(res, portal, raw);
-  setCsrfCookie(res, csrfToken);
+  setCsrfCookie(res, portal, csrfToken);
   return { csrfToken };
 }
 

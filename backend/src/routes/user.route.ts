@@ -12,6 +12,6 @@ const router = express.Router();
 router.route("/profile").get(authenticateAny(), getProfile);
 router
   .route("/profile/update")
-  .post(authenticateAny(), csrfProtection, resumeUpload, updateProfile);
+  .post(authenticateAny(), csrfProtection(), resumeUpload, updateProfile);
 
 export default router;

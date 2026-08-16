@@ -9,7 +9,7 @@ import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
 import { apiClient } from "@/lib/apiClient";
 import { appRoutes } from "@/routes/appRoutes";
 import { setBootstrapped, setUser } from "@/redux/authSlice";
-import { homePathFor } from "@/lib/portalHome";
+import { loginPathFor } from "@/lib/portalHome";
 import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
@@ -448,9 +448,9 @@ describe("workspace routes", () => {
     unmount();
   });
 
-  it.each(WRONG_PORTAL_CASES)("bounces a %s from %s to its own home", async (portal, path) => {
+  it.each(WRONG_PORTAL_CASES)("bounces a %s from %s to recruiter sign-in", async (portal, path) => {
     const view = renderAppAt(path, { store: storeWith(portal, "active") });
-    await waitFor(() => expect(view.pathname()).toBe(homePathFor(portal)));
+    await waitFor(() => expect(view.pathname()).toBe(loginPathFor("recruiter")));
     view.unmount();
   });
 

@@ -33,12 +33,17 @@ export function getActivePortal(): Portal | null {
   return activePortal ?? getPortalHint();
 }
 
+/** Pins API retries to the portal represented by this tab's current route. */
+export function activatePortal(portal: Portal): void {
+  activePortal = portal;
+}
+
 export function setPortalHint(portal: Portal): void {
   activePortal = portal;
   localStorage.setItem(KEY, portal);
 }
 
-export function clearPortalHint(): void {
-  activePortal = null;
-  localStorage.removeItem(KEY);
+export function clearPortalHint(portal?: Portal): void {
+  if (!portal || activePortal === portal) activePortal = null;
+  if (!portal || getPortalHint() === portal) localStorage.removeItem(KEY);
 }

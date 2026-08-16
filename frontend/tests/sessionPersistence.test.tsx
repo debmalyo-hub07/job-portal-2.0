@@ -6,7 +6,7 @@ import { render, waitFor } from "@testing-library/react";
 import { apiClient } from "@/lib/apiClient";
 import { clearPortalHint, setPortalHint } from "@/lib/portal";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
-import { setUser } from "@/redux/authSlice";
+import { setPortalBootstrapped, setUser } from "@/redux/authSlice";
 import { makeStore } from "./helpers/renderRoute";
 
 function BootstrapProbe() {
@@ -33,6 +33,9 @@ describe("session persistence", () => {
         status: "active",
       }),
     );
+    // Rehydration restores cached users but deliberately excludes bootstrap
+    // flags, so the server still verifies the httpOnly cookie on each reload.
+    store.dispatch(setPortalBootstrapped({ portal: "seeker", value: false }));
     clearPortalHint();
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({
       data: {

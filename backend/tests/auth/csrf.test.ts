@@ -11,8 +11,11 @@ import { csrfProtection } from "../../src/middleware/csrf.js";
 function harness(): Express {
   const app = express();
   app.use(cookieParser());
-  app.get("/x", csrfProtection, (_req, res) => res.json({ ok: true }));
-  app.post("/x", csrfProtection, (_req, res) => res.json({ ok: true }));
+  // Portal passed explicitly: this harness has no authenticate middleware, so
+  // req.auth is never set and the factory must be told which cookie to read —
+  // exactly as /refresh and /logout do in the real router.
+  app.get("/x", csrfProtection("seeker"), (_req, res) => res.json({ ok: true }));
+  app.post("/x", csrfProtection("seeker"), (_req, res) => res.json({ ok: true }));
   app.use((err: unknown, _q: express.Request, res: express.Response, _n: express.NextFunction) => {
     const status = err instanceof AppError ? err.statusCode : 500;
     const code = err instanceof AppError ? err.code : "INTERNAL";
@@ -26,12 +29,12 @@ function harness(): Express {
  *
  * `csrfCookieName()` calls `env()`, and at module-evaluation time
  * `tests/setup.ts` has not yet populated `process.env` — so a top-level
- * `const COOKIE = csrfCookieName()` throws during collection. Vitest reports
- * that as "no tests" rather than as a failure, which means the whole file
- * silently does nothing while the suite still reports green.
+ * `const COOKIE = csrfCookieName("seeker")` throws during collection. Vitest
+ * reports that as "no tests" rather than as a failure, which means the whole
+ * file silently does nothing while the suite still reports green.
  */
 function cookieName(): string {
-  return csrfCookieName();
+  return csrfCookieName("seeker");
 }
 
 describe("csrfProtection", () => {

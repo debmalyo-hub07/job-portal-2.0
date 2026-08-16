@@ -27,18 +27,22 @@ import { apiClient, setCsrfToken } from "@/lib/apiClient";
  */
 describe("CSRF token handling", () => {
   beforeEach(() => {
-    setCsrfToken(null);
+    setCsrfToken("seeker", null);
+    setCsrfToken("recruiter", null);
+    setCsrfToken("admin", null);
     // Empty, exactly as a cross-site browser presents it.
     Object.defineProperty(document, "cookie", { value: "", writable: true, configurable: true });
   });
 
   afterEach(() => {
-    setCsrfToken(null);
+    setCsrfToken("seeker", null);
+    setCsrfToken("recruiter", null);
+    setCsrfToken("admin", null);
     vi.restoreAllMocks();
   });
 
   /** Runs the request interceptor without a network call. */
-  async function headersFor(method: string, url = "/seeker/job/apply/1") {
+  async function headersFor(method: string, url = "/seeker/auth/logout") {
     const handlers = apiClient.interceptors.request as unknown as {
       handlers: { fulfilled: (c: unknown) => unknown }[];
     };
@@ -56,14 +60,14 @@ describe("CSRF token handling", () => {
   it("sends the in-memory token on a mutation, with document.cookie empty", async () => {
     // The whole bug in one assertion: no cookie is readable, and the header is
     // still present.
-    setCsrfToken("nonce.mac");
+    setCsrfToken("seeker", "nonce.mac");
     expect(document.cookie).toBe("");
     expect((await headersFor("post")).get("X-CSRF-Token")).toBe("nonce.mac");
   });
 
   it("sends no token on a GET", async () => {
     // Safe methods carry no header; requiring one would break every navigation.
-    setCsrfToken("nonce.mac");
+    setCsrfToken("seeker", "nonce.mac");
     expect((await headersFor("get")).get("X-CSRF-Token")).toBeUndefined();
   });
 
@@ -76,7 +80,7 @@ describe("CSRF token handling", () => {
     // Local development proxies the API onto the dev server's origin, where the
     // cookie IS readable and a mutation can fire before bootstrap resolves.
     Object.defineProperty(document, "cookie", {
-      value: "jp_csrf=from.cookie",
+      value: "jp_seeker_csrf=from.cookie",
       writable: true,
       configurable: true,
     });
@@ -87,19 +91,31 @@ describe("CSRF token handling", () => {
     // After a rotation the cookie and the body agree, but memory is what the
     // server just issued. If these ever disagree, memory is the fresher one.
     Object.defineProperty(document, "cookie", {
-      value: "jp_csrf=stale.cookie",
+      value: "jp_seeker_csrf=stale.cookie",
       writable: true,
       configurable: true,
     });
-    setCsrfToken("fresh.memory");
+    setCsrfToken("seeker", "fresh.memory");
     expect((await headersFor("post")).get("X-CSRF-Token")).toBe("fresh.memory");
   });
 
   it("clearing the token stops sending the header", async () => {
     // Logout and session-loss both clear it. A token outliving its session is a
     // token attached to the next user's requests.
-    setCsrfToken("nonce.mac");
-    setCsrfToken(null);
+    setCsrfToken("seeker", "nonce.mac");
+    setCsrfToken("seeker", null);
     expect((await headersFor("post")).get("X-CSRF-Token")).toBeUndefined();
+  });
+
+  it("never sends one portal's token to another portal", async () => {
+    setCsrfToken("seeker", "seeker.nonce");
+    setCsrfToken("recruiter", "recruiter.nonce");
+
+    expect((await headersFor("post", "/seeker/auth/logout")).get("X-CSRF-Token")).toBe(
+      "seeker.nonce",
+    );
+    expect((await headersFor("post", "/recruiter/auth/logout")).get("X-CSRF-Token")).toBe(
+      "recruiter.nonce",
+    );
   });
 });

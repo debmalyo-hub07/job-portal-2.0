@@ -227,12 +227,12 @@ Vercel and Render are different registrable domains, so the browser treats every
 API call as cross-site. `COOKIE_SAMESITE=none` handles whether cookies are
 *sent*. It does not make them *readable*.
 
-`__Host-jp_csrf` is set `httpOnly: false` precisely so the client can echo it in
+`__Host-jp_<portal>_csrf` is set `httpOnly: false` precisely so the client can echo it in
 `X-CSRF-Token` — and cross-site the browser withholds it from `document.cookie`
 anyway. Partitioning, not `httpOnly`. Measured against production:
 
 ```
-cookies stored by browser: __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_csrf
+cookies stored by browser: __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_admin_csrf
 document.cookie (JS-visible): (EMPTY)
 ```
 
@@ -293,6 +293,13 @@ and a set-password code is **emailed**, which is why Brevo has to work first. If
 the mail never arrives, use forgot-password on the admin login to reissue.
 Re-running is safe: it refuses when an admin exists unless `--force`.
 
+Later admins are invited from the signed-in admin dashboard. Keep
+`ADMIN_PROVISIONING_SECRET` in Render only; do not add it to Vercel or any
+`VITE_*` variable. The inviter types the matching value into the invite form,
+the API compares it in constant time, and logs redact the submitted field. The
+route also requires an admin-signed session, admin CSRF, a 5/hour rate limit,
+and working transactional email.
+
 ### Optional: seed an empty marketplace
 
 After the Vercel deployment containing the demo company marks is live, an empty
@@ -317,9 +324,10 @@ Four checks, in this order — each isolates a different layer.
 2. **The bundle is real.** Load the Vercel URL. A blank page with a clean
    console means `VITE_API_URL` was missing at build time — check Vercel's build
    log for the guard's error.
-3. **Deep links.** *Type* `/jobs`, `/hire/login` and a wrong path like
+3. **Deep links.** *Type* `/jobs`, `/hire`, `/admin` and a wrong path like
    `/nonsense` into the address bar. In-app navigation cannot test this: that is
-   `history.pushState` and never reaches the host. `/nonsense` should render the
+   `history.pushState` and never reaches the host. Anonymous `/hire` and `/admin`
+   must land on their matching login pages; `/nonsense` should render the
    not-found page, not a blank screen.
 4. **A real session.** Complete the Turnstile challenge, register a seeker,
    receive the OTP, verify, and confirm you are still signed in after a reload.
@@ -327,6 +335,10 @@ Four checks, in this order — each isolates a different layer.
    build time or the deployed hostname is absent from the Turnstile widget.
    Sign-in succeeding but the next request arriving anonymous means
    `COOKIE_SAMESITE` is not `none`.
+5. **Portal isolation.** Sign into seeker and recruiter in the same browser.
+   Both sessions must survive reloads. Typing an admin workspace URL must show
+   admin login rather than either existing workspace, and signing out of one
+   portal must leave the other session intact.
 
 Render's free plan sleeps after inactivity: the first request after an idle
 period takes 30–60 seconds and looks like a hang. That is not a fault.

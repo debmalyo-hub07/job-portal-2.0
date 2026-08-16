@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { buildApp } from "../../src/app.js";
 import { cookieValue, installCaptureMailer, lastCodeFor } from "./helpers.js";
+import { csrfCookieName } from "../../src/lib/cookies.js";
 import { verifyCsrfToken } from "../../src/lib/csrfToken.js";
 
 const app = buildApp();
@@ -17,7 +18,7 @@ beforeEach(installCaptureMailer);
  * `*.onrender.com`, Chrome stores the cookie and sends it, but withholds it
  * from `document.cookie`. Measured in a real browser against production:
  *
- *     cookies stored:  __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_csrf
+ *     cookies stored:  __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_admin_csrf
  *     document.cookie: (empty)
  *
  * So the client sent no `X-CSRF-Token` and every mutation 403'd. It presented
@@ -84,7 +85,7 @@ describe("session responses carry the CSRF token in the body", () => {
     expect(verifyCsrfToken(refreshed.body.csrfToken)).toBe(true);
     expect(refreshed.body.csrfToken).not.toBe(first);
     // And it must match what the cookie was just set to.
-    expect(refreshed.body.csrfToken).toBe(cookieValue(refreshed, "jp_csrf"));
+    expect(refreshed.body.csrfToken).toBe(cookieValue(refreshed, csrfCookieName("seeker")));
   });
 
   it("/me returns a token, because a page reload loses the in-memory copy", async () => {

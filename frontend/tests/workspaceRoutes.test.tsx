@@ -8,6 +8,7 @@ import { MemoryRouter, useLocation, useRoutes } from "react-router";
 import { appRoutes } from "@/routes/appRoutes";
 import { portalForPath } from "@/lib/portalRoutes";
 import { makeStore } from "./helpers/renderRoute";
+import { setUser } from "@/redux/authSlice";
 
 /**
  * Anchored to the vitest root rather than `import.meta.url`: under the vite
@@ -117,9 +118,27 @@ function Probe() {
  * not the one undici type-checks against, so every redirect throws before it
  * resolves. The route table is the same object either way.
  */
-function renderTableAt(entry: string) {
+function recruiterStore() {
+  const store = makeStore();
+  store.dispatch(
+    setUser({
+      id: "recruiter-1",
+      portal: "recruiter",
+      fullName: "Recruiter",
+      email: "recruiter@example.test",
+      emailVerified: true,
+      avatarUrl: null,
+      // The account is authenticated, so the destination guard accepts it;
+      // pending status stops at RequireApproved before data-fetching hooks mount.
+      status: "pending",
+    }),
+  );
+  return store;
+}
+
+function renderTableAt(entry: string, store = makeStore()) {
   const view = render(
-    <Provider store={makeStore()}>
+    <Provider store={store}>
       <MemoryRouter initialEntries={[entry]}>
         <RouteTable />
         <Probe />
@@ -143,12 +162,12 @@ describe("pre-3A workspace URLs redirect", () => {
     ["/admin/jobs/create", "/hire/jobs/create"],
     ["/admin/jobs/j456/applicants", "/hire/jobs/j456/applicants"],
   ])("%s → %s", async (from, to) => {
-    const at = renderTableAt(from);
+    const at = renderTableAt(from, recruiterStore());
     await waitFor(() => expect(at.pathname()).toBe(to));
   });
 
   it("carries the query string across", async () => {
-    const at = renderTableAt("/admin/jobs?page=2");
+    const at = renderTableAt("/admin/jobs?page=2", recruiterStore());
     await waitFor(() => expect(at.pathname()).toBe("/hire/jobs"));
     expect(at.search()).toBe("?page=2");
   });

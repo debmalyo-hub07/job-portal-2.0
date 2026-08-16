@@ -23,11 +23,11 @@ export function homePathFor(portal: Portal): string {
   }
 }
 
-/** Public landing page represented by a portal's wordmark and Home link. */
+/** Portal destination represented by a signed-in wordmark and Home link. */
 export function landingPathFor(portal: Portal): string {
   switch (portal) {
     case "recruiter":
-      return "/hire";
+      return "/hire/companies";
     case "admin":
       return "/admin/dashboard";
     case "seeker":
@@ -58,7 +58,7 @@ export function returnPathFor(portal: Portal, state: unknown): string | null {
   const pathname = from.split(/[?#]/, 1)[0] ?? "";
   switch (portal) {
     case "seeker":
-      return pathname === "/profile" ? from : null;
+      return pathname === "/profile" || /^\/description\/[^/]+$/.test(pathname) ? from : null;
     case "recruiter":
       return /^\/hire\/(?:companies|jobs)(?:\/|$)/.test(pathname) ? from : null;
     case "admin":

@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
 import type { Portal } from "@jobportal/shared";
 import { useAppSelector } from "@/redux/store";
-import { homePathFor, loginPathFor } from "@/lib/portalHome";
+import { loginPathFor } from "@/lib/portalHome";
+import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
+import { portalIsBootstrapped, userForPortal } from "@/redux/authSlice";
 
 type ProtectedRouteProps = {
   children: ReactNode;
@@ -20,7 +22,9 @@ type ProtectedRouteProps = {
  * recruiter and admin route is also authorized server-side.
  */
 const ProtectedRoute = ({ children, portal }: ProtectedRouteProps) => {
-  const { user, bootstrapped } = useAppSelector((state) => state.auth);
+  useAuthBootstrap(portal);
+  const user = useAppSelector((state) => userForPortal(state.auth, portal));
+  const bootstrapped = useAppSelector((state) => portalIsBootstrapped(state.auth, portal));
   const location = useLocation();
 
   if (!bootstrapped) return null;
@@ -32,9 +36,6 @@ const ProtectedRoute = ({ children, portal }: ProtectedRouteProps) => {
         state={{ from: `${location.pathname}${location.search}${location.hash}` }}
       />
     );
-  }
-  if (user.portal !== portal) {
-    return <Navigate to={homePathFor(user.portal)} replace />;
   }
   return <>{children}</>;
 };

@@ -5,6 +5,7 @@ import Navbar from "@/components/shared/Navbar";
 import { PageShell } from "@/components/layout/PageShell";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { useAppSelector } from "@/redux/store";
+import { userForPortal } from "@/redux/authSlice";
 
 /**
  * The client half of the API's `requireApproved`.
@@ -27,7 +28,7 @@ import { useAppSelector } from "@/redux/store";
  * too, which must not import from a directory named for the other portal.
  */
 export function RequireApproved({ children }: { children: ReactNode }) {
-  const { user } = useAppSelector((state) => state.auth);
+  const user = useAppSelector((state) => userForPortal(state.auth, "recruiter"));
 
   if (user?.portal === "recruiter" && user.status === "pending") {
     return (

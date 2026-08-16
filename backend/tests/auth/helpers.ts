@@ -105,7 +105,7 @@ export function asSession(
   return (test: SupertestRequest): void => {
     test.set("Cookie", [
       `jp_${portal}_at=${session.access}`,
-      `jp_csrf=${session.csrf}`,
+      `jp_${portal}_csrf=${session.csrf}`,
     ]);
     test.set("X-CSRF-Token", session.csrf);
   };
@@ -169,7 +169,7 @@ export async function signedUpOn(
   const id = res.body.user.id;
   const access = cookieValue(res, `jp_${portal}_at`)!;
   const refresh = cookieValue(res, `jp_${portal}_rt`)!;
-  const csrf = cookieValue(res, "jp_csrf")!;
+  const csrf = cookieValue(res, `jp_${portal}_csrf`)!;
 
   return { id, access, refresh, csrf };
 }

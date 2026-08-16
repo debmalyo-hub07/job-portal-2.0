@@ -32,7 +32,7 @@ export function buildAuthRoutes(
     {
       path: `${prefix}/login`,
       element: (
-        <GuestRoute>
+        <GuestRoute portal={portal}>
           <Login portal={portal} />
         </GuestRoute>
       ),
@@ -42,7 +42,7 @@ export function buildAuthRoutes(
     routes.push({
       path: `${prefix}/signup`,
       element: (
-        <GuestRoute>
+        <GuestRoute portal={portal}>
           <Signup portal={portal} />
         </GuestRoute>
       ),

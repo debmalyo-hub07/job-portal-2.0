@@ -1,9 +1,32 @@
 import { useEffect, useRef } from "react";
-import type { SessionUser } from "@jobportal/shared";
+import type { Portal, SessionUser } from "@jobportal/shared";
 import { apiClient, setCsrfToken, setSessionLostHandler } from "@/lib/apiClient";
-import { clearPortalHint, getPortalHint, setPortalHint } from "@/lib/portal";
-import { setBootstrapped, setUser } from "@/redux/authSlice";
+import { activatePortal, clearPortalHint, getPortalHint, setPortalHint } from "@/lib/portal";
+import {
+  clearPortalSession,
+  portalIsBootstrapped,
+  setActivePortal,
+  setBootstrapped,
+  setPortalBootstrapped,
+  setPortalSession,
+  userForPortal,
+} from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
+
+type MeResponse = { success: true; user: SessionUser; csrfToken?: string };
+const inFlight = new Map<Portal, Promise<MeResponse>>();
+
+function loadSession(portal: Portal): Promise<MeResponse> {
+  const existing = inFlight.get(portal);
+  if (existing) return existing;
+
+  const request = apiClient
+    .get<MeResponse>(`/${portal}/auth/me`)
+    .then((response) => response.data)
+    .finally(() => inFlight.delete(portal));
+  inFlight.set(portal, request);
+  return request;
+}
 
 /**
  * Asks the server who this browser is, once, at startup.
@@ -13,61 +36,68 @@ import { useAppDispatch, useAppSelector } from "@/redux/store";
  * of that touches localStorage. `/me` is the only authority. Until it answers,
  * `bootstrapped` is false and the guards wait.
  */
-export function useAuthBootstrap(): void {
+export function useAuthBootstrap(requestedPortal?: Portal): void {
   const dispatch = useAppDispatch();
-  const cachedPortal = useAppSelector((state) => state.auth.user?.portal ?? null);
-  // App mounts below PersistGate, so the first render already contains the
-  // cached session. Capture it once so dispatching the verified user does not
-  // restart bootstrap.
-  const initialPortal = useRef(getPortalHint() ?? cachedPortal).current;
+  const legacyPortal = useAppSelector((state) => state.auth.user?.portal ?? null);
+  const fallbackPortal = useRef(getPortalHint() ?? legacyPortal).current;
+  const portal = requestedPortal ?? fallbackPortal;
+  const cachedUser = useAppSelector((state) =>
+    portal ? userForPortal(state.auth, portal) : null,
+  );
+  const bootstrapped = useAppSelector((state) =>
+    portal ? portalIsBootstrapped(state.auth, portal) : state.auth.bootstrapped,
+  );
 
   useEffect(() => {
-    // Registered before the request, so a 401 on /refresh during bootstrap
-    // clears the stale user instead of leaving it on screen.
-    setSessionLostHandler(() => {
-      clearPortalHint();
-      setCsrfToken(null);
-      dispatch(setUser(null));
-      dispatch(setBootstrapped(true));
+    setSessionLostHandler((lostPortal) => {
+      clearPortalHint(lostPortal);
+      setCsrfToken(lostPortal, null);
+      dispatch(clearPortalSession(lostPortal));
     });
 
-    const portal = initialPortal;
     if (!portal) {
-      // Never signed in on this browser. Do not call /me: it would 401, and a
-      // 401 in the network tab on every anonymous visit trains people to ignore
-      // 401s in the network tab.
-      dispatch(setUser(null));
       dispatch(setBootstrapped(true));
       return;
     }
 
+    activatePortal(portal);
+    dispatch(setActivePortal(portal));
+    if (bootstrapped) return;
+
+    // A cache entry is only a hint that a httpOnly session may exist. The old
+    // single-portal hint is kept as a one-release migration path for browsers
+    // that signed in before portal-scoped caches shipped.
+    if (!cachedUser && getPortalHint() !== portal) {
+      dispatch(setPortalBootstrapped({ portal, value: true }));
+      return;
+    }
+
     let cancelled = false;
-    apiClient
-      .get<{ success: true; user: SessionUser; csrfToken?: string }>(`/${portal}/auth/me`)
-      .then((res) => {
+    loadSession(portal)
+      .then((data) => {
         if (!cancelled) {
           // Re-arms the in-memory CSRF token. A hard reload — and the top-level
           // redirect the Google callback performs — starts with nothing in
           // memory, and the cookie cannot be read back cross-site, so without
           // this the first mutation after any reload 403s.
-          if (res.data.csrfToken) setCsrfToken(res.data.csrfToken);
-          setPortalHint(res.data.user.portal);
-          dispatch(setUser(res.data.user));
+          if (data.csrfToken) setCsrfToken(portal, data.csrfToken);
+          setPortalHint(portal);
+          dispatch(setPortalSession({ portal, user: data.user }));
         }
       })
       .catch(() => {
         if (!cancelled) {
-          clearPortalHint();
-          setCsrfToken(null);
-          dispatch(setUser(null));
+          clearPortalHint(portal);
+          setCsrfToken(portal, null);
+          dispatch(clearPortalSession(portal));
         }
       })
       .finally(() => {
-        if (!cancelled) dispatch(setBootstrapped(true));
+        if (!cancelled) dispatch(setPortalBootstrapped({ portal, value: true }));
       });
 
     return () => {
       cancelled = true;
     };
-  }, [dispatch, initialPortal]);
+  }, [bootstrapped, cachedUser, dispatch, portal]);
 }

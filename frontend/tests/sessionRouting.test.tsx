@@ -1,10 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Portal, SessionUser } from "@jobportal/shared";
 
 import { makeStore, renderAppAt } from "./helpers/renderRoute";
-import { setBootstrapped, setUser } from "@/redux/authSlice";
+import {
+  setBootstrapped,
+  setPortalBootstrapped,
+  setPortalSession,
+  setUser,
+} from "@/redux/authSlice";
 import { homePathFor, returnPathFor } from "@/lib/portalHome";
+import { apiClient } from "@/lib/apiClient";
+import { setSingleJob } from "@/redux/jobSlice";
+
+afterEach(() => vi.restoreAllMocks());
 
 function sessionStore(portal: Portal) {
   const store = makeStore();
@@ -29,20 +39,22 @@ function anonymousStore() {
 }
 
 describe("portal route isolation", () => {
-  it.each([
-    ["seeker", "/", /work that fits your next move/i],
-    ["recruiter", "/hire", /build the team/i],
-  ] satisfies Array<[Portal, string, RegExp]>) (
-    "keeps the signed-in %s landing page reachable",
-    async (portal, path, heading) => {
-      const view = renderAppAt(path, { store: sessionStore(portal) });
-      expect(await view.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
-      expect(view.pathname()).toBe(path);
-    },
-  );
+  it("keeps the public seeker landing page reachable while signed in", async () => {
+    const view = renderAppAt("/", { store: sessionStore("seeker") });
+    expect(
+      await view.findByRole("heading", { level: 1, name: /work that fits your next move/i }),
+    ).toBeInTheDocument();
+    expect(view.pathname()).toBe("/");
+  });
+
+  it("uses /hire as the recruiter session door", async () => {
+    const view = renderAppAt("/hire", { store: sessionStore("recruiter") });
+    await waitFor(() => expect(view.pathname()).toBe("/hire/companies"));
+  });
 
   it.each([
     ["/profile", "/login"],
+    ["/hire", "/hire/login"],
     ["/hire/jobs", "/hire/login"],
     ["/admin/dashboard", "/admin/login"],
   ])("sends an anonymous visitor from %s to the matching sign-in", async (path, login) => {
@@ -51,19 +63,98 @@ describe("portal route isolation", () => {
   });
 
   it.each([
-    ["seeker", "/hire/jobs", "/jobs"],
-    ["seeker", "/admin/dashboard", "/jobs"],
-    ["recruiter", "/profile", "/hire/companies"],
-    ["recruiter", "/admin/dashboard", "/hire/companies"],
-    ["admin", "/profile", "/admin/dashboard"],
-    ["admin", "/hire/jobs", "/admin/dashboard"],
+    ["seeker", "/hire/jobs", "/hire/login"],
+    ["seeker", "/admin/dashboard", "/admin/login"],
+    ["recruiter", "/profile", "/login"],
+    ["recruiter", "/admin/dashboard", "/admin/login"],
+    ["admin", "/profile", "/login"],
+    ["admin", "/hire/jobs", "/hire/login"],
   ] satisfies Array<[Portal, string, string]>) (
-    "keeps a signed-in %s inside its own portal when opening %s",
+    "requires the destination portal when a signed-in %s opens %s",
     async (portal, path, expected) => {
       const view = renderAppAt(path, { store: sessionStore(portal) });
       await waitFor(() => expect(view.pathname()).toBe(expected));
     },
   );
+
+  it("lets a signed-in seeker open recruiter signup", async () => {
+    const view = renderAppAt("/hire/signup", { store: sessionStore("seeker") });
+
+    expect(await view.findByRole("heading", { level: 1, name: /start hiring/i })).toBeInTheDocument();
+    expect(view.pathname()).toBe("/hire/signup");
+  });
+
+  it("keeps seeker and recruiter sessions available at the same time", async () => {
+    const store = makeStore();
+    store.dispatch(
+      setPortalSession({
+        portal: "seeker",
+        user: {
+          id: "seeker-1",
+          portal: "seeker",
+          fullName: "Seeker user",
+          email: "dual@example.test",
+          emailVerified: true,
+          avatarUrl: null,
+          status: "active",
+        },
+      }),
+    );
+    store.dispatch(
+      setPortalSession({
+        portal: "recruiter",
+        user: {
+          id: "recruiter-1",
+          portal: "recruiter",
+          fullName: "Recruiter user",
+          email: "dual@example.test",
+          emailVerified: true,
+          avatarUrl: null,
+          status: "active",
+        },
+      }),
+    );
+    store.dispatch(setPortalBootstrapped({ portal: "seeker", value: true }));
+    store.dispatch(setPortalBootstrapped({ portal: "recruiter", value: true }));
+
+    const seeker = renderAppAt("/profile", { store });
+    expect(await seeker.findByRole("button", { name: /account menu/i })).toBeInTheDocument();
+    seeker.unmount();
+
+    const recruiter = renderAppAt("/hire/companies", { store });
+    expect(await recruiter.findByRole("button", { name: /new company/i })).toBeInTheDocument();
+  });
+
+  it("takes an anonymous applicant to seeker sign-in and preserves the job URL", async () => {
+    const store = anonymousStore();
+    const job = {
+      id: "job-1",
+      title: "Frontend Engineer",
+      description: "Build the product.",
+      requirements: ["TypeScript"],
+      salary: 12,
+      location: "Kolkata",
+      jobType: "Full-time",
+      position: 2,
+      experienceLevel: 3,
+      remote: false,
+      createdAt: new Date().toISOString(),
+      company: { id: "company-1", name: "Northvale", logoUrl: null },
+    };
+    store.dispatch(setSingleJob(job as never));
+    vi.spyOn(apiClient, "get").mockResolvedValue({ data: { success: true, job } } as never);
+    const post = vi.spyOn(apiClient, "post");
+
+    const view = renderAppAt("/description/job-1", { store });
+    await userEvent.click(await view.findByRole("button", { name: /apply for this role/i }));
+
+    await waitFor(() => expect(view.pathname()).toBe("/login"));
+    expect(post).not.toHaveBeenCalled();
+    expect(await view.findByRole("link", { name: /create one/i })).toHaveAttribute(
+      "href",
+      "/signup",
+    );
+  });
 
   it("uses the job board as the signed-in seeker home", () => {
     expect(homePathFor("seeker")).toBe("/jobs");
@@ -74,6 +165,9 @@ describe("portal route isolation", () => {
       "/hire/jobs/job-1/applicants?sort=fit",
     );
     expect(returnPathFor("seeker", { from: "/admin/dashboard" })).toBeNull();
+    expect(returnPathFor("seeker", { from: "/description/job-1?source=apply" })).toBe(
+      "/description/job-1?source=apply",
+    );
     expect(returnPathFor("admin", { from: "https://attacker.test" })).toBeNull();
   });
 });

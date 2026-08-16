@@ -32,7 +32,7 @@ async function signedInAdmin(email = "root@example.com") {
     .send({ email, password: PASSWORD });
   return {
     access: cookieValue(login, "jp_admin_at")!,
-    csrf: cookieValue(login, "jp_csrf")!,
+    csrf: cookieValue(login, "jp_admin_csrf")!,
   };
 }
 
@@ -49,7 +49,7 @@ describe("admin provisioning", () => {
     const root = await signedInAdmin();
     await request(app)
       .post("/api/v1/admin/admins")
-      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_csrf=${root.csrf}`])
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_admin_csrf=${root.csrf}`])
       .set("X-CSRF-Token", root.csrf)
       .send(body)
       .expect(201);
@@ -69,7 +69,7 @@ describe("admin provisioning", () => {
     const recruiter = await signedUpOn("recruiter", "recruiter@example.com");
     await request(app)
       .post("/api/v1/admin/admins")
-      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`, `jp_csrf=${recruiter.csrf}`])
+      .set("Cookie", [`jp_recruiter_at=${recruiter.access}`, `jp_recruiter_csrf=${recruiter.csrf}`])
       .set("X-CSRF-Token", recruiter.csrf)
       .send(body)
       .expect(401);
@@ -88,7 +88,7 @@ describe("admin provisioning", () => {
     const root = await signedInAdmin();
     await request(app)
       .post("/api/v1/admin/admins")
-      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_csrf=${root.csrf}`])
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_admin_csrf=${root.csrf}`])
       .set("X-CSRF-Token", root.csrf)
       .send({ ...body, provisioningKey: "wrong-key" })
       .expect(403);
@@ -108,7 +108,7 @@ describe("admin provisioning", () => {
 
     await request(app)
       .post("/api/v1/admin/admins")
-      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_csrf=${root.csrf}`])
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_admin_csrf=${root.csrf}`])
       .set("X-CSRF-Token", root.csrf)
       .send(body)
       .expect(409);
@@ -121,7 +121,7 @@ describe("admin provisioning", () => {
 
     const response = await request(app)
       .post("/api/v1/admin/admins")
-      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_csrf=${root.csrf}`])
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_admin_csrf=${root.csrf}`])
       .set("X-CSRF-Token", root.csrf)
       .send(body);
 

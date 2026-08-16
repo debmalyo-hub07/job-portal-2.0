@@ -89,8 +89,16 @@ sign in at `/admin/login`. The script refuses if an admin already exists, so a
 stray re-run during deployment cannot quietly mint a second authority (`--force`
 overrides).
 
-Later admins are created by an existing admin. On a database that predates Phase
-3A, run `npm run migrate:phase3a --workspace @jobportal/api` once as well: it
+Later admins are invited from the admin dashboard by an existing admin. The
+server requires that admin's authenticated cookie, the matching admin CSRF
+token, and `ADMIN_PROVISIONING_SECRET`; the canonical secret belongs only in the
+API environment and must never be added to a `VITE_*` variable or browser
+bundle. The invite is rate-limited, the request field is redacted from logs,
+and the new admin receives a short-lived password setup code rather than a
+password chosen by the inviter.
+
+On a database that predates Phase 3A, run
+`npm run migrate:phase3a --workspace @jobportal/api` once as well: it
 grandfathers existing **verified** recruiters to `active`, so the migration does
 not lock out people who were already working. An unverified pre-existing row is
 left `pending` — it never completed registration, so it has no claim to be
@@ -269,6 +277,14 @@ most surprising behaviour for a new reader, and it is deliberate — see
 collection for admins in
 [ADR-0006](docs/adr/0006-three-account-collections.md).
 
+The same browser may also hold seeker, recruiter, and admin sessions at once.
+Access, refresh, and CSRF cookies are named per portal
+(`jp_<portal>_at`, `jp_<portal>_rt`, `jp_<portal>_csrf`, with `__Host-` in
+production), and the web client keeps a separate cached user, bootstrap flag,
+CSRF token, and refresh promise for each portal. Signing in or out of one portal
+does not overwrite another portal's session. See
+[ADR-0008](docs/adr/0008-portal-scoped-browser-sessions.md).
+
 ### Recruiters need approval
 
 A recruiter registers as `pending` and can sign in, but every recruiter-owned
@@ -294,16 +310,24 @@ mirroring the API's `buildAuthRouter(portal)`:
 |---|---|---|
 | `/` | seeker | Marketing landing: hero search, role shortcuts, latest openings |
 | `/jobs` | seeker | The job board. Every filter lives in the URL, so a search is a shareable link |
-| `/description/:id`, `/profile` | seeker | Job detail and the seeker's own profile |
+| `/description/:id`, `/profile` | seeker | Job detail is public; the profile requires a seeker session |
 | `/login`, `/signup` | seeker | |
-| `/hire` | recruiter | Employer front door |
+| `/hire` | recruiter | Protected session door: workspace with a recruiter session, otherwise recruiter sign-in |
 | `/hire/login`, `/hire/signup` | recruiter | |
 | `/hire/companies`, `/hire/jobs`, applicants | recruiter | The workspace. Gated on admin approval |
-| `/admin`, `/admin/login` | admin | Internal console. No signup route — admins are seeded, then created by an admin |
+| `/admin` | admin | Protected session door: dashboard with an admin session, otherwise admin sign-in |
+| `/admin/login` | admin | Internal console login. No signup route - admins are seeded, then invited by an admin |
 | `/verify-email`, `/forgot-password`, `/reset-password`, OAuth landings | either | Portal-neutral, carried in `?portal=` because the Google callback redirects here |
 
 The workspace lived under `/admin/*` before Phase 3A. Those URLs redirect to
 their `/hire` equivalent, parameters and query intact.
+
+Public visitors can browse the landing page, job board, and job details. An
+anonymous Apply action navigates to `/login` and preserves the job detail URL so
+successful seeker authentication can return there; the API still independently
+requires a seeker-signed session before creating an application. A seeker
+session does not block `/hire/signup`, because one person may later create a
+separate recruiter account.
 
 `/browse` was a second, weaker job board until Phase 2B-2 — keyword-only, with
 no facets, pagination or loading state — and it was where the hero search and
@@ -456,7 +480,10 @@ need it withholds every session cookie.
 
 `__Host-` prefixed cookies work in all three cases: the prefix forbids a
 `Domain` attribute, so each origin sets its own cookie rather than one cookie
-spanning both. See [ADR-0005](docs/adr/0005-cookie-sessions.md).
+spanning both. All three session-cookie families, including CSRF, are
+portal-scoped so concurrent seeker, recruiter, and admin sessions do not
+overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
+[ADR-0008](docs/adr/0008-portal-scoped-browser-sessions.md).
 
 ## Roadmap
 

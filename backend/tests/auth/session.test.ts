@@ -87,7 +87,7 @@ async function issue(app: Express, portal: "seeker" | "recruiter"): Promise<Sess
   return {
     refresh: cookieValue(res, refreshCookieName(portal)),
     access: cookieValue(res, accessCookieName(portal)),
-    csrf: cookieValue(res, csrfCookieName()),
+    csrf: cookieValue(res, csrfCookieName(portal)),
     subjectId,
   };
 }
@@ -129,7 +129,9 @@ describe("session issuance", () => {
     // ADR-0001: one person may hold both. Distinct names are what stop the
     // second sign-in from evicting the first.
     expect(refreshCookieName("seeker")).not.toBe(refreshCookieName("recruiter"));
+    expect(csrfCookieName("seeker")).not.toBe(csrfCookieName("recruiter"));
     expect(seeker.refresh).not.toBe(recruiter.refresh);
+    expect(seeker.csrf).not.toBe(recruiter.csrf);
   });
 });
 

@@ -68,7 +68,12 @@ const persistConfig = {
  * is not a path it understands and would silently do nothing.
  */
 const persistedAuth = persistReducer(
-  { key: "auth", version: 2, storage, blacklist: ["bootstrapped", "loading"] },
+  {
+    key: "auth",
+    version: 2,
+    storage,
+    blacklist: ["activePortal", "bootstrapped", "bootstrappedPortals", "loading"],
+  },
   authSlice,
 );
 

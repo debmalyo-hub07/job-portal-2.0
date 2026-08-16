@@ -58,9 +58,9 @@ Guidance for Claude Code when working in this repository.
 - **New endpoints:** define the Zod schema in `packages/shared` first.
 - **CSRF:** the token reaches the client in the **response body** of every
   session-issuing endpoint (`/login`, `/verify-email`, `/refresh`, `/me`) and
-  lives in a module variable in `apiClient.ts`. Never read it back from
+  lives in a portal-keyed module record in `apiClient.ts`. Never read it back from
   `document.cookie`: cross-site — which the deployed app is, web on Vercel and
-  API on Render — the browser stores and sends `__Host-jp_csrf` but withholds it
+  API on Render — the browser stores and sends `__Host-jp_<portal>_csrf` but withholds it
   from `document.cookie` regardless of `httpOnly: false`. That is cookie
   partitioning, not `httpOnly`, and same-origin dev cannot reproduce it. `/me`
   must return one too, because a reload and the Google callback's top-level
@@ -110,8 +110,10 @@ Guidance for Claude Code when working in this repository.
   exception is the seven shared OAuth/OTP pages, which read `?portal=` because
   the backend redirects to portal-neutral paths — and even there `PortalScope`
   ignores the param when resolving the signal colour.
-- **Frontend route prefixes:** `/hire/*` is the whole recruiter surface
-  (marketing, auth, workspace) and `/admin/*` is the admin console. The
+- **Frontend route prefixes:** `/hire/*` is recruiter auth/workspace and
+  `/admin/*` is the admin console. Bare `/hire` and `/admin` are protected
+  session doors; anonymous or wrong-role visitors go to the destination
+  portal's login. Auth pages remain public. The
   workspace lived under `/admin/*` before 3A; those URLs redirect. A workspace
   page must go through the `workspace()` helper in `appRoutes.tsx`, which
   composes both gates in the order the API applies them.
@@ -320,7 +322,7 @@ What 2B-4 closed:
 What the first live deployment closed:
 
 - **Every write in the deployed app answered 403, and it presented as the
-  session logging itself out.** `readCsrfToken()` matched `__Host-jp_csrf` out of
+  session logging itself out.** `readCsrfToken()` matched the CSRF cookie out of
   `document.cookie`. Cross-site — web on Vercel, API on Render — the browser
   stores and sends that cookie but withholds it from `document.cookie` despite
   `httpOnly: false`; measured in a real browser, three cookies stored and
@@ -475,8 +477,9 @@ What 3B closed:
   mapping.** That ternary was hand-written in five places (`Login`, `Signup`,
   `AuthComplete`, `VerifyEmail`, `Home`), each reading `recruiter ? /hire : /`,
   which sent an admin to the seeker job board. Never write it inline again.
-  `ProtectedRoute` uses it too, so a wrong-portal user lands at their *own*
-  home rather than a generic `/`
+  Post-login navigation uses it; protected-route rejection instead sends a
+  wrong-role user to the destination portal's login, where the validated return
+  path can be resumed after the correct account signs in
 - **Deny is deliberately not idempotent, unlike approve.** `POST
   /admin/recruiters/:id/deny` answers 409 on an already-active recruiter rather
   than overwriting an approval a colleague just made. It sets `suspended`,
@@ -577,8 +580,9 @@ What 2B-1 closed:
   `AuthError`) stay portal-neutral and keep reading `?portal=`, because the
   Google callback redirects to portal-neutral paths. `PortalScope` still ignores
   that param — the query never moves the portal
-- `/hire` is the employer front door. Before it, an anonymous visitor wanting to
-  hire was bounced to the seeker home and shown "Get Your Dream Job"
+- `/hire` began as the employer front door and is now a protected recruiter
+  session door: a recruiter session enters the workspace and everyone else sees
+  recruiter login. `/hire/login` and `/hire/signup` remain public
 - Four layout primitives in `src/components/layout` — `PageShell`, `PageHeader`,
   `EmptyState`, `FormField` — plus `AuthLayout`/`PortalPanel` in
   `src/components/auth`. `FormField` wires `aria-describedby` and `aria-invalid`
@@ -587,7 +591,7 @@ What 2B-1 closed:
   `data-density`, which resolves `--space-section`/`-card`/`-row`/`-field`/
   `-page-top`, exactly as `data-portal` resolves signal colour. Never hand-tune
   spacing on a page; pass `density`. It follows the surface's job, not the
-  portal — `/hire` is recruiter-scoped but spacious, because it is marketing
+  portal; public discovery can be spacious while workspaces stay compact
 - `.tsx` files are actually linted now. `eslint.config.js` matched
   `**/*.{js,jsx}` only, so every `.tsx` resolved to "no matching configuration"
   and `npm run lint` passed vacuously

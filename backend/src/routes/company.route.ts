@@ -17,11 +17,11 @@ const router = express.Router();
 // empty workspace into an error screen with nothing to explain it.
 router
   .route("/register")
-  .post(authenticate("recruiter"), requireApproved, csrfProtection, registerCompany);
+  .post(authenticate("recruiter"), requireApproved, csrfProtection(), registerCompany);
 router.route("/get").get(authenticate("recruiter"), getCompany);
 router.route("/get/:id").get(authenticate("recruiter"), getCompanyById);
 router
   .route("/update/:id")
-  .put(authenticate("recruiter"), requireApproved, csrfProtection, logoUpload, updateCompany);
+  .put(authenticate("recruiter"), requireApproved, csrfProtection(), logoUpload, updateCompany);
 
 export default router;

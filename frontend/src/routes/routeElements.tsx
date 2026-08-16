@@ -2,6 +2,8 @@ import { Navigate, Outlet, useLocation } from "react-router";
 
 import { PortalScope } from "@/components/theme/PortalScope";
 import { useAppSelector } from "@/redux/store";
+import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
+import { portalIsBootstrapped, userForPortal } from "@/redux/authSlice";
 
 /**
  * The components the route table mounts directly.
@@ -46,11 +48,25 @@ export function WorkspaceRedirect() {
  * wordmark from being shown a login form they have already completed.
  */
 export function AdminHomeRedirect() {
-  const { user, bootstrapped } = useAppSelector((state) => state.auth);
+  useAuthBootstrap("admin");
+  const user = useAppSelector((state) => userForPortal(state.auth, "admin"));
+  const bootstrapped = useAppSelector((state) => portalIsBootstrapped(state.auth, "admin"));
   // Waiting for /me is not being signed out: redirecting before the answer
   // arrives sends every hard reload of /admin to the login page.
   if (!bootstrapped) return null;
   return <Navigate to={user?.portal === "admin" ? "/admin/dashboard" : "/admin/login"} replace />;
+}
+
+/** The recruiter prefix is a session door, not a public workspace preview. */
+export function RecruiterHomeRedirect() {
+  useAuthBootstrap("recruiter");
+  const user = useAppSelector((state) => userForPortal(state.auth, "recruiter"));
+  const bootstrapped = useAppSelector((state) =>
+    portalIsBootstrapped(state.auth, "recruiter"),
+  );
+
+  if (!bootstrapped) return null;
+  return <Navigate to={user ? "/hire/companies" : "/hire/login"} replace />;
 }
 
 /**

@@ -10,7 +10,7 @@ const router = express.Router();
 // matters most. There are no job update or delete routes to gate.
 router
   .route("/post")
-  .post(authenticate("recruiter"), requireApproved, csrfProtection, postJob);
+  .post(authenticate("recruiter"), requireApproved, csrfProtection(), postJob);
 // Public: the job board and a job's detail page are the product's front door.
 // The inherited code required a session on both, so an anonymous visitor got a
 // 401 and the home page rendered "No Job Available". `optionalAuthenticate`

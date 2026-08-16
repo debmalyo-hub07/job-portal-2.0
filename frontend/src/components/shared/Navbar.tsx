@@ -18,18 +18,22 @@ import { Wordmark } from "./Wordmark";
 import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { initialsOf } from "@/lib/initials";
-import { setUser } from "@/redux/authSlice";
+import { clearPortalSession, userForPortal } from "@/redux/authSlice";
 import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { landingPathFor } from "@/lib/portalHome";
+import { landingPathFor, loginPathFor } from "@/lib/portalHome";
+import { portalForPath } from "@/lib/portalRoutes";
+import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
 
 const Navbar = () => {
-  const { user } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const routePortal = portalForPath(pathname);
+  useAuthBootstrap(routePortal);
+  const user = useAppSelector((state) => userForPortal(state.auth, routePortal));
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -60,10 +64,10 @@ const Navbar = () => {
       // Local state is cleared either way. A logout that failed server-side is
       // still a user who asked to be signed out, and leaving them looking
       // signed in is the worse of the two wrong answers.
-      clearPortalHint();
-      setCsrfToken(null);
-      dispatch(setUser(null));
-      navigate("/");
+      clearPortalHint(user.portal);
+      setCsrfToken(user.portal, null);
+      dispatch(clearPortalSession(user.portal));
+      navigate(user.portal === "seeker" ? "/" : loginPathFor(user.portal));
     }
   };
 

@@ -20,6 +20,14 @@ could become a recruiter by filling in a form. The checks worked as designed;
 the flaw was that the caller they authorised was self-appointed. Recruiter
 accounts now start `pending` and an admin approves them.
 
+Portal session isolation is now complete in the browser as well. `/hire` and
+`/admin` are protected session doors, wrong-role sessions are sent to the
+destination portal's login, and seeker, recruiter, and admin cookies can coexist
+without overwriting one another. These client guards prevent accidental UI
+exposure; the actual boundary remains server-side portal authentication and
+ownership checks. The admin URL is not secret and does not need to be hidden or
+encrypted to be secure.
+
 The remaining known issues are in [Not yet
 fixed](#not-yet-fixed--known-and-scheduled) below. None is an access-control
 defect; the open items are a performance ceiling on search and an orphaned
@@ -110,6 +118,26 @@ comes from `npm run seed:admin`, and later ones from an existing admin.
 `authenticateAny` and `optionalAuthenticate` deliberately exclude admin, so an
 admin cookie can never satisfy a domain route that meant "some signed-in user".
 
+There is no hardcoded production admin credential. `seed:admin` accepts the
+first admin's email and name at runtime, accepts no password, and mails a
+short-lived password setup code. Later admin invitations require an existing
+admin-signed session, admin-scoped CSRF, a 5/hour rate limit, mail readiness,
+strict input validation, and a timing-safe comparison against
+`ADMIN_PROVISIONING_SECRET`. That secret belongs only in the API environment,
+never in Vercel or a `VITE_*` variable; the presented field is redacted from
+logs.
+
+### Fixed in the portal session isolation pass
+
+- Access, refresh, and CSRF cookies are all named per portal. Signing into or
+  out of one portal cannot replace another portal's cookie or CSRF state.
+- The frontend stores one cached user, bootstrap flag, in-memory CSRF token, and
+  refresh promise per portal. Every protected route verifies its own portal via
+  `/me` before rendering.
+- Public job browsing remains available. An anonymous Apply action navigates to
+  seeker login with a validated return path; `POST /application/apply/:id`
+  independently requires a seeker-signed session.
+
 ### Fixed in the security hardening pass
 
 - Production startup requires HTTPS base URLs and a server-only Cloudflare
@@ -140,12 +168,13 @@ admin cookie can never satisfy a domain route that meant "some signed-in user".
   baseline). Existing bcrypt hashes are detected by prefix and transparently
   rehashed on next successful login.
 - **Access token:** JWT, 15-minute lifetime, `httpOnly` + `secure` + `sameSite`
-  cookie.
+  cookie named per portal.
 - **Refresh token:** opaque 32 random bytes, 7-day lifetime, stored SHA-256
   hashed with a family id. Rotated on every use. Presenting an already-spent
   token means theft, so the whole family is revoked and the session ends.
 - **CSRF:** double-submit token, since auth rides in cookies. The token is
-  **MAC-bound**, not a bare random value — see the ADR-0005 amendment.
+  **MAC-bound**, not a bare random value, and its cookie is named per portal so
+  concurrent sessions cannot overwrite one another. See ADR-0005 and ADR-0008.
 - **Email verification:** 6-digit OTP via Brevo, hashed at rest, 10-minute TTL,
   5 attempts. Codes are stored as
   `HMAC-SHA256(OTP_PEPPER, "<subjectId>:<code>")` — bound to the subject, not

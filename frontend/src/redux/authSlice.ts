@@ -1,8 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { SessionUser } from "@jobportal/shared";
+import type { Portal, SessionUser } from "@jobportal/shared";
 
-type AuthState = {
+type PortalUsers = Partial<Record<Portal, SessionUser>>;
+type PortalFlags = Record<Portal, boolean>;
+
+export type AuthState = {
   loading: boolean;
+  /** Compatibility view of the portal currently represented by the URL. */
   user: SessionUser | null;
   /**
    * Whether `/me` has answered yet. Distinct from `user === null`, which cannot
@@ -10,13 +14,27 @@ type AuthState = {
    * apart bounces a signed-in recruiter to the home page on every hard reload.
    */
   bootstrapped: boolean;
+  activePortal: Portal | null;
+  sessions: PortalUsers;
+  bootstrappedPortals: PortalFlags;
 };
 
 const initialState: AuthState = {
   loading: false,
   user: null,
   bootstrapped: false,
+  activePortal: null,
+  sessions: {},
+  bootstrappedPortals: {
+    seeker: false,
+    recruiter: false,
+    admin: false,
+  },
 };
+
+function cachedUser(state: AuthState, portal: Portal): SessionUser | null {
+  return state.sessions[portal] ?? (state.user?.portal === portal ? state.user : null);
+}
 
 const authSlice = createSlice({
   name: "auth",
@@ -26,13 +44,77 @@ const authSlice = createSlice({
       state.loading = action.payload;
     },
     setUser: (state, action: PayloadAction<SessionUser | null>) => {
-      state.user = action.payload;
+      const user = action.payload;
+      if (user) {
+        state.sessions[user.portal] = user;
+        state.bootstrappedPortals[user.portal] = true;
+        state.activePortal = user.portal;
+        state.user = user;
+        state.bootstrapped = true;
+        return;
+      }
+
+      if (state.activePortal) {
+        delete state.sessions[state.activePortal];
+        state.bootstrappedPortals[state.activePortal] = true;
+      }
+      state.user = null;
+      state.bootstrapped = true;
     },
     setBootstrapped: (state, action: PayloadAction<boolean>) => {
       state.bootstrapped = action.payload;
+      if (state.activePortal) state.bootstrappedPortals[state.activePortal] = action.payload;
+    },
+    setActivePortal: (state, action: PayloadAction<Portal>) => {
+      const portal = action.payload;
+      state.activePortal = portal;
+      state.user = cachedUser(state, portal);
+      state.bootstrapped = state.bootstrappedPortals[portal];
+    },
+    setPortalSession: (
+      state,
+      action: PayloadAction<{ portal: Portal; user: SessionUser }>,
+    ) => {
+      const { portal, user } = action.payload;
+      if (user.portal !== portal) return;
+      state.sessions[portal] = user;
+      if (state.activePortal === portal) state.user = user;
+    },
+    clearPortalSession: (state, action: PayloadAction<Portal>) => {
+      const portal = action.payload;
+      delete state.sessions[portal];
+      state.bootstrappedPortals[portal] = true;
+      if (state.activePortal === portal) {
+        state.user = null;
+        state.bootstrapped = true;
+      }
+    },
+    setPortalBootstrapped: (
+      state,
+      action: PayloadAction<{ portal: Portal; value: boolean }>,
+    ) => {
+      const { portal, value } = action.payload;
+      state.bootstrappedPortals[portal] = value;
+      if (state.activePortal === portal) state.bootstrapped = value;
     },
   },
 });
 
-export const { setLoading, setUser, setBootstrapped } = authSlice.actions;
+export function userForPortal(state: AuthState, portal: Portal): SessionUser | null {
+  return cachedUser(state, portal);
+}
+
+export function portalIsBootstrapped(state: AuthState, portal: Portal): boolean {
+  return state.bootstrappedPortals[portal] ?? false;
+}
+
+export const {
+  clearPortalSession,
+  setActivePortal,
+  setBootstrapped,
+  setLoading,
+  setPortalBootstrapped,
+  setPortalSession,
+  setUser,
+} = authSlice.actions;
 export default authSlice.reducer;

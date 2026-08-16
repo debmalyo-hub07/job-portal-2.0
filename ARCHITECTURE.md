@@ -250,16 +250,35 @@ because the Google callback redirects to portal-neutral paths — but even there
 `PortalScope` ignores the param, so the query changes the form's target endpoint
 and never the resolved portal.
 
-`localStorage["jp.portal"]` is a **hint, not a credential**: it decides which
-mount `/refresh` and `/me` are sent to. Authority lives in the `httpOnly` cookie,
-whose key is derived per portal, so a tampered hint can only produce a 401.
+`localStorage["jp.portal"]` is a **hint, not a credential**. It is a reload and
+new-tab fallback for the last active portal; once a tab resolves a route,
+`activatePortal(portal)` pins refresh retries to that route's portal. Authority
+lives in portal-scoped `httpOnly` cookies, so tampering with the hint can only
+select an endpoint whose cookie validation then fails.
+
+Browser auth state is also portal-scoped. Redux stores `sessions[portal]` and
+`bootstrappedPortals[portal]`; each `ProtectedRoute`, `GuestRoute`, and bare
+portal redirect calls `useAuthBootstrap(requiredPortal)` and verifies that
+specific cookie through `/<portal>/auth/me`. Cached users persist only to avoid
+a signed-out flash. Bootstrap flags do not persist, so a reload always asks the
+server before protected content renders.
+
+Access, refresh, and CSRF cookies all use portal-specific names. The Axios
+client mirrors that boundary with one in-memory CSRF token and one in-flight
+refresh promise per portal. A seeker and recruiter session can therefore
+coexist, and signing out of one clears only that portal. See ADR-0008.
 
 ### Three prefixes, three portals
 
 `/admin` belongs to the **admin** portal as of Phase 3A. The recruiter workspace
 that lived there through 2B-1 moved to `/hire/*`, so the whole recruiter surface
-— marketing, auth and workspace — sits under one prefix and resolves one signal
-colour.
+— auth and workspace — sits under one prefix and resolves one signal colour.
+
+The bare `/hire` and `/admin` paths are protected session doors, not public
+workspace previews. They bootstrap the destination portal and route a matching
+session to its workspace or an anonymous/wrong-role visitor to that portal's
+login. Auth pages remain public, so a signed-in seeker may still open
+`/hire/signup` to create a separate recruiter account.
 
 Pre-3A URLs redirect via a prefix swap (`WorkspaceRedirect`) rather than a list
 of literal targets: the workspace paths most worth bookmarking are the
@@ -269,6 +288,12 @@ Both client gates compose in one place (`appRoutes.tsx`), in the order the API
 applies them — `ProtectedRoute portal="recruiter"` then `RequireApproved` — so a
 new workspace page cannot ship with one of them missing. `RequireApproved` is
 presentation only; the API is what actually refuses the write.
+
+Wrong-role sessions never satisfy a destination guard. The redirect goes to the
+destination portal's login, not the current user's home. This is navigation
+behavior, not the security boundary: every API route still authenticates its
+literal portal server-side. The admin URL is intentionally ordinary and
+discoverable; obscuring or encrypting a path would not replace authorization.
 
 ### Tokens resolve, components do not branch
 
@@ -298,11 +323,16 @@ plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 
 ### Client state
 
-Redux Toolkit with redux-persist. The persistence is why tests must build their
-own store: `tests/helpers/renderRoute.tsx` exports `makeStore()` with the same
-reducers and no persistence, because a test that dispatched a signed-in user
-into the app's store would rehydrate it into every later test and make failures
-depend on file order.
+Redux Toolkit with redux-persist. The auth subtree persists the per-portal user
+cache, but blacklists `activePortal`, loading, and every bootstrap flag. The
+server remains authoritative after every reload while users avoid a signed-out
+flash.
+
+Persistence is why tests must build their own store:
+`tests/helpers/renderRoute.tsx` exports `makeStore()` with the same reducers and
+no persistence, because a test that dispatched a signed-in user into the app's
+store would rehydrate it into every later test and make failures depend on file
+order.
 
 ## Configuration
 

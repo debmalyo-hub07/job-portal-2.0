@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, MapPin } from "lucide-react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
 
@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setSingleJob } from "@/redux/jobSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
+import { userForPortal } from "@/redux/authSlice";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
@@ -24,12 +25,21 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
 
 const JobDescription = () => {
   const { singleJob } = useAppSelector((state) => state.job);
-  const { user } = useAppSelector((state) => state.auth);
+  const user = useAppSelector((state) => userForPortal(state.auth, "seeker"));
   const { id: jobId } = useParams();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isApplied, setIsApplied] = useState(false);
 
   const applyJobHandler = async () => {
+    if (!user) {
+      navigate("/login", {
+        state: { from: `${location.pathname}${location.search}${location.hash}` },
+      });
+      return;
+    }
+
     try {
       const response = await apiClient.post<{ success: boolean; message: string }>(
         `/application/apply/${jobId}`,
@@ -72,7 +82,7 @@ const JobDescription = () => {
     return () => {
       cancelled = true;
     };
-  }, [jobId, user?.portal, user?.id]);
+  }, [jobId, user?.id, user?.portal]);
 
   if (!singleJob) {
     return (
