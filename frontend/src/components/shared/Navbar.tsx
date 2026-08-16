@@ -23,7 +23,7 @@ import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { homePathFor } from "@/lib/portalHome";
+import { landingPathFor } from "@/lib/portalHome";
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -89,7 +89,7 @@ const Navbar = () => {
       <nav className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6">
         <Wordmark
           portal={navbarPortal}
-          to={user ? homePathFor(user.portal) : isRecruiter || isPublicRecruiter ? "/hire" : "/"}
+          to={user ? landingPathFor(user.portal) : isRecruiter || isPublicRecruiter ? "/hire" : "/"}
           className="text-[1.65rem]"
           tone={mediaTone ? "media" : "default"}
         />

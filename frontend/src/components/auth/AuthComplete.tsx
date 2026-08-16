@@ -29,8 +29,8 @@ const AuthComplete = () => {
         // `replace` on both paths: without it, Back returns to a callback URL
         // carrying a spent `code` and `state`, which fails and looks like a bug.
         //
-        // Portal-aware destination: sending a recruiter to "/" worked only
-        // because Home.tsx bounces them, which flashes the seeker hero first.
+        // Portal-aware destination: sign-in still enters the working surface,
+        // while the public landing page remains available from its Home link.
         navigate(homePathFor(portal), { replace: true });
       })
       .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));

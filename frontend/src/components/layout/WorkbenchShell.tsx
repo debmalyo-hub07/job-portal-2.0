@@ -25,7 +25,7 @@ export function WorkbenchShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
-  const links = navLinksFor(portal);
+  const links = navLinksFor(portal, "session");
 
   return (
     <>

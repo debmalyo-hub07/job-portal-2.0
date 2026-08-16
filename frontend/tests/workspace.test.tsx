@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { computeSeekerFit, type Portal } from "@jobportal/shared";
+import type { RouteObject } from "react-router";
 
 import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
 import { apiClient } from "@/lib/apiClient";
@@ -98,7 +99,7 @@ describe("HireShell", () => {
       { route: "/hire/jobs" },
     );
     const nav = screen.getByRole("navigation", { name: "Workspace sections" });
-    for (const link of navLinksFor("recruiter")) {
+    for (const link of navLinksFor("recruiter", "session")) {
       expect(within(nav).getByRole("link", { name: link.label })).toHaveAttribute(
         "href",
         link.to,
@@ -418,8 +419,14 @@ describe("workspace routes", () => {
     CONCRETE.map((path) => [portal, path] as const),
   );
 
-  const mountedPaths = () =>
-    appRoutes.flatMap((r) => (r.children ?? []).map((c) => c.path)).filter(Boolean);
+  const mountedPaths = () => {
+    const collect = (routes: RouteObject[]): string[] =>
+      routes.flatMap((route) => [
+        ...(route.path ? [route.path] : []),
+        ...collect(route.children ?? []),
+      ]);
+    return collect(appRoutes);
+  };
 
   it("mounts every workspace path", () => {
     const paths = mountedPaths();
@@ -457,6 +464,6 @@ describe("workspace routes", () => {
 
   it("links only to paths the route table mounts", () => {
     const paths = mountedPaths();
-    for (const link of navLinksFor("recruiter")) expect(paths).toContain(link.to);
+    for (const link of navLinksFor("recruiter", "session")) expect(paths).toContain(link.to);
   });
 });

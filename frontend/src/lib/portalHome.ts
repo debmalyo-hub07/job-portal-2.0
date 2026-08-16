@@ -23,6 +23,18 @@ export function homePathFor(portal: Portal): string {
   }
 }
 
+/** Public landing page represented by a portal's wordmark and Home link. */
+export function landingPathFor(portal: Portal): string {
+  switch (portal) {
+    case "recruiter":
+      return "/hire";
+    case "admin":
+      return "/admin/dashboard";
+    case "seeker":
+      return "/";
+  }
+}
+
 export function loginPathFor(portal: Portal): string {
   switch (portal) {
     case "recruiter":

@@ -39,7 +39,6 @@ import Help from "@/pages/Help";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import { PublicLayout } from "@/components/layout/PublicLayout";
-import GuestRoute from "@/components/routing/GuestRoute";
 
 const DesignGallery = import.meta.env.DEV
   ? lazy(() => import("@/components/design/DesignGallery"))
@@ -93,11 +92,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           {
             path: "/",
-            element: (
-              <GuestRoute>
-                <Home />
-              </GuestRoute>
-            ),
+            element: <Home />,
           },
           { path: "/jobs", element: <Jobs /> },
           { path: "/description/:id", element: <JobDescription /> },
@@ -111,11 +106,7 @@ export const appRoutes: RouteObject[] = [
           },
           {
             path: "/hire",
-            element: (
-              <GuestRoute>
-                <HireLanding />
-              </GuestRoute>
-            ),
+            element: <HireLanding />,
           },
           // The informational surfaces. `siteNav.ts` lists the same paths for
           // the footer, and publicPages.test.tsx asserts the two agree — a page

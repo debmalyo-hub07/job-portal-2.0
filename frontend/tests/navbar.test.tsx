@@ -56,6 +56,22 @@ describe("Navbar account menu", () => {
     expect(getByRole("link", { name: /cairn/i })).toHaveAttribute("href", "/hire");
   });
 
+  it.each([
+    ["seeker", "/"],
+    ["recruiter", "/hire"],
+  ] as const)("links the signed-in %s wordmark to its landing page", (portal, home) => {
+    const { getByRole } = renderNavbar(storeWithUser(portal));
+    expect(getByRole("link", { name: /cairn/i })).toHaveAttribute("href", home);
+  });
+
+  it.each([
+    ["seeker", "/"],
+    ["recruiter", "/hire"],
+  ] as const)("includes a Home link for a signed-in %s", (portal, home) => {
+    const { getAllByRole } = renderNavbar(storeWithUser(portal));
+    expect(getAllByRole("link", { name: "Home" }).some((link) => link.getAttribute("href") === home)).toBe(true);
+  });
+
   it("shows no auth links when signed in", () => {
     const { queryByRole } = renderNavbar(storeWithUser("seeker"));
     expect(queryByRole("link", { name: /sign in/i })).not.toBeInTheDocument();

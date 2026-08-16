@@ -16,6 +16,13 @@ export type NavLink = { to: string; label: string };
 export function navLinksFor(portal: Portal, surface: "public" | "session" = "public"): NavLink[] {
   switch (portal) {
     case "recruiter":
+      if (surface === "session") {
+        return [
+          { to: "/hire", label: "Home" },
+          { to: "/hire/companies", label: "Companies" },
+          { to: "/hire/jobs", label: "Jobs" },
+        ];
+      }
       return [
         { to: "/hire/companies", label: "Companies" },
         { to: "/hire/jobs", label: "Jobs" },
@@ -40,6 +47,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
     case "seeker":
       if (surface === "session") {
         return [
+          { to: "/", label: "Home" },
           { to: "/jobs", label: "Jobs" },
           { to: "/profile", label: "Profile" },
           { to: "/help", label: "Help" },

@@ -5,7 +5,7 @@ import { homePathFor } from "@/lib/portalHome";
 import { getPortalHint } from "@/lib/portal";
 import { useAppSelector } from "@/redux/store";
 
-/** Keeps signed-in sessions out of public entry and authentication screens. */
+/** Keeps signed-in sessions out of login and signup screens. */
 export function GuestRoute({ children }: { children: ReactNode }) {
   const { user, bootstrapped } = useAppSelector((state) => state.auth);
 

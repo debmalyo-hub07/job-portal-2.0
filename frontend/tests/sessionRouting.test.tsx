@@ -30,6 +30,18 @@ function anonymousStore() {
 
 describe("portal route isolation", () => {
   it.each([
+    ["seeker", "/", /work that fits your next move/i],
+    ["recruiter", "/hire", /build the team/i],
+  ] satisfies Array<[Portal, string, RegExp]>) (
+    "keeps the signed-in %s landing page reachable",
+    async (portal, path, heading) => {
+      const view = renderAppAt(path, { store: sessionStore(portal) });
+      expect(await view.findByRole("heading", { level: 1, name: heading })).toBeInTheDocument();
+      expect(view.pathname()).toBe(path);
+    },
+  );
+
+  it.each([
     ["/profile", "/login"],
     ["/hire/jobs", "/hire/login"],
     ["/admin/dashboard", "/admin/login"],
