@@ -518,8 +518,8 @@ form ships with its endpoint. The legal pages carry a draft notice pending
 counsel; a public companies directory and a contact form are the next
 candidates for a phase.
 
-Design documents live in `docs/superpowers/specs/`, and the decisions behind
-them in `docs/adr/`.
+Durable architectural decisions live in `docs/adr/`. Keep implementation
+planning in issues or pull requests rather than adding repository plan archives.
 
 ## Security
 

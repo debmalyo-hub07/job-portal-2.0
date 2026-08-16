@@ -3,8 +3,7 @@
  *
  * Why a hand-written shader rather than three.js: this draws one full-screen
  * triangle pair with no geometry, no camera, no lighting and no loader. three.js
- * is ~170 kB gzipped to provide a scene graph nothing here has. See
- * docs/superpowers/specs — the same argument rejected it for the 2A foundation.
+ * is ~170 kB gzipped to provide a scene graph nothing here has.
  *
  * Terser does not minify string contents, so this is roughly its shipped size.
  * That is the honest cost of the effect: a couple of kB, not a rendering engine.

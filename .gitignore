@@ -32,6 +32,7 @@ dist-ssr
 
 # Brainstorming companion scratch files
 .superpowers/
+.kilo/
 
 # Build output
 dist/

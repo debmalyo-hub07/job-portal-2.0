@@ -19,7 +19,7 @@ npm run dev:web                  # terminal 2
 
 | Prefix | Use |
 |---|---|
-| `phase-N/topic` | Work from a plan in `docs/superpowers/plans/` |
+| `phase-N/topic` | Historical phase naming; use an issue or focused task |
 | `feat/topic` | New functionality |
 | `fix/topic` | Bug fix |
 | `docs/topic` | Documentation only |
