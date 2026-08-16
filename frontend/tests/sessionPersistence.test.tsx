@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AxiosHeaders } from "axios";
+import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { render, waitFor } from "@testing-library/react";
 
 import { apiClient } from "@/lib/apiClient";
 import { clearPortalHint, setPortalHint } from "@/lib/portal";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
-import { setPortalBootstrapped, setUser } from "@/redux/authSlice";
+import {
+  portalIsBootstrapped,
+  setPortalBootstrapped,
+  setUser,
+  userForPortal,
+  type AuthState,
+} from "@/redux/authSlice";
 import { makeStore } from "./helpers/renderRoute";
 
 function BootstrapProbe() {
@@ -90,5 +97,36 @@ describe("session persistence", () => {
     });
 
     expect(post).toHaveBeenCalledWith("/recruiter/auth/refresh");
+  });
+
+  it("safely handles unmigrated auth state missing bootstrappedPortals and sessions", () => {
+    // Simulate a legacy rehydrated state where neither `bootstrappedPortals` nor `sessions` exist
+    const legacyAuth = {
+      loading: false,
+      user: null,
+      bootstrapped: false,
+    } as unknown as AuthState;
+
+    expect(portalIsBootstrapped(legacyAuth, "seeker")).toBe(false);
+    expect(userForPortal(legacyAuth, "seeker")).toBe(null);
+  });
+
+  it("renders BootstrapProbe without throwing when state lacks bootstrappedPortals", () => {
+    const store = makeStore();
+    // Recreate a store with a legacy unmigrated state structure
+    const legacyStore = configureStore({
+      reducer: {
+        auth: (state = { loading: false, user: null, bootstrapped: false } as unknown as AuthState) => state,
+        job: store.getState().job ? () => store.getState().job : () => ({}) as never,
+      },
+    });
+
+    expect(() =>
+      render(
+        <Provider store={legacyStore}>
+          <BootstrapProbe />
+        </Provider>,
+      ),
+    ).not.toThrow();
   });
 });

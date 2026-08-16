@@ -19,21 +19,29 @@ export type AuthState = {
   bootstrappedPortals: PortalFlags;
 };
 
+const defaultFlags = (): PortalFlags => ({
+  seeker: false,
+  recruiter: false,
+  admin: false,
+});
+
 const initialState: AuthState = {
   loading: false,
   user: null,
   bootstrapped: false,
   activePortal: null,
   sessions: {},
-  bootstrappedPortals: {
-    seeker: false,
-    recruiter: false,
-    admin: false,
-  },
+  bootstrappedPortals: defaultFlags(),
 };
 
+function ensureState(state: AuthState): void {
+  if (!state.sessions) state.sessions = {};
+  if (!state.bootstrappedPortals) state.bootstrappedPortals = defaultFlags();
+}
+
 function cachedUser(state: AuthState, portal: Portal): SessionUser | null {
-  return state.sessions[portal] ?? (state.user?.portal === portal ? state.user : null);
+  if (!state) return null;
+  return state.sessions?.[portal] ?? (state.user?.portal === portal ? state.user : null) ?? null;
 }
 
 const authSlice = createSlice({
@@ -44,6 +52,7 @@ const authSlice = createSlice({
       state.loading = action.payload;
     },
     setUser: (state, action: PayloadAction<SessionUser | null>) => {
+      ensureState(state);
       const user = action.payload;
       if (user) {
         state.sessions[user.portal] = user;
@@ -62,25 +71,29 @@ const authSlice = createSlice({
       state.bootstrapped = true;
     },
     setBootstrapped: (state, action: PayloadAction<boolean>) => {
+      ensureState(state);
       state.bootstrapped = action.payload;
       if (state.activePortal) state.bootstrappedPortals[state.activePortal] = action.payload;
     },
     setActivePortal: (state, action: PayloadAction<Portal>) => {
+      ensureState(state);
       const portal = action.payload;
       state.activePortal = portal;
       state.user = cachedUser(state, portal);
-      state.bootstrapped = state.bootstrappedPortals[portal];
+      state.bootstrapped = state.bootstrappedPortals[portal] ?? false;
     },
     setPortalSession: (
       state,
       action: PayloadAction<{ portal: Portal; user: SessionUser }>,
     ) => {
+      ensureState(state);
       const { portal, user } = action.payload;
       if (user.portal !== portal) return;
       state.sessions[portal] = user;
       if (state.activePortal === portal) state.user = user;
     },
     clearPortalSession: (state, action: PayloadAction<Portal>) => {
+      ensureState(state);
       const portal = action.payload;
       delete state.sessions[portal];
       state.bootstrappedPortals[portal] = true;
@@ -93,6 +106,7 @@ const authSlice = createSlice({
       state,
       action: PayloadAction<{ portal: Portal; value: boolean }>,
     ) => {
+      ensureState(state);
       const { portal, value } = action.payload;
       state.bootstrappedPortals[portal] = value;
       if (state.activePortal === portal) state.bootstrapped = value;
@@ -105,7 +119,7 @@ export function userForPortal(state: AuthState, portal: Portal): SessionUser | n
 }
 
 export function portalIsBootstrapped(state: AuthState, portal: Portal): boolean {
-  return state.bootstrappedPortals[portal] ?? false;
+  return state?.bootstrappedPortals?.[portal] ?? false;
 }
 
 export const {

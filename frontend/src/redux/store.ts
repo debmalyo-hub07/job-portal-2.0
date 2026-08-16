@@ -44,6 +44,8 @@ const persistConfig = {
   // and combineReducers warns about state keys with no reducer. No migration
   // function, for the same reason as the 1 -> 2 bump: all of it is server data
   // that refetches.
+  // 3 -> 4: blacklist `auth` at root level so the root persistor does not clobber
+  // the nested `persistedAuth` state during rehydration.
   //
   // This costs nothing at the session layer. `auth` has its own nested
   // persistReducer at key `auth` (below), which is a separate localStorage entry
@@ -51,8 +53,9 @@ const persistConfig = {
   // application while the cached `user` rehydrates normally. No signed-out
   // flicker. The nested reducer was added to keep `bootstrapped`/`loading` out of
   // storage; decoupling the session from root-version bumps is a second dividend.
-  version: 3,
+  version: 4,
   storage,
+  blacklist: ["auth"],
 };
 
 /**
@@ -70,13 +73,12 @@ const persistConfig = {
 const persistedAuth = persistReducer(
   {
     key: "auth",
-    version: 2,
+    version: 3,
     storage,
     blacklist: ["activePortal", "bootstrapped", "bootstrappedPortals", "loading"],
   },
   authSlice,
 );
-
 const rootReducer = combineReducers({
   auth: persistedAuth,
   job: jobSlice,

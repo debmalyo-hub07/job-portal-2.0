@@ -324,7 +324,8 @@ plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 ### Client state
 
 Redux Toolkit with redux-persist. The auth subtree persists the per-portal user
-cache, but blacklists `activePortal`, loading, and every bootstrap flag. The
+cache, but blacklists `activePortal`, loading, and every bootstrap flag. The root
+persistor blacklists `auth` so the nested persistor manages auth in isolation. The
 server remains authoritative after every reload while users avoid a signed-out
 flash.
 
