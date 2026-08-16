@@ -147,30 +147,28 @@
 }
 
 :root {
-  /* Ink & Signal light — warm neutrals at hue 95 */
-  --paper: oklch(0.985 0.006 82);
-  --paper-sunken: oklch(0.958 0.009 82);
-  --paper-raised: oklch(0.998 0.003 82);
-  --ink: oklch(0.205 0.016 55);
-  --ink-muted: oklch(0.49 0.018 60);
-  --line: oklch(0.875 0.013 78);
-  --media-shade: oklch(0.145 0.018 48);
-  --media-copy: oklch(0.982 0.006 82);
-  --media-surface: oklch(0.992 0.004 82);
-  --media-surface-ink: oklch(0.205 0.016 55);
+  /* Ink & Signal light — crisp alabaster neutrals with subtle cool slate undertone (hue 260) */
+  --paper: oklch(0.985 0.002 260);
+  --paper-sunken: oklch(0.955 0.004 260);
+  --paper-raised: oklch(1 0 0);
+  --ink: oklch(0.17 0.006 260);
+  --ink-muted: oklch(0.44 0.010 260);
+  --line: oklch(0.915 0.004 260);
+  --media-shade: oklch(0.12 0.015 260);
+  --media-copy: oklch(0.99 0.003 260);
+  --media-surface: oklch(0.995 0.002 260);
+  --media-surface-ink: oklch(0.17 0.006 260);
   /* Uploaded marks keep their authored colours on the same neutral canvas in
      both themes instead of inheriting a dark surface. */
   --logo-canvas: oklch(0.995 0 0);
 
   /* semantics: danger 25 / warn 75 / ok 145 — icon + label always, never colour alone */
-  --danger: oklch(0.55 0.19 25);
-  --danger-fg: oklch(0.99 0.004 95);
-  /* warn and ok are darkened from their nominal 0.62/0.55 to clear 4.5:1 against
-     --paper; both are used as body-sized badge text. */
-  --warn: oklch(0.56 0.14 75);
-  --warn-fg: oklch(0.18 0.008 95);
-  --ok: oklch(0.54 0.14 145);
-  --ok-fg: oklch(0.99 0.004 95);
+  --danger: oklch(0.54 0.20 25);
+  --danger-fg: oklch(0.99 0.004 25);
+  --warn: oklch(0.52 0.14 75);
+  --warn-fg: oklch(0.16 0.008 75);
+  --ok: oklch(0.50 0.15 145);
+  --ok-fg: oklch(0.99 0.004 145);
 
   /* motion */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -180,10 +178,10 @@
 
   /* Photography stays legible in both themes without turning into a flat dark
      rectangle behind the copy. */
-  --hero-image-brightness: 0.86;
-  --hero-image-saturation: 0.88;
-  --hero-image-contrast: 1.04;
-  --hero-wash-opacity: 0.52;
+  --hero-image-brightness: 0.88;
+  --hero-image-saturation: 0.90;
+  --hero-image-contrast: 1.05;
+  --hero-wash-opacity: 0.50;
 }
 
 .dark {
@@ -210,51 +208,51 @@
 /* Signal — portal scoped, set only from the route. Default = seeker. */
 :root,
 [data-portal="seeker"] {
-  --signal: oklch(0.62 0.17 42);
-  --signal-text: oklch(0.45 0.15 40);
-  --signal-fg: oklch(0.99 0.004 82);
-  --signal-muted: oklch(0.62 0.17 42 / 12%);
-  --signal-ring: oklch(0.62 0.17 42 / 42%);
+  --signal: oklch(0.57 0.20 282);
+  --signal-text: oklch(0.40 0.20 282);
+  --signal-fg: oklch(0.99 0.004 282);
+  --signal-muted: oklch(0.57 0.20 282 / 10%);
+  --signal-ring: oklch(0.57 0.20 282 / 35%);
 }
 [data-portal="recruiter"] {
-  --signal: oklch(0.58 0.12 175);
-  --signal-text: oklch(0.4 0.095 175);
-  --signal-fg: oklch(0.99 0.004 82);
-  --signal-muted: oklch(0.58 0.12 175 / 12%);
-  --signal-ring: oklch(0.58 0.12 175 / 42%);
+  --signal: oklch(0.52 0.14 180);
+  --signal-text: oklch(0.36 0.11 180);
+  --signal-fg: oklch(0.99 0.004 180);
+  --signal-muted: oklch(0.52 0.14 180 / 10%);
+  --signal-ring: oklch(0.52 0.14 180 / 35%);
 }
-/* Admin. Hue 330 sits clear of warn, ok and danger, and is unmistakable
-   against seeker violet (282) and recruiter teal (185). --signal-text is
+/* Admin. Hue 325 sits clear of warn, ok and danger, and is unmistakable
+   against seeker violet (282) and recruiter teal (180). --signal-text is
    deliberately darker than --signal to clear 4.5:1 on paper, the same
    treatment --warn and --ok already receive. */
 [data-portal="admin"] {
-  --signal: oklch(0.56 0.16 320);
-  --signal-text: oklch(0.41 0.15 320);
-  --signal-fg: oklch(0.99 0.004 82);
-  --signal-muted: oklch(0.56 0.16 320 / 12%);
-  --signal-ring: oklch(0.56 0.16 320 / 42%);
+  --signal: oklch(0.54 0.18 325);
+  --signal-text: oklch(0.38 0.18 325);
+  --signal-fg: oklch(0.99 0.004 325);
+  --signal-muted: oklch(0.54 0.18 325 / 10%);
+  --signal-ring: oklch(0.54 0.18 325 / 35%);
 }
 .dark,
 .dark [data-portal="seeker"] {
-  --signal: oklch(0.72 0.15 48);
-  --signal-text: oklch(0.78 0.13 50);
+  --signal: oklch(0.74 0.16 282);
+  --signal-text: oklch(0.80 0.14 282);
   --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.72 0.15 48 / 18%);
-  --signal-ring: oklch(0.72 0.15 48 / 55%);
+  --signal-muted: oklch(0.74 0.16 282 / 18%);
+  --signal-ring: oklch(0.74 0.16 282 / 55%);
 }
 .dark [data-portal="recruiter"] {
-  --signal: oklch(0.72 0.11 175);
-  --signal-text: oklch(0.8 0.1 175);
+  --signal: oklch(0.72 0.12 180);
+  --signal-text: oklch(0.80 0.10 180);
   --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.72 0.11 175 / 18%);
-  --signal-ring: oklch(0.72 0.11 175 / 55%);
+  --signal-muted: oklch(0.72 0.12 180 / 18%);
+  --signal-ring: oklch(0.72 0.12 180 / 55%);
 }
 .dark [data-portal="admin"] {
-  --signal: oklch(0.72 0.15 320);
-  --signal-text: oklch(0.81 0.13 320);
+  --signal: oklch(0.72 0.15 325);
+  --signal-text: oklch(0.81 0.13 325);
   --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.72 0.15 320 / 18%);
-  --signal-ring: oklch(0.72 0.15 320 / 55%);
+  --signal-muted: oklch(0.72 0.15 325 / 18%);
+  --signal-ring: oklch(0.72 0.15 325 / 55%);
 }
 
 @layer base {
