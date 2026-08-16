@@ -5,7 +5,7 @@ import type { Portal } from "@jobportal/shared";
 import { makeStore, renderAppAt } from "./helpers/renderRoute";
 import { appRoutes } from "@/routes/appRoutes";
 import { setBootstrapped, setUser } from "@/redux/authSlice";
-import { homePathFor } from "@/lib/portalHome";
+import { homePathFor, loginPathFor } from "@/lib/portalHome";
 import { navLinksFor } from "@/components/shared/navLinks";
 
 const paths = appRoutes.flatMap((r) => (r.children ?? []).map((c) => c.path)).filter(Boolean);
@@ -48,51 +48,41 @@ describe("admin console routes", () => {
     });
   }
 
-  it("resolves the admin portal on every console path", async () => {
-    for (const path of CONSOLE_PATHS) {
-      const { container, unmount } = renderAppAt(path, { store: storeWith("admin") });
-      await waitFor(() =>
-        expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe(
-          "admin",
-        ),
-      );
-      unmount();
-    }
+  it.each(CONSOLE_PATHS)("resolves the admin portal on %s", async (path) => {
+    const { container, unmount } = renderAppAt(path, { store: storeWith("admin") });
+    await waitFor(() =>
+      expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe(
+        "admin",
+      ),
+    );
+    unmount();
   });
 
   /**
    * The gate that matters. A seeker reaching a moderation table would be
    * reading every recruiter's email address.
    *
-   * Each wrong portal ends at its OWN home, not merely off the console:
-   * `ProtectedRoute` sends them to "/", and `Home` forwards anyone who is not a
-   * seeker onward. Asserting the resting place rather than the first hop is what
-   * catches a bounce that lands somewhere the user cannot use.
+   * Each wrong portal ends at its own home. Asserting the resting place catches
+   * a redirect that lands somewhere the user cannot use.
    */
-  it("bounces a seeker off every console path", async () => {
-    for (const path of CONSOLE_PATHS) {
-      const view = renderAppAt(path, { store: storeWith("seeker") });
-      await waitFor(() => expect(view.pathname()).toBe("/"));
-      view.unmount();
-    }
+  it.each(CONSOLE_PATHS)("bounces a seeker off %s", async (path) => {
+    const view = renderAppAt(path, { store: storeWith("seeker") });
+    await waitFor(() => expect(view.pathname()).toBe(homePathFor("seeker")));
+    view.unmount();
   });
 
-  it("bounces a recruiter off every console path to their own workspace", async () => {
-    for (const path of CONSOLE_PATHS) {
-      const view = renderAppAt(path, { store: storeWith("recruiter") });
-      await waitFor(() => expect(view.pathname()).toBe(homePathFor("recruiter")));
-      view.unmount();
-    }
+  it.each(CONSOLE_PATHS)("bounces a recruiter off %s to their workspace", async (path) => {
+    const view = renderAppAt(path, { store: storeWith("recruiter") });
+    await waitFor(() => expect(view.pathname()).toBe(homePathFor("recruiter")));
+    view.unmount();
   });
 
-  it("bounces an anonymous visitor off every console path", async () => {
-    for (const path of CONSOLE_PATHS) {
-      const store = makeStore();
-      store.dispatch(setBootstrapped(true));
-      const view = renderAppAt(path, { store });
-      await waitFor(() => expect(view.pathname()).toBe("/"));
-      view.unmount();
-    }
+  it.each(CONSOLE_PATHS)("bounces an anonymous visitor off %s", async (path) => {
+    const store = makeStore();
+    store.dispatch(setBootstrapped(true));
+    const view = renderAppAt(path, { store });
+    await waitFor(() => expect(view.pathname()).toBe(loginPathFor("admin")));
+    view.unmount();
   });
 
   /**
@@ -130,7 +120,7 @@ describe("post-login destination", () => {
 
   it("still sends a recruiter to their workspace and a seeker to the board", () => {
     expect(homePathFor("recruiter")).toBe("/hire/companies");
-    expect(homePathFor("seeker")).toBe("/");
+    expect(homePathFor("seeker")).toBe("/jobs");
   });
 
   it("points at a path the route table actually mounts", () => {

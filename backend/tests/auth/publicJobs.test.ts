@@ -48,6 +48,16 @@ describe("the public job board", () => {
     expect(res.body.job.title).toBe("Anon Detail");
   });
 
+  it("carries a stored company logo into public job DTOs", async () => {
+    const { company, job } = await seedJob("Logo Detail");
+    company.logo = "https://res.cloudinary.com/test/image/upload/company-logo.png";
+    await company.save();
+
+    const res = await request(app).get(`/api/v1/job/get/${job._id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.job.company.logoUrl).toBe(company.logo);
+  });
+
   it("never exposes a job's applicant list on the public endpoint", async () => {
     // The load-bearing assertion. This endpoint used to populate `applications`,
     // so opening it to anonymous callers would have published who applied where.

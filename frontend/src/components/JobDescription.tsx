@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router";
 import { toast } from "sonner";
 import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
 
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import CompanyAvatar from "./shared/CompanyAvatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
@@ -104,10 +104,7 @@ const JobDescription = () => {
         <div className="min-w-0">
           <header className="border-b border-line pb-8">
             <div className="flex items-center gap-3">
-              <Avatar className="size-11 rounded-sharp">
-                <AvatarImage src={singleJob.company?.logoUrl ?? undefined} alt="" />
-                <AvatarFallback className="rounded-sharp">{singleJob.company?.name?.slice(0, 2) ?? "??"}</AvatarFallback>
-              </Avatar>
+              <CompanyAvatar name={singleJob.company?.name} logoUrl={singleJob.company?.logoUrl} className="size-11" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ink">{singleJob.company?.name}</p>
                 <p className="mt-0.5 text-xs text-ink-muted">Posted {posted}</p>

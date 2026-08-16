@@ -175,7 +175,7 @@ describe("the job card", () => {
     renderRoute(<Job job={job as never} />, { route: "/jobs" });
     // AvatarImage renders nothing for a null src; without a sibling fallback
     // the card showed an empty circle.
-    expect(screen.getByText("No")).toBeInTheDocument();
+    expect(screen.getByText("N")).toBeInTheDocument();
   });
 });
 

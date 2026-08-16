@@ -13,7 +13,7 @@ export type NavLink = { to: string; label: string };
  * rule the API applies, and the reason this takes a parameter instead of
  * reading state itself.
  */
-export function navLinksFor(portal: Portal): NavLink[] {
+export function navLinksFor(portal: Portal, surface: "public" | "session" = "public"): NavLink[] {
   switch (portal) {
     case "recruiter":
       return [
@@ -38,6 +38,13 @@ export function navLinksFor(portal: Portal): NavLink[] {
     // redirects to `/jobs`, which is the only seeker job list — listing both
     // advertised two boards where the second was strictly the weaker one.
     case "seeker":
+      if (surface === "session") {
+        return [
+          { to: "/jobs", label: "Jobs" },
+          { to: "/profile", label: "Profile" },
+          { to: "/help", label: "Help" },
+        ];
+      }
       return [
         { to: "/jobs", label: "Jobs" },
         { to: "/hire", label: "For employers" },

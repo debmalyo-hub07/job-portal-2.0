@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Northstar Labs demo mark">
+  <rect width="96" height="96" rx="16" fill="#102b2a"/>
+  <path d="M48 15 56 39 81 48 56 56 48 81 39 56 15 48 39 39Z" fill="#87d8c7"/>
+  <circle cx="48" cy="48" r="8" fill="#fff9ef"/>
+</svg>

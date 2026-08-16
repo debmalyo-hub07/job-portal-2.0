@@ -1,5 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { getPortalHint } from "./portal";
+import { getActivePortal } from "./portal";
 
 /**
  * The CSRF token, held in memory.
@@ -167,7 +167,7 @@ apiClient.interceptors.response.use(
       throw error;
     }
 
-    const portal = getPortalHint();
+    const portal = getActivePortal();
     if (!portal) throw error; // never signed in here; nothing to refresh
 
     config._retried = true;

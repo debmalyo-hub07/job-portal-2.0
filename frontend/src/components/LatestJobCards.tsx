@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import type { JobDto } from "@jobportal/shared";
 
 import { Badge } from "./ui/badge";
+import CompanyAvatar from "./shared/CompanyAvatar";
 import "./landing-interactions.css";
 
 type LatestJobCardsProps = {
@@ -52,9 +53,14 @@ const LatestJobCards = ({ job, index, featured = false }: LatestJobCardsProps) =
       <div className="job-spotlight-card__depth flex items-start justify-between gap-5">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs text-ink-muted">{String(index + 1).padStart(2, "0")}</span>
-            <span className="h-px w-7 bg-line" aria-hidden="true" />
-            <p className="truncate text-sm font-semibold text-ink">{job.company?.name ?? "Independent team"}</p>
+            <CompanyAvatar name={job.company?.name} logoUrl={job.company?.logoUrl} className="size-9" />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-ink-muted">{String(index + 1).padStart(2, "0")}</span>
+                <span className="h-px w-7 bg-line" aria-hidden="true" />
+                <p className="truncate text-sm font-semibold text-ink">{job.company?.name ?? "Independent team"}</p>
+              </div>
+            </div>
           </div>
           <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted">
             <MapPin aria-hidden="true" className="size-3.5 shrink-0" />

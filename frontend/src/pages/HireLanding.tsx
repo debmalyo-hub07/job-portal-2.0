@@ -1,14 +1,10 @@
-import { lazy, Suspense, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { ArrowRight, Building2, ListChecks, Sparkles, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import ImageHero from "@/components/landing/ImageHero";
 import { MOTION_VARS } from "@/components/layout/motionTiers";
 import { FadeIn, Reveal } from "@/lib/motion";
-import { useParallax } from "@/lib/motion/index";
-import { useAppSelector } from "@/redux/store";
-
-const CairnScene = lazy(() => import("@/components/visual/CairnScene"));
 
 const STEPS = [
   {
@@ -29,14 +25,6 @@ const STEPS = [
 ] as const;
 
 export default function HireLanding() {
-  const { user } = useAppSelector((state) => state.auth);
-  const navigate = useNavigate();
-  const { ref: heroRef, progress } = useParallax<HTMLElement>();
-
-  useEffect(() => {
-    if (user?.portal === "recruiter") navigate("/hire/companies", { replace: true });
-  }, [user?.portal, navigate]);
-
   return (
     <div
       data-density="spacious"
@@ -44,30 +32,14 @@ export default function HireLanding() {
       style={MOTION_VARS.ambient}
       className="overflow-x-hidden bg-paper"
     >
-      <section
-        ref={heroRef}
-        className="relative isolate min-h-[calc(100svh-9rem)] max-h-[50rem] overflow-hidden bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
+      <ImageHero
+        portal="recruiter"
+        src="/images/cairn-hire-hero.jpg"
+        alt="A hiring team discussing work around a table"
+        objectPosition="center 48%"
+        mobileObjectPosition="61% 48%"
+        className="min-h-[calc(100svh-9rem)] max-h-[50rem] bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
       >
-        <img
-          src="/images/cairn-hire-hero.jpg"
-          alt="A hiring team discussing work around a table"
-          width="2400"
-          height="1600"
-          fetchPriority="high"
-          className="absolute inset-0 size-full object-cover object-center grayscale-[0.06] saturate-[0.82]"
-        />
-        <div aria-hidden="true" className="hero-media-veil absolute inset-0" />
-
-        <div
-          aria-hidden="true"
-          data-cairn-stage="recruiter"
-          className="hero-cairn-stage pointer-events-none absolute left-[18%] right-[-10%] top-0 z-10 h-[32%] sm:left-[50%] sm:right-[-4%] sm:h-[38%] lg:left-[75%] lg:right-[2%] lg:top-[40%] lg:h-[56%] xl:left-[77%] xl:right-[3%]"
-        >
-          <Suspense fallback={null}>
-            <CairnScene portal="recruiter" scrollProgress={progress} />
-          </Suspense>
-        </div>
-
         <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-end px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
           <div data-hero-copy="recruiter" className="max-w-[44rem]">
             <p className="mb-5 flex items-center gap-2 text-sm font-semibold uppercase text-media-copy/75">
@@ -93,7 +65,7 @@ export default function HireLanding() {
             </div>
           </div>
         </FadeIn>
-      </section>
+      </ImageHero>
 
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="hiring-flow-heading">
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.6fr] lg:gap-16">

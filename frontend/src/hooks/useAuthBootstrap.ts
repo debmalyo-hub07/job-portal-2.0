@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { SessionUser } from "@jobportal/shared";
 import { apiClient, setCsrfToken, setSessionLostHandler } from "@/lib/apiClient";
-import { clearPortalHint, getPortalHint } from "@/lib/portal";
+import { clearPortalHint, getPortalHint, setPortalHint } from "@/lib/portal";
 import { setBootstrapped, setUser } from "@/redux/authSlice";
-import { useAppDispatch } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/store";
 
 /**
  * Asks the server who this browser is, once, at startup.
@@ -15,6 +15,11 @@ import { useAppDispatch } from "@/redux/store";
  */
 export function useAuthBootstrap(): void {
   const dispatch = useAppDispatch();
+  const cachedPortal = useAppSelector((state) => state.auth.user?.portal ?? null);
+  // App mounts below PersistGate, so the first render already contains the
+  // cached session. Capture it once so dispatching the verified user does not
+  // restart bootstrap.
+  const initialPortal = useRef(getPortalHint() ?? cachedPortal).current;
 
   useEffect(() => {
     // Registered before the request, so a 401 on /refresh during bootstrap
@@ -26,7 +31,7 @@ export function useAuthBootstrap(): void {
       dispatch(setBootstrapped(true));
     });
 
-    const portal = getPortalHint();
+    const portal = initialPortal;
     if (!portal) {
       // Never signed in on this browser. Do not call /me: it would 401, and a
       // 401 in the network tab on every anonymous visit trains people to ignore
@@ -46,6 +51,7 @@ export function useAuthBootstrap(): void {
           // memory, and the cookie cannot be read back cross-site, so without
           // this the first mutation after any reload 403s.
           if (res.data.csrfToken) setCsrfToken(res.data.csrfToken);
+          setPortalHint(res.data.user.portal);
           dispatch(setUser(res.data.user));
         }
       })
@@ -63,5 +69,5 @@ export function useAuthBootstrap(): void {
     return () => {
       cancelled = true;
     };
-  }, [dispatch]);
+  }, [dispatch, initialPortal]);
 }

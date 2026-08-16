@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Common Thread demo mark">
+  <rect width="96" height="96" rx="16" fill="#fff7ed"/>
+  <path d="M23 31h33c12 0 17 7 17 17s-5 17-17 17H40" fill="none" stroke="#d04f2a" stroke-width="10" stroke-linecap="round"/>
+  <path d="M73 65H40c-12 0-17-7-17-17s5-17 17-17h16" fill="none" stroke="#20211f" stroke-width="10" stroke-linecap="round"/>
+</svg>

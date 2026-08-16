@@ -3,6 +3,7 @@ import type { Portal } from "@jobportal/shared";
 
 import Login from "@/components/auth/Login";
 import Signup from "@/components/auth/Signup";
+import GuestRoute from "@/components/routing/GuestRoute";
 
 /**
  * One component set, mounted twice — the same shape as the API's
@@ -28,10 +29,24 @@ export function buildAuthRoutes(
   { withSignup = true }: { withSignup?: boolean } = {},
 ): RouteObject[] {
   const routes: RouteObject[] = [
-    { path: `${prefix}/login`, element: <Login portal={portal} /> },
+    {
+      path: `${prefix}/login`,
+      element: (
+        <GuestRoute>
+          <Login portal={portal} />
+        </GuestRoute>
+      ),
+    },
   ];
   if (withSignup) {
-    routes.push({ path: `${prefix}/signup`, element: <Signup portal={portal} /> });
+    routes.push({
+      path: `${prefix}/signup`,
+      element: (
+        <GuestRoute>
+          <Signup portal={portal} />
+        </GuestRoute>
+      ),
+    });
   }
   return routes;
 }

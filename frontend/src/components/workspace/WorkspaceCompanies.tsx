@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import HireShell from "./HireShell";
 import { ListControls } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import CompanyAvatar from "@/components/shared/CompanyAvatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -21,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { initialsOf } from "@/lib/initials";
 import { useOwnedCompanies } from "@/hooks/useRecruiterWorkspace";
 
 /**
@@ -97,10 +96,7 @@ export function WorkspaceCompanies() {
                 <TableRow key={company.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="size-8">
-                        <AvatarImage src={company.logoUrl ?? undefined} alt="" />
-                        <AvatarFallback>{initialsOf(company.name)}</AvatarFallback>
-                      </Avatar>
+                      <CompanyAvatar name={company.name} logoUrl={company.logoUrl} className="size-8" />
                       <span className="font-medium">{company.name}</span>
                     </div>
                   </TableCell>

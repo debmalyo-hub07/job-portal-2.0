@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
-import { BriefcaseBusiness, LogOut, Menu, User2 } from "lucide-react";
+import { BriefcaseBusiness, LogOut, Menu, User2, UserPlus } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { navLinksFor } from "./navLinks";
@@ -23,6 +23,7 @@ import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
+import { homePathFor } from "@/lib/portalHome";
 
 const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -72,7 +73,7 @@ const Navbar = () => {
   const mediaTone = isHeroRoute && !scrolled;
   const publicLogin = isPublicRecruiter ? "/hire/login" : "/login";
   const publicSignup = isPublicRecruiter ? "/hire/signup" : "/signup";
-  const links = navLinksFor(user?.portal ?? "seeker");
+  const links = navLinksFor(user?.portal ?? navbarPortal, user ? "session" : "public");
   const showDesktopLinks = !user || user.portal === "seeker";
 
   return (
@@ -81,19 +82,19 @@ const Navbar = () => {
         "top-0 z-40 w-full border-b transition-[background-color,border-color,box-shadow] duration-(--dur-base) backdrop-blur-xl",
         isHeroRoute ? "fixed inset-x-0" : "sticky",
         mediaTone
-          ? "border-transparent bg-media-shade/10 shadow-none"
+          ? "navbar-hero border-transparent bg-transparent shadow-none"
           : "border-line/80 bg-paper/95 shadow-[0_0.5rem_2rem_color-mix(in_oklab,var(--ink)_6%,transparent)]",
       )}
     >
       <nav className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6">
         <Wordmark
           portal={navbarPortal}
-          to={isRecruiter || isPublicRecruiter ? "/hire" : "/"}
+          to={user ? homePathFor(user.portal) : isRecruiter || isPublicRecruiter ? "/hire" : "/"}
           className="text-[1.65rem]"
           tone={mediaTone ? "media" : "default"}
         />
 
-        <div className="flex items-center gap-2 lg:gap-5">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 lg:gap-5">
           {/* Desktop links. Below lg they live in the sheet instead — at the
               narrow end the row collided with the avatar and the theme toggle. */}
           <ul className={showDesktopLinks ? "hidden items-center gap-1 text-sm font-medium lg:flex" : "hidden"}>
@@ -141,7 +142,7 @@ const Navbar = () => {
                360px left no room for the logo, and of the two the primary
                action is the one worth keeping. Sign-in stays reachable from
                the sheet. */
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <Button
                 asChild
                 variant="ghost"
@@ -152,10 +153,23 @@ const Navbar = () => {
               >
                 <Link to={publicLogin}>Sign in</Link>
               </Button>
-              <Button asChild variant="signal">
-                <Link to={publicSignup}>
-                  {isPublicRecruiter ? <BriefcaseBusiness data-icon="inline-start" /> : null}
-                  {isPublicRecruiter ? "Post a role" : "Get started"}
+              <Button
+                asChild
+                variant="signal"
+                className="shrink-0 max-[430px]:size-10 max-[430px]:px-0"
+              >
+                <Link
+                  to={publicSignup}
+                  aria-label={isPublicRecruiter ? "Post a role" : "Get started"}
+                >
+                  {isPublicRecruiter ? (
+                    <BriefcaseBusiness data-icon="inline-start" />
+                  ) : (
+                    <UserPlus data-icon="inline-start" />
+                  )}
+                  <span className="max-[430px]:sr-only">
+                    {isPublicRecruiter ? "Post a role" : "Get started"}
+                  </span>
                 </Link>
               </Button>
             </div>
@@ -190,7 +204,7 @@ const Navbar = () => {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-1 border-t border-line pt-3">
-                  {!isRecruiter && (
+                  {user.portal === "seeker" && (
                     <Link
                       to="/profile"
                       className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"

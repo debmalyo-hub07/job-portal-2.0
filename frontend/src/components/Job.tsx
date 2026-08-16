@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import type { JobDto } from "@jobportal/shared";
 
 import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import CompanyAvatar from "./shared/CompanyAvatar";
 import { FitBadge } from "./FitBadge";
 
 type JobProps = {
@@ -28,10 +28,7 @@ const Job = ({ job }: JobProps) => {
     >
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar className="size-10 rounded-sharp">
-            <AvatarImage src={job.company?.logoUrl ?? undefined} alt="" />
-            <AvatarFallback className="rounded-sharp">{job.company?.name?.slice(0, 2) ?? "??"}</AvatarFallback>
-          </Avatar>
+          <CompanyAvatar name={job.company?.name} logoUrl={job.company?.logoUrl} className="size-10" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">{job.company?.name}</p>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">

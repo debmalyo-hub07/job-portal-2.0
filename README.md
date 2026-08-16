@@ -96,6 +96,22 @@ not lock out people who were already working. An unverified pre-existing row is
 left `pending` — it never completed registration, so it has no claim to be
 grandfathered.
 
+### Seed an empty demo marketplace
+
+An empty deployment can be given a small, clearly labelled preview catalog
+after the frontend has deployed its demo company marks:
+
+```bash
+npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
+```
+
+Replace `jobportal` with the exact database name in `MONGO_URI`. The explicit
+confirmation prevents a typo from targeting MongoDB's implicit `test` database.
+The script creates three `(Demo)` companies and six jobs under a synthetic
+recruiter that has no password or Google identity. It is idempotent and refuses
+to mix demo jobs into an existing non-demo catalog unless `--allow-nonempty` is
+also supplied deliberately.
+
 ## Environment
 
 | Variable | How to obtain |
@@ -338,6 +354,7 @@ it from production builds.
 | `npm run test:visual --workspace @jobportal/web` | Playwright screenshots + portal assertions, needs a dev server |
 | `npm run migrate:phase1c --workspace @jobportal/api` | Drop the legacy `users` collection. Run once per existing database |
 | `npm run seed:admin --workspace @jobportal/api` | Create the first admin: `-- --email <address> --name "<name>"`. Mails a set-password code; refuses if an admin exists |
+| `npm run seed:catalog --workspace @jobportal/api` | Populate an empty marketplace with labelled demo companies/jobs. Requires `-- --confirm-database <name>`; idempotent and refuses a non-demo catalog by default |
 | `npm run migrate:phase3a --workspace @jobportal/api` | Grandfather existing recruiters to `active`. Run once per existing database |
 
 ## Deployment

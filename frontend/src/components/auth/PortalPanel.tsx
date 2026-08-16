@@ -15,15 +15,16 @@ export function PortalPanel({ portal }: { portal: Portal }) {
   const { count, ready } = usePublicJobCount();
 
   return (
-    <aside className="relative hidden min-h-screen overflow-hidden bg-media-shade text-media-copy md:flex md:items-end md:p-10 lg:p-14">
+    <aside className="auth-visual relative hidden min-h-screen overflow-hidden bg-media-shade text-media-copy md:flex md:items-end md:p-10 lg:p-14">
       <img
         src={PANEL_IMAGE[portal]}
         alt=""
         width="2400"
         height="1600"
-        className="absolute inset-0 size-full object-cover grayscale-[0.35] saturate-[0.55]"
+        className="auth-visual__image absolute inset-0 size-full object-cover"
       />
-      <div aria-hidden="true" className="absolute inset-0 bg-media-shade/72" />
+      <div aria-hidden="true" className="auth-visual__veil absolute inset-0" />
+      <div aria-hidden="true" className="auth-visual__wash absolute inset-0" />
 
       <div className="relative max-w-xl pb-4">
         <p className="text-xs font-semibold uppercase text-media-copy/65">

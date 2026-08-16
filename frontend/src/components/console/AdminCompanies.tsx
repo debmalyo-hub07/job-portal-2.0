@@ -3,7 +3,7 @@ import { Building2 } from "lucide-react";
 import AdminShell from "./AdminShell";
 import { ListControls, Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import CompanyAvatar from "@/components/shared/CompanyAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -70,10 +70,7 @@ export function AdminCompanies() {
                 <TableRow key={company.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="size-8">
-                        <AvatarImage src={company.logoUrl ?? undefined} alt="" />
-                        <AvatarFallback>{company.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <CompanyAvatar name={company.name} logoUrl={company.logoUrl} className="size-8" />
                       <span className="font-medium">{company.name}</span>
                     </div>
                   </TableCell>

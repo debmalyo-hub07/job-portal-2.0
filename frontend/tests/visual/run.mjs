@@ -26,13 +26,9 @@ const ROUTES = [
   ["terms", "/terms"],
 ];
 
-const CAIRN_ROUTES = new Set(["/", "/hire"]);
-
-async function waitForCairnScene(page) {
-  const scene = page.locator("[data-cairn-scene]").first();
-  await scene.waitFor({ state: "attached" });
+async function waitForHeroMedia(page) {
   await page.waitForFunction(
-    () => document.querySelector("[data-cairn-scene]")?.getAttribute("data-canvas-ready") === "true",
+    () => [...document.querySelectorAll("[data-hero-media] img")].every((image) => image.complete),
   );
 }
 
@@ -49,7 +45,7 @@ const JOBS = [
     position: "2 openings",
     remote: true,
     createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
-    company: { id: "company-1", name: "Northstar Labs", description: null, website: null, location: "Bengaluru", logoUrl: null, createdAt: new Date().toISOString() },
+    company: { id: "company-1", name: "Northstar Labs", description: null, website: null, location: "Bengaluru", logoUrl: "/images/companies/demo-northstar.svg", createdAt: new Date().toISOString() },
   },
   {
     id: "job-2",
@@ -63,7 +59,7 @@ const JOBS = [
     position: "1 opening",
     remote: false,
     createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString(),
-    company: { id: "company-2", name: "Common Thread", description: null, website: null, location: "Mumbai", logoUrl: null, createdAt: new Date().toISOString() },
+    company: { id: "company-2", name: "Common Thread", description: null, website: null, location: "Mumbai", logoUrl: "/images/companies/demo-common-thread.svg", createdAt: new Date().toISOString() },
   },
   {
     id: "job-3",
@@ -77,7 +73,7 @@ const JOBS = [
     position: "3 openings",
     remote: true,
     createdAt: new Date(Date.now() - 9 * 86_400_000).toISOString(),
-    company: { id: "company-3", name: "Fieldwork", description: null, website: null, location: "Pune", logoUrl: null, createdAt: new Date().toISOString() },
+    company: { id: "company-3", name: "Fieldwork", description: null, website: null, location: "Pune", logoUrl: "/images/companies/demo-fieldwork.svg", createdAt: new Date().toISOString() },
   },
 ];
 
@@ -198,7 +194,7 @@ for (const theme of ["light", "dark"]) {
   for (const [name, path] of ROUTES) {
     await page.goto(BASE + path, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(900);
-    if (CAIRN_ROUTES.has(path)) await waitForCairnScene(page);
+    if (path === "/" || path === "/hire") await waitForHeroMedia(page);
     await page.screenshot({ path: `${OUT}/${theme}-${name}.png`, fullPage: true });
 
     // The portal the page resolved to, asserted against the URL it is on.
@@ -260,10 +256,34 @@ for (const theme of ["light", "dark"]) {
 
   await page.goto(BASE + "/", { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.setItem("theme", "light"));
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(700);
-  await waitForCairnScene(page);
-  await page.screenshot({ path: `${OUT}/mobile-light-landing.png`, fullPage: true });
+
+  for (const [name, path] of [
+    ["landing", "/"],
+    ["hire", "/hire"],
+    ["login", "/login"],
+    ["hire-login", "/hire/login"],
+  ]) {
+    await page.goto(BASE + path, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(700);
+    if (path === "/" || path === "/hire") await waitForHeroMedia(page);
+    await page.screenshot({ path: `${OUT}/mobile-light-${name}.png`, fullPage: true });
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    if (overflow > 1) {
+      console.log(`FAIL  mobile/${name}: horizontal overflow of ${overflow}px`);
+      failures++;
+    }
+
+    if (path === "/" || path === "/hire") {
+      const menu = await page.getByRole("button", { name: "Open menu" }).boundingBox();
+      if (!menu || menu.x < 0 || menu.x + menu.width > 390) {
+        console.log(`FAIL  mobile/${name}: menu button is clipped`);
+        failures++;
+      }
+    }
+  }
 
   await page.goto(BASE + "/jobs", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(700);

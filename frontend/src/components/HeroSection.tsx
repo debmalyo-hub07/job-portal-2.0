@@ -1,18 +1,15 @@
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ArrowRight, Search } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { Button } from "./ui/button";
+import ImageHero from "./landing/ImageHero";
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import { FadeIn } from "@/lib/motion";
-import { useParallax } from "@/lib/motion/index";
-
-const CairnScene = lazy(() => import("./visual/CairnScene"));
 
 function HeroSection() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
-  const { ref: heroRef, progress } = useParallax<HTMLElement>();
 
   const searchJobHandler = (event: FormEvent) => {
     event.preventDefault();
@@ -20,30 +17,14 @@ function HeroSection() {
   };
 
   return (
-    <section
-      ref={heroRef}
-      className="relative isolate min-h-[calc(100svh-9rem)] max-h-[50rem] overflow-hidden bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
+    <ImageHero
+      portal="seeker"
+      src="/images/cairn-seeker-hero.jpg"
+      alt="A product team working together around a shared table"
+      objectPosition="center 56%"
+      mobileObjectPosition="65% 56%"
+      className="min-h-[calc(100svh-9rem)] max-h-[50rem] bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
     >
-      <img
-        src="/images/cairn-seeker-hero.jpg"
-        alt="A product team working together around a shared table"
-        width="2400"
-        height="1600"
-        fetchPriority="high"
-        className="absolute inset-0 size-full object-cover object-center grayscale-[0.08] saturate-[0.82]"
-      />
-      <div aria-hidden="true" className="hero-media-veil absolute inset-0" />
-
-      <div
-        aria-hidden="true"
-        data-cairn-stage="seeker"
-        className="hero-cairn-stage pointer-events-none absolute left-[18%] right-[-10%] top-0 z-10 h-[32%] sm:left-[50%] sm:right-[-4%] sm:h-[38%] lg:left-[75%] lg:right-[2%] lg:top-0 lg:h-[50%] xl:left-[77%] xl:right-[3%]"
-      >
-        <Suspense fallback={null}>
-          <CairnScene portal="seeker" scrollProgress={progress} />
-        </Suspense>
-      </div>
-
       <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-end px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
         <div data-hero-copy="seeker" className="max-w-[44rem]">
           <p className="mb-5 text-sm font-semibold uppercase text-media-copy/75">
@@ -83,7 +64,7 @@ function HeroSection() {
           </form>
         </div>
       </FadeIn>
-    </section>
+    </ImageHero>
   );
 }
 

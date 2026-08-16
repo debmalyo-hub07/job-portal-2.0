@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import HireShell from "./HireShell";
 import { FormField } from "@/components/layout/FormField";
+import CompanyAvatar from "@/components/shared/CompanyAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +39,7 @@ export function CompanyEdit() {
     location: "",
     file: null as File | null,
   });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -50,8 +52,19 @@ export function CompanyEdit() {
     });
   }, [data]);
 
+  useEffect(() => {
+    if (!input.file) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(input.file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [input.file]);
+
   const onField = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInput({ ...input, [e.target.name]: e.target.value });
+    setInput((current) => ({ ...current, [e.target.name]: e.target.value }));
   };
 
   const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
@@ -128,14 +141,27 @@ export function CompanyEdit() {
           <Input id="location" name="location" value={input.location} onChange={onField} />
         </FormField>
 
-        <FormField label="Logo" htmlFor="logo" hint="Replaces the current logo, if any.">
-          <Input
-            id="logo"
-            name="logo"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setInput({ ...input, file: e.target.files?.[0] ?? null })}
-          />
+        <FormField label="Logo" htmlFor="logo" hint="PNG, JPEG, or WebP up to 5 MB. Replaces the current logo.">
+          <div className="flex items-center gap-4">
+            <CompanyAvatar
+              name={input.name || data?.name}
+              logoUrl={previewUrl ?? data?.logoUrl}
+              alt={previewUrl ? `${input.name || data?.name || "Company"} logo preview` : ""}
+              className="size-16"
+            />
+            <div className="min-w-0 flex-1">
+              <Input
+                id="logo"
+                name="logo"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => setInput((current) => ({ ...current, file: e.target.files?.[0] ?? null }))}
+              />
+              <p className="mt-2 truncate text-xs text-ink-muted" aria-live="polite">
+                {input.file?.name ?? (data?.logoUrl ? "Current logo" : "No logo uploaded yet")}
+              </p>
+            </div>
+          </div>
         </FormField>
 
         <div className="mt-(--space-card) flex items-center gap-2">

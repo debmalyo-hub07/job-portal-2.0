@@ -73,7 +73,14 @@ export async function updateCompany(
   if (body.website !== undefined) company.website = body.website;
   if (body.location !== undefined) company.location = body.location;
   if (logo) {
-    const upload = await getCloudinary().uploader.upload(getDataUri(logo).content as string);
+    const upload = await getCloudinary().uploader.upload(getDataUri(logo).content as string, {
+      folder: "company-logos",
+      public_id: String(company._id),
+      overwrite: true,
+      invalidate: true,
+      resource_type: "image",
+      transformation: [{ width: 512, height: 512, crop: "limit", quality: "auto", fetch_format: "auto" }],
+    });
     company.logo = upload.secure_url;
   }
   try {

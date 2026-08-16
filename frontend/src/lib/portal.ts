@@ -1,6 +1,7 @@
 import type { Portal } from "@jobportal/shared";
 
 const KEY = "jp.portal";
+let activePortal: Portal | null = null;
 
 /**
  * Which portal this browser last signed into.
@@ -21,10 +22,23 @@ export function getPortalHint(): Portal | null {
   return raw === "seeker" || raw === "recruiter" || raw === "admin" ? raw : null;
 }
 
+/**
+ * The portal this tab is actively using.
+ *
+ * localStorage remains the reload/new-tab bootstrap hint, but it is shared by
+ * every tab. Once a tab has resolved its session, refreshes must stay pinned to
+ * that portal even if another tab signs into a different one.
+ */
+export function getActivePortal(): Portal | null {
+  return activePortal ?? getPortalHint();
+}
+
 export function setPortalHint(portal: Portal): void {
+  activePortal = portal;
   localStorage.setItem(KEY, portal);
 }
 
 export function clearPortalHint(): void {
+  activePortal = null;
   localStorage.removeItem(KEY);
 }

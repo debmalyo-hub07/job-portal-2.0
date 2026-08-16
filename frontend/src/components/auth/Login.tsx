@@ -1,5 +1,5 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { AuthResponse, Portal } from "@jobportal/shared";
@@ -13,7 +13,7 @@ import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
-import { homePathFor } from "@/lib/portalHome";
+import { homePathFor, returnPathFor } from "@/lib/portalHome";
 import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { TurnstileChallenge } from "./TurnstileChallenge";
@@ -30,8 +30,9 @@ const Login = ({ portal }: { portal: Portal }) => {
   const [input, setInput] = useState({ email: "", password: "" });
   const [botToken, setBotToken] = useState<string | null>(null);
   const [challengeKey, setChallengeKey] = useState(0);
-  const { loading, user } = useAppSelector((state) => state.auth);
+  const { loading } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const copy = AUTH_COPY[portal];
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +53,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       setPortalHint(portal);
       setCsrfToken(res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
-      navigate(homePathFor(portal));
+      navigate(returnPathFor(portal, location.state) ?? homePathFor(portal), { replace: true });
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.
@@ -67,12 +68,6 @@ const Login = ({ portal }: { portal: Portal }) => {
       dispatch(setLoading(false));
     }
   };
-
-  useEffect(() => {
-    // The session's own portal, not the route's — a signed-in admin who opens
-    // /login belongs in the console, not wherever this form would have sent them.
-    if (user) navigate(homePathFor(user.portal));
-  }, [user, navigate]);
 
   return (
     <AuthLayout

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -11,7 +11,6 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
-import { homePathFor } from "@/lib/portalHome";
 import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
@@ -26,7 +25,7 @@ const Signup = ({ portal }: { portal: Portal }) => {
   const [input, setInput] = useState({ fullName: "", email: "", phone: "", password: "" });
   const [botToken, setBotToken] = useState<string | null>(null);
   const [challengeKey, setChallengeKey] = useState(0);
-  const { loading, user } = useAppSelector((state) => state.auth);
+  const { loading } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const copy = AUTH_COPY[portal];
@@ -63,10 +62,6 @@ const Signup = ({ portal }: { portal: Portal }) => {
       dispatch(setLoading(false));
     }
   };
-
-  useEffect(() => {
-    if (user) navigate(homePathFor(user.portal));
-  }, [user, navigate]);
 
   return (
     <AuthLayout

@@ -1,5 +1,11 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { uploadMock } = vi.hoisted(() => ({ uploadMock: vi.fn() }));
+vi.mock("../src/utils/cloudinary.js", () => ({
+  getCloudinary: () => ({ uploader: { upload: uploadMock } }),
+}));
+
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
 import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
@@ -107,6 +113,37 @@ describe("company routes", () => {
     expect(res.body.company.description).toBe("We build things");
     expect(res.body.company.logoUrl).toBeNull();
     expect(res.body.company.name).toBe("Acme");
+  });
+
+  it("uploads a validated logo to the company-specific Cloudinary path", async () => {
+    uploadMock.mockResolvedValueOnce({
+      secure_url: "https://res.cloudinary.com/test/image/upload/company-logos/logo.png",
+    });
+    const companyId = (await createCompany(owner)).body.company.id;
+    const onePixelPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    );
+
+    const res = await request(app)
+      .put(`/api/v1/company/update/${companyId}`)
+      .use(asSession("recruiter", owner))
+      .attach("file", onePixelPng, { filename: "mark.png", contentType: "image/png" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.company.logoUrl).toContain("company-logos");
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        folder: "company-logos",
+        overwrite: true,
+        invalidate: true,
+        resource_type: "image",
+        transformation: [
+          expect.objectContaining({ width: 512, height: 512, crop: "limit" }),
+        ],
+      }),
+    );
   });
 
   it("409s an update that renames a company onto the owner's existing name", async () => {

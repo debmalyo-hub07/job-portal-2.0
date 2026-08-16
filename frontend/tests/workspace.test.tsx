@@ -414,6 +414,9 @@ describe("workspace routes", () => {
   ];
 
   const CONCRETE = WORKSPACE_PATHS.map((p) => p.replace(":id", "64b0c8f2a9d3e45f6a7b8c9d"));
+  const WRONG_PORTAL_CASES = (["seeker", "admin"] as const).flatMap((portal) =>
+    CONCRETE.map((path) => [portal, path] as const),
+  );
 
   const mountedPaths = () =>
     appRoutes.flatMap((r) => (r.children ?? []).map((c) => c.path)).filter(Boolean);
@@ -426,38 +429,30 @@ describe("workspace routes", () => {
     for (const path of WORKSPACE_PATHS) expect(paths).toContain(path);
   });
 
-  it("resolves the recruiter portal on every one", async () => {
-    for (const path of CONCRETE) {
-      const { container, unmount } = renderAppAt(path, {
-        store: storeWith("recruiter", "active"),
-      });
-      await waitFor(() =>
-        expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe(
-          "recruiter",
-        ),
-      );
-      unmount();
-    }
+  it.each(CONCRETE)("resolves the recruiter portal on %s", async (path) => {
+    const { container, unmount } = renderAppAt(path, {
+      store: storeWith("recruiter", "active"),
+    });
+    await waitFor(() =>
+      expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe(
+        "recruiter",
+      ),
+    );
+    unmount();
   });
 
-  it("bounces a seeker and an admin to their own home", async () => {
-    for (const portal of ["seeker", "admin"] as const) {
-      for (const path of CONCRETE) {
-        const view = renderAppAt(path, { store: storeWith(portal, "active") });
-        await waitFor(() => expect(view.pathname()).toBe(homePathFor(portal)));
-        view.unmount();
-      }
-    }
+  it.each(WRONG_PORTAL_CASES)("bounces a %s from %s to its own home", async (portal, path) => {
+    const view = renderAppAt(path, { store: storeWith(portal, "active") });
+    await waitFor(() => expect(view.pathname()).toBe(homePathFor(portal)));
+    view.unmount();
   });
 
-  it("shows a pending recruiter the awaiting-approval state on every page", async () => {
+  it.each(CONCRETE)("shows a pending recruiter the awaiting-approval state on %s", async (path) => {
     // The gate belongs on every route, not just the entry page — the API puts
     // requireApproved on every recruiter-owned mutation.
-    for (const path of CONCRETE) {
-      const view = renderAppAt(path, { store: storeWith("recruiter", "pending") });
-      expect(await view.findByText("Awaiting approval")).toBeInTheDocument();
-      view.unmount();
-    }
+    const view = renderAppAt(path, { store: storeWith("recruiter", "pending") });
+    expect(await view.findByText("Awaiting approval")).toBeInTheDocument();
+    view.unmount();
   });
 
   it("links only to paths the route table mounts", () => {

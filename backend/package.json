@@ -13,6 +13,7 @@
     "check:mail": "tsx src/scripts/check-mail.ts",
     "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "seed:catalog": "tsx src/scripts/seed-demo-catalog.ts",
     "migrate:phase3a": "tsx src/scripts/migrate-phase3a.ts"
   },
   "author": "",
