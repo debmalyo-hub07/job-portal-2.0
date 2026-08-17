@@ -30,6 +30,23 @@ the selected database. Development still permits the fallback for existing
 local environments, but emits a warning so local and deployed accounts cannot
 be mistaken for one another silently.
 
+Name the development database too — `jobportal_dev` — in `backend/.env`. The
+cluster may be shared; the database must not be. Atlas's Connect dialog hands
+out a path-less URI, so the natural result of following it on a laptop is a
+local API writing to `test` **on the production cluster**, one typo away from
+writing to production itself. Nothing in the app can tell the two apart: the
+seeds, the sweeper, and every local experiment write for real. Two databases
+also mean the `--confirm-database` guard on the seeds has something to catch.
+
+Seed the development database to match production's catalog:
+
+```bash
+npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal_dev
+```
+
+That is 3 companies and 6 jobs. Do not copy production's accounts — the admin,
+seekers, applications and refresh tokens there belong to real people.
+
 ### Atlas network access
 
 Render's free plan has no static outbound IP, so Atlas must allow `0.0.0.0/0`

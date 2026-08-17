@@ -106,25 +106,31 @@ grandfathered.
 
 ### Seed an empty demo marketplace
 
-An empty deployment can be given a small, clearly labelled preview catalog
-after the frontend has deployed its demo company marks:
+An empty database can be given a small, clearly labelled preview catalog:
 
 ```bash
 npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
 ```
 
-Replace `jobportal` with the exact database name in `MONGO_URI`. The explicit
-confirmation prevents a typo from targeting MongoDB's implicit `test` database.
-The script creates three `(Demo)` companies and six jobs under a synthetic
-recruiter that has no password or Google identity. It is idempotent and refuses
-to mix demo jobs into an existing non-demo catalog unless `--allow-nonempty` is
-also supplied deliberately.
+Replace `jobportal` with the exact database name in `MONGO_URI` — for local work
+that is `jobportal_dev`, never the deployed one. The explicit confirmation
+prevents a typo from targeting MongoDB's implicit `test` database. The script
+creates three `(Demo)` companies and six jobs under a synthetic recruiter that
+has no password or Google identity. It is idempotent and refuses to mix demo
+jobs into an existing non-demo catalog unless `--allow-nonempty` is also
+supplied deliberately.
+
+The company marks are stored as paths (`/images/companies/demo-*.svg`), not
+absolute URLs, so they resolve against whatever origin serves the page and work
+in development and production from one seeded value. They are files in
+`frontend/public/`, so in production the logos appear once the frontend deploys.
+Recruiter-uploaded logos stay absolute — those genuinely live on Cloudinary.
 
 ## Environment
 
 | Variable | How to obtain |
 |---|---|
-| `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path.** Production refuses to boot without one. |
+| `MONGO_URI` | Atlas → Create free M0 cluster → Database Access → add user → Network Access → allowlist your IP → Connect → Drivers. **Include a database name in the path** — `jobportal_dev` locally, and never the one a deployment uses. Production refuses to boot without one; development otherwise writes to a database called `test`. |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48`. Minimum 32 characters. |
 | `JWT_REFRESH_PEPPER` | `openssl rand -base64 48`. Must differ from the above. |
 | `OTP_PEPPER` | `openssl rand -base64 48`. Must differ from the other four. |
