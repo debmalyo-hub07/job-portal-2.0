@@ -27,7 +27,22 @@ export default defineConfig({
      * requests and every test that exercises a call mocks `apiClient` itself.
      * It exists so import-time evaluation succeeds, not to point anywhere.
      */
-    env: { VITE_API_URL: "http://localhost:8000/api/v1" },
+    env: {
+      VITE_API_URL: "http://localhost:8000/api/v1",
+      /**
+       * Pinned empty so the suite's Turnstile branch is a decision rather than an
+       * accident of whose machine it runs on. Vitest loads `.env.local` the same
+       * way the dev server does, so a developer holding a site key in theirs was
+       * running seven auth tests down a different branch than CI: they assert
+       * two-argument `apiClient.post` calls, and an enabled challenge adds a
+       * third.
+       *
+       * The enabled branch — the only one a production build permits — is covered
+       * by `tests/turnstileAuth.test.tsx`, which opts in explicitly instead of
+       * inheriting whatever happens to be on disk.
+       */
+      VITE_TURNSTILE_SITE_KEY: "",
+    },
     // Playwright specs drive a real browser and must not run under jsdom.
     exclude: ["node_modules/**", "dist/**", "tests/visual/**"],
     /**
