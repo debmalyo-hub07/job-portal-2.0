@@ -68,7 +68,8 @@ index.css
 New tokens: `overlay` (dialogs/sheets get their own elevation step instead of
 borrowing `paper-raised`), `ink-faint` (captions/decorative text, replacing
 scattered `/60` opacity hacks), per-portal `container` / `container-ink`
-(the 30% band), `signal-hover` / `signal-pressed` (interaction contract).
+(the 30% band), `signal-hover` / `signal-pressed` (interaction contract),
+`line-strong` (the 3:1 control boundary).
 
 Rules of the structure:
 
@@ -91,17 +92,20 @@ Chroma ≤ 0.012 so the ground reads warm, never yellow.
 | Token | Light | Dark |
 |---|---|---|
 | `paper` | `0.985 0.006 70` | `0.19 0.010 70` |
-| `paper-sunken` | `0.955 0.010 70` | `0.155 0.008 70` |
+| `paper-sunken` | `0.94 0.010 70` | `0.145 0.008 70` |
 | `paper-raised` | `0.997 0.004 70` | `0.235 0.012 70` |
 | `overlay` | `0.999 0.002 70` | `0.27 0.012 70` |
 | `ink` | `0.20 0.012 70` | `0.93 0.010 80` |
-| `ink-muted` | ≈ `0.48 0.015 70` | ≈ `0.70 0.012 75` |
-| `ink-faint` | ≈ `0.60 0.012 70` | ≈ `0.58 0.012 75` |
+| `ink-muted` | ≈ `0.43 0.015 70` | ≈ `0.70 0.012 75` |
+| `ink-faint` | ≈ `0.56 0.012 70` | ≈ `0.52 0.012 75` |
 | `line` | ink at 8% | ink at 12% |
+| `line-strong` | `0.6 0.012 70` | `0.55 0.012 75` |
 
-`ink-muted` targets 5.5–6.5:1 on paper; `ink-faint` targets ≥ 4.5:1 on paper.
-`line` becomes tinted-ink alpha in both themes (today's pure-white 9% in dark
-is removed).
+`ink-muted` targets 5.5–6.5:1 on paper; `ink-faint` targets ≥ 3:1 on paper and
+is for captions and decorative text only — essential text uses `ink-muted` (a
+faint tier that cleared 4.5:1 on white would sit within Δ0.04 lightness of
+`ink-muted` and the scale would collapse). `line-strong` is the 3:1 boundary
+for inputs and controls; `line` stays a decorative hairline.
 
 ### Portals — exact triadic harmony, 120° apart
 
@@ -110,17 +114,27 @@ so light and dark ramps stay contrast-constant by construction.
 
 Anchors (light theme): teal `0.55 0.13 200`, gold `0.62 0.15 80`,
 rose `0.55 0.18 320`. Gold is the hardest hue — it needs L ≥ 0.60 or it turns
-olive — so its anchor sits higher and its text variant lower.
+olive — so its anchor sits higher and its text variant lower. The
+`signal-text` delta in dark was corrected during plan-writing: L + 0.23
+yielded only ≈3.5–3.8:1 on the dark paper for teal and rose, below the 4.5:1
+floor; L + 0.34 clears it with margin.
 
 | Ramp step | Light | Dark |
 |---|---|---|
 | `signal` | anchor | L + 0.17, C × 0.85 |
-| `signal-text` | anchor L − 0.15, C × 0.85 | anchor L + 0.23 |
-| `container` | L + 0.30, C × 0.25 | L + 0.42, C × 0.20 |
+| `signal-text` | anchor L − 0.15, C × 0.85 | anchor L + 0.34, C × 0.85 (gold: L + 0.25, C × 0.7 — L + 0.34 would clip past 0.97) |
+| `container` | L + 0.30, C × 0.25 | L − 0.30, C × 0.25 |
 | `container-ink` | ink | ink |
 | `signal-hover` | L − 0.04 | L − 0.03 |
 | `signal-pressed` | L − 0.08 | L − 0.06 |
-| `signal-ring` | signal at 35% | signal at 55% |
+| `signal-ring` | solid signal | solid signal |
+
+The container's anchor-relative delta flips sign in dark: in light a container
+sits well below paper; in dark it sits just above raised — a tinted surface
+either way. The original dark delta (L + 0.42) landed brighter than ink and was
+corrected during plan-writing. The 3:1 UI floor likewise killed the alpha
+ring: a 35% ring on paper composites to ≈1.3:1, so `signal-ring` is the signal
+itself, solid, in both themes.
 
 **Hue-wander rule:** every derived step keeps its anchor hue ± 2°. Only
 lightness and chroma may change. Linted.
