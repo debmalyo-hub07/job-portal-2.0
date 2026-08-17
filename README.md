@@ -562,12 +562,6 @@ defect, but read them before pointing this at real user data.
   entry points, strict input schemas, content-sniffed uploads, and a production
   dependency audit.
 
-## Acknowledgements
-
-The initial structure came from a build-along with
-[Surendrakumarpatel/jobportal-yt](https://github.com/Surendrakumarpatel/jobportal-yt).
-Everything from Phase 1A onward is a substantial rewrite.
-
 ## Licence
 
 ISC
