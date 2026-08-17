@@ -45,14 +45,14 @@ export function FormField({
       <Label htmlFor={htmlFor} className="mb-1.5 block">
         {label}
         {required ? (
-          <span aria-hidden="true" className="ml-0.5 text-danger">
+          <span aria-hidden="true" className="ml-0.5 text-danger-text">
             *
           </span>
         ) : null}
       </Label>
       {control}
       {error ? (
-        <p id={errorId} role="alert" className="mt-1.5 text-xs text-danger">
+        <p id={errorId} role="alert" className="mt-1.5 text-xs text-danger-text">
           {error}
         </p>
       ) : hint ? (

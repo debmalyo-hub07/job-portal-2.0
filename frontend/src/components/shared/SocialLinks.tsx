@@ -43,7 +43,7 @@ export function SocialLinks({ className }: { className?: string }) {
           rel="noopener noreferrer"
           aria-label={`Cairn on ${label}`}
           title={label}
-          className="grid size-10 place-items-center rounded-full border border-line text-ink-muted transition-[color,border-color,background-color,transform] duration-(--dur-fast) hover:-translate-y-0.5 hover:border-signal hover:bg-signal-muted hover:text-signal-text focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
+          className="grid size-10 place-items-center rounded-full border border-line-strong text-ink-muted transition-[color,border-color,background-color,transform] duration-(--dur-fast) hover:-translate-y-0.5 hover:border-signal hover:bg-signal-muted hover:text-signal-text focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
         >
           <Icon aria-hidden="true" className="size-4" />
         </a>

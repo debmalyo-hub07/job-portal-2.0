@@ -10,10 +10,25 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-ink text-paper shadow-sm hover:bg-ink/90 hover:shadow-md",
-        signal: "bg-signal-text text-signal-fg shadow-sm hover:bg-signal-text/90 hover:shadow-md",
-        destructive: "bg-danger text-danger-fg hover:bg-danger/90",
-        outline: "border border-line bg-paper-raised hover:border-ink-muted hover:bg-paper-sunken",
-        secondary: "bg-paper-sunken text-ink hover:bg-paper-sunken/70",
+        // The fill is --signal, not --signal-text: --signal is the portal's
+        // identity colour and --signal-text is the darkened variant that only
+        // exists to carry 4.5:1 as *type on paper*. Using the text grade as a
+        // fill is what made the recruiter portal's primary button olive rather
+        // than gold. --signal-edge gives the fill a 3:1 boundary, which the
+        // light recruiter gold (L 0.80 against L 0.97 paper) cannot supply
+        // itself; hover and pressed step toward --signal-fg's opposite so the
+        // gesture never dips below the text floor mid-press.
+        signal:
+          "border border-signal-edge bg-signal text-signal-fg shadow-sm hover:bg-signal-hover hover:shadow-md active:bg-signal-pressed",
+        destructive:
+          "bg-danger text-danger-fg hover:bg-danger-hover active:bg-danger-pressed",
+        outline:
+          "border border-line-strong bg-paper-raised hover:border-ink-muted hover:bg-paper-sunken",
+        // --container is the 30% band: darker than paper in light, lighter in
+        // dark, so the hover reads as pressure in both. The old
+        // paper-sunken/70 faded back toward paper in light mode, which is the
+        // wrong direction for a hover.
+        secondary: "bg-paper-sunken text-container-ink hover:bg-container",
         ghost: "hover:bg-signal-muted",
         link: "text-signal-text underline-offset-4 hover:underline",
       },

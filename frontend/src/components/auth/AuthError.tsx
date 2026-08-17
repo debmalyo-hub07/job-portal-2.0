@@ -24,7 +24,7 @@ const AuthError = () => {
     <AuthLayout portal={portal} title="Sign-in failed">
       {/* Icon AND label — semantic state is never colour alone. */}
       <p className="flex items-start gap-2 text-sm text-ink">
-        <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger" />
+        <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger-text" />
         <span>{message}</span>
       </p>
       <Link

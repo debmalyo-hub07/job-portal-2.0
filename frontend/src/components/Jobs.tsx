@@ -123,7 +123,7 @@ const Jobs = () => {
               ))}
             </div>
           ) : isError ? (
-            <div className="rounded-surface border border-danger/30 bg-danger/10 p-4 text-sm text-danger" role="alert">
+            <div className="rounded-surface border border-danger/40 bg-danger-muted p-4 text-sm text-danger-text" role="alert">
               Could not load jobs: {error instanceof Error ? error.message : "unknown error"}
             </div>
           ) : jobs.length === 0 ? (

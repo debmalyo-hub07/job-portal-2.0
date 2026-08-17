@@ -20,8 +20,8 @@ import { useJobCreate, useOwnedCompanies } from "@/hooks/useRecruiterWorkspace";
  * them inline on each element is how the two drift.
  */
 const FIELD =
-  "w-full rounded-surface border border-line bg-paper px-3 py-2 text-sm text-ink " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
+  "w-full rounded-surface border border-line-strong bg-paper px-3 py-2 text-sm text-ink " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-ring";
 
 /**
  * Post a job.
@@ -88,7 +88,7 @@ export function JobCreate() {
   if (isError) {
     return (
       <HireShell title="Post a job">
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           Could not load your companies, so there is nothing to post against.
         </p>
       </HireShell>
@@ -247,7 +247,7 @@ export function JobCreate() {
             name="remote"
             checked={input.remote}
             onChange={(e) => setInput({ ...input, remote: e.target.checked })}
-            className="size-4 rounded border-line accent-[var(--signal-text)]"
+            className="size-4 rounded border-line-strong accent-[var(--signal-text)]"
           />
           <Label htmlFor="remote" className="cursor-pointer font-normal text-ink-muted">
             This role is remote

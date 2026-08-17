@@ -85,7 +85,7 @@ export function Applicants() {
           ))}
         </div>
       ) : isError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           Could not load applicants: {error instanceof Error ? error.message : "unknown error"}
         </p>
       ) : data.items.length === 0 ? (

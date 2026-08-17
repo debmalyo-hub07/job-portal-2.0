@@ -291,7 +291,7 @@ const UpdateProfileDialog = ({
                       value={choice.value}
                       checked={input.openToRemote === choice.value}
                       onChange={changeEventHandler}
-                      className="size-4 border-line accent-[var(--signal-text)]"
+                      className="size-4 border-line-strong accent-[var(--signal-text)]"
                     />
                     <Label htmlFor={choice.id} className="cursor-pointer font-normal text-ink-muted">
                       {choice.label}

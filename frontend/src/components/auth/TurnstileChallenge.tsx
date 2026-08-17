@@ -117,7 +117,7 @@ export function TurnstileChallenge({
     <div className="my-4 min-h-[65px] w-full overflow-hidden">
       <div ref={containerRef} />
       {failed ? (
-        <p className="mt-2 text-sm text-danger" role="alert">
+        <p className="mt-2 text-sm text-danger-text" role="alert">
           Verification could not load. Check your connection and try again.
         </p>
       ) : null}

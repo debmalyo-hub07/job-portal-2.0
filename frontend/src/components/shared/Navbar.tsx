@@ -87,7 +87,7 @@ const Navbar = () => {
         isHeroRoute ? "fixed inset-x-0" : "sticky",
         mediaTone
           ? "navbar-hero border-transparent bg-transparent shadow-none"
-          : "border-line/80 bg-paper/95 shadow-[0_0.5rem_2rem_color-mix(in_oklab,var(--ink)_6%,transparent)]",
+          : "border-line bg-paper/95 shadow-[0_0.5rem_2rem_color-mix(in_oklab,var(--shade)_8%,transparent)]",
       )}
     >
       <nav className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6">

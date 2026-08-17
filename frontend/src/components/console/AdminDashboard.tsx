@@ -119,7 +119,7 @@ export function AdminDashboard() {
           ))}
         </div>
       ) : isError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           Could not load the overview: {error instanceof Error ? error.message : "unknown error"}
         </p>
       ) : (

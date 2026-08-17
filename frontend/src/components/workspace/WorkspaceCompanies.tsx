@@ -61,7 +61,7 @@ export function WorkspaceCompanies() {
           ))}
         </div>
       ) : isError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           Could not load your companies:{" "}
           {error instanceof Error ? error.message : "unknown error"}
         </p>

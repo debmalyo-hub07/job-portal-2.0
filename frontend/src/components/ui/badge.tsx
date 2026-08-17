@@ -10,16 +10,20 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-ink text-paper [a&]:hover:bg-ink/90",
-        secondary: "bg-paper-sunken text-ink [a&]:hover:bg-paper-sunken/70",
+        secondary: "bg-paper-sunken text-ink [a&]:hover:bg-container",
         signal: "bg-signal-muted text-signal-text",
-        outline: "border-line text-ink [a&]:hover:bg-paper-sunken",
+        // A badge's border is its only boundary, so it answers to 3:1 rather
+        // than the hairline floor the section dividers use.
+        outline: "border-line-strong text-ink [a&]:hover:bg-paper-sunken",
         ghost: "[a&]:hover:bg-signal-muted",
         link: "text-signal-text underline-offset-4 [a&]:hover:underline",
         // Semantic badges: callers always pair these with an icon and a label —
         // colour is never the only channel (WCAG 1.4.1).
-        ok: "bg-ok/15 text-ok",
-        warn: "bg-warn/15 text-warn",
-        danger: "bg-danger/15 text-danger",
+        // The tints are tokens rather than /15 utilities so the contrast gate
+        // can measure the pairing it actually ships.
+        ok: "bg-ok-muted text-ok-text",
+        warn: "bg-warn-muted text-warn-text",
+        danger: "bg-danger-muted text-danger-text",
       },
     },
     defaultVariants: {

@@ -32,7 +32,11 @@ export function WorkbenchShell({
       <Navbar />
       <PageShell density="compact" width="wide" motion="response" className="py-0">
         <div className="grid min-h-[calc(100svh-4.5rem)] md:grid-cols-[13rem_minmax(0,1fr)]">
-          <aside className="border-b border-line py-5 md:border-r md:border-b-0 md:py-8 md:pr-6">
+          {/* The 30% band. A workbench is mostly chrome, so the portal's hue
+              belongs here as a large quiet field rather than only in the small
+              accents — that is what makes the recruiter and admin consoles
+              legible as different places at a glance. */}
+          <aside className="border-b border-line bg-container px-4 py-5 md:border-r md:border-b-0 md:py-8 md:pr-6">
             <p className="mb-3 text-xs font-semibold uppercase text-signal-text">
               {eyebrow}
             </p>
@@ -46,9 +50,13 @@ export function WorkbenchShell({
                       className={({ isActive }) =>
                         cn(
                           "flex min-h-10 items-center rounded-sharp px-3 text-sm font-medium whitespace-nowrap transition-colors",
+                          // Active lifts out of the band onto a raised surface
+                          // rather than tinting it further: a signal wash over
+                          // an already-tinted field is a tint on a tint, and
+                          // nothing measures that pairing.
                           isActive
-                            ? "bg-signal-muted text-ink"
-                            : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
+                            ? "bg-paper-raised text-ink shadow-sm"
+                            : "text-ink-muted hover:bg-paper-raised hover:text-ink",
                         )
                       }
                     >

@@ -42,7 +42,7 @@ const ConfirmGoogleLink = () => {
         <>
           {/* Icon AND label — semantic state is never colour alone. */}
           <p className="flex items-start gap-2 text-sm text-ink">
-            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ok" />
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-ok-text" />
             <span>Done. You can now use “Continue with Google” to sign in.</span>
           </p>
           <Link
@@ -59,7 +59,7 @@ const ConfirmGoogleLink = () => {
             address.
           </p>
           {error ? (
-            <p role="alert" className="mb-4 text-sm text-danger">
+            <p role="alert" className="mb-4 text-sm text-danger-text">
               {error}
             </p>
           ) : null}

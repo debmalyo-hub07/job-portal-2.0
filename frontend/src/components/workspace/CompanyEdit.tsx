@@ -13,8 +13,8 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { useCompany, useCompanyUpdate } from "@/hooks/useRecruiterWorkspace";
 
 const FIELD =
-  "w-full rounded-surface border border-line bg-paper px-3 py-2 text-sm text-ink " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal";
+  "w-full rounded-surface border border-line-strong bg-paper px-3 py-2 text-sm text-ink " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-ring";
 
 /**
  * Edit a company.
@@ -98,7 +98,7 @@ export function CompanyEdit() {
   if (isError) {
     return (
       <HireShell title="Edit company">
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           Could not load this company: {error instanceof Error ? error.message : "unknown error"}
         </p>
       </HireShell>
