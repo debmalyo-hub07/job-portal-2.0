@@ -113,7 +113,6 @@ const JOBS = [
 ] as const;
 
 export type SeedDemoCatalogInput = {
-  webBaseUrl: string;
   allowNonDemoJobs?: boolean;
 };
 
@@ -172,7 +171,20 @@ export async function seedDemoCatalog(
 
   for (const definition of COMPANIES) {
     let company = await Company.findOne({ userId: owner._id, name: definition.name });
-    const logo = new URL(definition.logoPath, input.webBaseUrl).toString();
+    /**
+     * Stored relative, not absolute. These three files ship inside the web app's
+     * own `public/`, so a path resolves against whatever origin is serving the
+     * page and the logo works in every environment at once. An absolute URL
+     * built from WEB_BASE_URL only works while the browser happens to be on that
+     * exact origin: from `localhost:5173` it is cross-origin, and the production
+     * CSP allows images from `'self'`, Cloudinary and Google only — so the day a
+     * custom domain is attached, every demo logo would fail the policy and drop
+     * to initials with nothing in the API to explain it.
+     *
+     * Recruiter-uploaded logos stay absolute, because they really do live on
+     * another origin (`res.cloudinary.com`, allowlisted for that reason).
+     */
+    const logo = definition.logoPath;
     if (!company) {
       company = await Company.create({
         name: definition.name,
@@ -247,7 +259,6 @@ if (invokedDirectly) {
   await mongoose.connect(config.MONGO_URI);
   try {
     const result = await seedDemoCatalog({
-      webBaseUrl: config.WEB_BASE_URL,
       allowNonDemoJobs: process.argv.includes("--allow-nonempty"),
     });
     console.log(

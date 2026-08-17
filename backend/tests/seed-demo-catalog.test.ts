@@ -5,15 +5,13 @@ import { Job } from "../src/models/job.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { seedDemoCatalog } from "../src/scripts/seed-demo-catalog.js";
 
-const WEB_BASE_URL = "https://cairn.example";
-
 describe("seedDemoCatalog", () => {
   beforeEach(async () => {
     await Promise.all([Recruiter.init(), Company.init()]);
   });
 
   it("creates a non-login owner, labelled companies, logos, and six jobs", async () => {
-    const result = await seedDemoCatalog({ webBaseUrl: WEB_BASE_URL });
+    const result = await seedDemoCatalog({});
 
     expect(result).toMatchObject({
       recruiterCreated: true,
@@ -33,12 +31,19 @@ describe("seedDemoCatalog", () => {
     const companies = await Company.find({ userId: owner?._id }).sort({ name: 1 });
     expect(companies).toHaveLength(3);
     expect(companies.every((company) => company.name.endsWith("(Demo)"))).toBe(true);
-    expect(companies.every((company) => company.logo?.startsWith(`${WEB_BASE_URL}/images/companies/`))).toBe(true);
+    // Relative, so the logo resolves against whichever origin serves the page.
+    // An absolute URL here would be same-origin in production and cross-origin
+    // from localhost, where the CSP's `img-src 'self'` drops it to initials.
+    expect(companies.map((company) => company.logo).sort()).toEqual([
+      "/images/companies/demo-common-thread.svg",
+      "/images/companies/demo-fieldwork.svg",
+      "/images/companies/demo-northstar.svg",
+    ]);
   });
 
   it("is idempotent", async () => {
-    await seedDemoCatalog({ webBaseUrl: WEB_BASE_URL });
-    const again = await seedDemoCatalog({ webBaseUrl: WEB_BASE_URL });
+    await seedDemoCatalog({});
+    const again = await seedDemoCatalog({});
 
     expect(again).toMatchObject({
       recruiterCreated: false,
@@ -72,7 +77,7 @@ describe("seedDemoCatalog", () => {
       created_by: recruiter._id,
     });
 
-    await expect(seedDemoCatalog({ webBaseUrl: WEB_BASE_URL })).rejects.toThrow(
+    await expect(seedDemoCatalog({})).rejects.toThrow(
       /already contains 1 non-demo job/i,
     );
     expect(await Recruiter.countDocuments({ email: "catalog@demo.invalid" })).toBe(0);
@@ -87,7 +92,7 @@ describe("seedDemoCatalog", () => {
       status: "active",
     });
 
-    await expect(seedDemoCatalog({ webBaseUrl: WEB_BASE_URL })).rejects.toThrow(
+    await expect(seedDemoCatalog({})).rejects.toThrow(
       /attached to a login identity/i,
     );
   });
