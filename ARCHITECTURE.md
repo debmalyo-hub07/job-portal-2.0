@@ -303,13 +303,60 @@ re-resolve those properties beneath them:
 
 | Attribute | Set by | Resolves |
 |---|---|---|
-| `data-portal` | `PortalScope`, from the route | `--signal*` — violet for seekers, teal for recruiters |
+| `data-portal` | `PortalScope`, from the route | `--signal*`, `--container` — one hue per portal |
 | `data-density` | `PageShell`, from a prop | `--space-section`, `-card`, `-row`, `-field`, `-page-top` |
 
 Both work the same way and for the same reason: a component reads a token and
 asks no questions. Nothing branches on the theme, the portal or the surface.
 Density follows the surface's job rather than the portal — `/hire` is
 recruiter-scoped but runs spacious, because it is a marketing page.
+
+#### Triad on Bone
+
+The palette is organised by the 60/30/10 rule, and the three portal hues sit
+exactly 120° apart on the OKLCH wheel — a triad, in Adobe's sense, computed in a
+perceptually uniform space rather than HSB.
+
+| Band | Tokens | Role |
+|---|---|---|
+| 60 — ground | `paper`, `-sunken`, `-raised`, `overlay`, `ink`, `-muted`, `-faint` | Warm bone, house hue 70° |
+| 30 — structure | `line`, `line-strong`, `container`, `container-ink`, `shade` | Chrome; `container` is the portal hue desaturated to a field |
+| 10 — signal | `signal`, `-hover`, `-pressed`, `-text`, `-fg`, `-edge`, `-muted` | The only chromatic fill in the layout |
+
+Portal hues: seeker 200°, recruiter 80°, admin 320°. Status hues sit clear of all
+three — danger 25°, warn 55°, ok 145° — so identity and meaning are never
+confusable.
+
+Four distinctions carry most of the weight, and each exists because collapsing it
+shipped a bug:
+
+- **`line` vs `line-strong`.** `line` is a 12% wash for decorative dividers,
+  which WCAG 1.4.11 exempts. A control's boundary is not exempt, so inputs,
+  selects, radios, and badge outlines take `line-strong` at 3:1. Roughly twelve
+  of ninety `border-line` sites are controls.
+- **`signal` vs `signal-text`.** `signal` is the fill and the portal's identity;
+  `signal-text` is the darkened grade that carries 4.5:1 as type on paper. Using
+  the text grade as a fill is what made the recruiter button olive rather than
+  gold.
+- **A fill grade and a text grade per status.** A tinted badge is a wash of its
+  own status colour, so darkening the type darkens the wash by the same
+  proportion and the ratio barely moves — `bg-ok/15 text-ok` measured 4.01:1 in
+  every portal. Type on a wash takes `-text`; the fill takes `-fg`.
+- **`shade` vs `ink`.** A scrim must dim its backdrop in both themes, so it
+  cannot use a token that flips with the theme.
+
+Two shapes are forced rather than chosen. Recruiter gold is a *light* fill
+(L 0.80) with dark text, because gold below L 0.60 reads olive — so its fill
+polarity is inverted relative to seeker and admin, and it needs `signal-edge` to
+supply the 3:1 boundary its own lightness cannot. And every interaction ramp must
+move in the direction that increases contrast with *that fill's own* foreground,
+which is why the dark-mode ramps brighten while the light-mode ramps darken.
+
+`npm run lint:colour` enforces this in CI, with no palette of its own — it parses
+`index.css`, replays the cascade for each of the six theme×portal scopes, and
+checks 440 pairings against the 4.5:1 and 3:1 floors plus sRGB gamut and the 120°
+triad. It also fails on a *dead class*: a palette token used as `bg-x` without a
+`--color-x` alias emits no CSS and renders uncoloured, silently.
 
 Composition is four primitives in `src/components/layout` — `PageShell`,
 `PageHeader`, `EmptyState`, `FormField` — plus `AuthLayout`/`PortalPanel` for the

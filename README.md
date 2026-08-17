@@ -26,7 +26,7 @@ A cairn is a stack of stones one traveller leaves to mark the path for the next.
 | API | Node 22/24, Express 5, TypeScript, Mongoose 8 |
 | Database | MongoDB (Atlas) |
 | Web | React 19, Vite 8, TypeScript, Redux Toolkit, TanStack Query, Tailwind 4, Radix primitives |
-| Design | "Ink & Signal" token system — CSS custom properties via `@theme inline`, portal-scoped accent, dark mode, self-hosted Fraunces/Geist |
+| Design | "Triad on Bone" token system — CSS custom properties via `@theme inline`, 60/30/10 bands, 120° portal triad, dark mode, self-hosted Fraunces/Geist |
 | Validation | Zod 4, shared between client and server |
 | Email | Brevo (transactional) |
 | Media | Cloudinary |
@@ -340,26 +340,32 @@ There is no control anywhere that picks a portal. `PortalScope` derives it from
 matching on a segment boundary so `/hired` and `/administrator` stay seeker
 paths. A `?portal=` query cannot move it.
 
-### Design system — "Ink & Signal"
+### Design system — "Triad on Bone"
 
 Every colour, radius, type size and motion duration is a CSS custom property in
 `frontend/src/index.css`, mapped into Tailwind 4 through `@theme inline`. No
 component sets a colour directly, and none branches on the theme — the tokens
 flip themselves, so a `dark:` colour override in a component is a bug.
 
-The accent ("signal") is portal-scoped: `data-portal` on the tree re-resolves it
-to violet for seekers and teal for recruiters. Spacing works the same way —
-`data-density` on `PageShell` resolves `--space-*`, so pages pass a `density`
-prop rather than hand-tuning padding.
+The palette is organised by the 60/30/10 rule — ground, structure, accent — on a
+warm bone house hue, and the accent is portal-scoped: `data-portal` on the tree
+re-resolves it to one of three hues sitting exactly 120° apart on the OKLCH wheel
+(seeker 200°, recruiter 80°, admin 320°), an Adobe-style triad computed in a
+perceptually uniform space. Spacing works the same way — `data-density` on
+`PageShell` resolves `--space-*`, so pages pass a `density` prop rather than
+hand-tuning padding. See [ARCHITECTURE.md](ARCHITECTURE.md#triad-on-bone) for the
+token bands and the four distinctions that carry the weight.
 
-All 26 token pairings clear WCAG 4.5:1 in both themes and all three portals,
-verified
-by `frontend/tests/visual/contrast.mjs`, which resolves colours through a real
-browser rather than parsing `oklch()` as if it were sRGB.
+`npm run lint:colour` enforces the system in CI: 440 pairings across all six
+theme×portal scopes against the WCAG 4.5:1 text and 3:1 UI floors, plus sRGB
+gamut, the 120° triad, and dead colour classes. It parses `index.css` in pure
+Node and holds no palette of its own. `frontend/tests/visual/contrast.mjs` remains
+as a runtime cross-check through a real browser; it needs a dev server, so it is
+not part of `npm run ci`.
 
-In development, `/_design` renders every primitive across both themes × both
-portals. It is DEV-only via `import.meta.env.DEV` + `React.lazy`, so Rollup drops
-it from production builds.
+In development, `/_design` renders every primitive across both themes × all three
+portals, plus the token bands and interaction ramps. It is DEV-only via
+`import.meta.env.DEV` + `React.lazy`, so Rollup drops it from production builds.
 
 ## Scripts
 

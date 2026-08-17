@@ -70,7 +70,7 @@ Portal identity comes from server-owned route literals, never request input.
 
 ## Frontend
 
-- Preserve the established Ink & Signal design tokens and responsive patterns.
+- Preserve the established Triad on Bone design tokens and responsive patterns.
 - Use existing UI primitives and Lucide icons.
 - Do not introduce raw colours; run `npm run lint:colour` after styling changes.
 - Keep route guards portal-specific. Public pages must not depend on a cached

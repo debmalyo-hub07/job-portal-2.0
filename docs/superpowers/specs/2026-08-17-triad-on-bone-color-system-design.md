@@ -1,6 +1,11 @@
 # Triad on Bone — Colour System Redesign
 
-Status: approved 2026-08-17. Supersedes the ad-hoc palette values behind the
+Status: approved 2026-08-17, **shipped 2026-08-17**. The design intent below
+stands. **Its numeric values do not — see [As built](#as-built) for the
+corrections and why each was forced.** Read that section before trusting a
+number in this one.
+
+Supersedes the ad-hoc palette values behind the
 "Ink & Signal" token system. The token *mechanism* (CSS custom properties in
 `frontend/src/index.css`, flipped by `.dark` and `data-portal`, mapped into
 Tailwind 4 via `@theme inline`, protected by the colour gate and the contrast
@@ -250,3 +255,60 @@ token-package extraction (rejected as Approach C). No per-page custom palettes
 - The 60/30/10 audit reports within 60±5 / 30±5 / 10±5 on representative
   screens.
 - Colour gate hard zero: no raw colour, no `oklch(` outside `index.css`.
+
+## As built
+
+Verification before implementation found **26 failing checks in 6 classes** in
+the palette above. The intent survived; most of the arithmetic did not. The
+root error is one idea: **the spec derived every ramp by uniform OKLCH deltas
+(`C × 0.85`, `L + 0.34`), but sRGB's chroma ceiling varies ~2.8× by hue.** A
+delta that is safe at 320° is unrenderable at 80°, and a browser clamps
+out-of-gamut channels independently, which *shifts the hue* — silently defeating
+the ±2° hue-wander guarantee the same spec asks for. Ramps are now derived per
+hue by binary search against the in-gamut ceiling.
+
+The shipped values live in `frontend/src/index.css` and are the single source of
+truth. What changed and why:
+
+| Spec said | Shipped | Why |
+|---|---|---|
+| dark `signal-fg` implicitly light | `var(--paper)` | Dark fills are *light*, so their foreground is the dark ground. The spec's polarity measured 1.59–2.42:1 across 9 pairings |
+| `signal-ring` = solid signal | aliases `signal-text` | A focus ring is UI at 3:1; solid gold on bone paper measured 1.70:1 |
+| gold anchor `0.62 0.15 80`, light text | `0.80 0.164 80`, `var(--ink)` text | Gold below L 0.60 reads olive. Keeping a real gold forces a *light* fill with dark text — recruiter's fill polarity is inverted relative to seeker and admin, and it needs `signal-edge` for the 3:1 boundary its lightness cannot supply |
+| `warn` hue 65°, ≥15° from gold | hue 55°, and L 0.54 vs gold's 0.80 | 15° is not separable at similar lightness. Warn now differs on two axes: 25° of hue and 0.26 of lightness |
+| light `line` = ink at 8% | 12% | 8% measured 1.08:1 — a divider you cannot see |
+| light `paper` `0.985` | `0.972` | A near-white paper leaves `sunken`/`raised` no room and reads cold rather than bone. `sunken` 0.94→0.935, `raised` 0.997→0.993, `ink-faint` 0.56→0.55, `line-strong` 0.6→0.59 |
+| one grade per status | a fill grade **and** a text grade | Not in the spec at all, and the most serious find: a tinted badge is a wash of its own status colour, so darkening the type darkens the wash proportionally and the ratio barely moves. The *already shipped* `bg-ok/15 text-ok` badges measured **4.01:1 in every portal** — a live WCAG 1.4.3 failure nothing had ever measured. Dark mode needs no text grade; its wash darkens toward the ground while the type stays light |
+| `signal-muted` panel pairs with `ink-muted` | pairs with `ink` | ink-muted on that panel lands 2.74–3.33:1 at every useful alpha |
+| roles per portal block | declared once in `:root` | A custom property resolves its `var()` in the *consuming* scope, so one declaration follows both portal and theme. Six copies is how a dark `signal-fg` ended up pointing the wrong way in three blocks and the right way in three others |
+| — | `shade` added | A scrim must dim its backdrop in *both* themes; `bg-ink/40` lightened the page in dark mode |
+
+### Enforcement, as built
+
+`tests/visual/contrast.mjs` needs a running dev server, so `npm run ci` had never
+executed it — the 4.5:1 and 3:1 floors were documented and unenforced. The gate
+is now `frontend/scripts/check-colour-contrast.mjs`: pure Node, no browser, **440
+checks** over all six theme×portal scopes, run by `lint:colour` in CI. It holds
+no palette of its own — it parses `index.css`, replays the cascade, and derives
+the portal anchors from the parsed values, so a redesign changes what it checks
+with no second copy to drift. It was mutation-tested against seven regression
+classes (inverted polarity, collapsed status grades, invisible hairline, broken
+triad, faint prose, flat container, gamut clip); all seven fail it.
+
+`check-colour-tokens.mjs` gained a **dead-class** check, which found two live
+bugs: `text-warn-text` in `LegalDraftNotice.tsx` had been drawing an uncoloured
+icon for as long as the file existed, and `bg-shade/60` left the dialog scrim
+fully transparent. Both are the same defect — a palette token used as `bg-x`
+without a `--color-x` alias emits no CSS, raises no error, and renders
+uncoloured. The check compares the two halves of `index.css` against each other,
+so it needs no list to maintain.
+
+### Not shipped
+
+Success criterion 4 — a **numeric** 60/30/10 area audit reporting 60±5 / 30±5 /
+10±5 — did not ship. Measuring painted area share requires a browser, and the
+number would drift with page content rather than with the palette, making it a
+gate that fails for the wrong reasons. What shipped instead: `container` wired
+into the three genuine chrome surfaces (workbench rail, tabs list, table header),
+and a proportional band demo in `/design` showing the split directly. The rule is
+demonstrated and structurally enforced; it is not asserted as a measured number.
