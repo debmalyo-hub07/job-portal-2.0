@@ -4,32 +4,62 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  /* surfaces & ink */
+  /* ---- 60%: the ground. Four surfaces on one warm-bone hue. */
   --color-paper: var(--paper);
   --color-paper-sunken: var(--paper-sunken);
   --color-paper-raised: var(--paper-raised);
+  --color-overlay: var(--overlay);
+
+  /* ink ramp — ink 4.5:1 body, ink-muted 4.5:1 secondary, ink-faint 3:1 caption */
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  /* ---- 30%: structure. Hairlines, dividers, and the portal-tinted band that
+     carries the chrome (navbar, rails, table heads) without being an accent. */
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-container: var(--container);
+  --color-container-ink: var(--container-ink);
+  /* --shade is the scrim and shadow colour: the darkest ink of the *light*
+     palette, and darker still in dark mode, so an overlay dims its backdrop in
+     both themes. A theme-flipping token cannot do that — bg-ink/40 lightened
+     the page in dark mode instead of dimming it. */
+  --color-shade: var(--shade);
+
+  /* photographic surfaces — fixed against imagery, not against paper */
   --color-media-shade: var(--media-shade);
   --color-media-copy: var(--media-copy);
   --color-media-surface: var(--media-surface);
   --color-media-surface-ink: var(--media-surface-ink);
   --color-logo-canvas: var(--logo-canvas);
 
-  /* signal (portal-scoped) */
+  /* ---- 10%: signal. Portal-scoped; the only chromatic fill in the layout. */
   --color-signal: var(--signal);
+  --color-signal-hover: var(--signal-hover);
+  --color-signal-pressed: var(--signal-pressed);
   --color-signal-text: var(--signal-text);
   --color-signal-fg: var(--signal-fg);
   --color-signal-muted: var(--signal-muted);
   --color-signal-ring: var(--signal-ring);
+  --color-signal-edge: var(--signal-edge);
 
-  /* semantics — hues 25 / 75 / 145 */
+  /* semantics — hues 25 / 55 / 145, all clear of the 80/200/320 triad.
+     Each has a fill grade, a text grade, and a muted wash, the same three
+     roles --signal carries. */
   --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-pressed: var(--danger-pressed);
+  --color-danger-text: var(--danger-text);
+  --color-danger-muted: var(--danger-muted);
   --color-danger-fg: var(--danger-fg);
   --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-warn-muted: var(--warn-muted);
   --color-warn-fg: var(--warn-fg);
   --color-ok: var(--ok);
+  --color-ok-text: var(--ok-text);
+  --color-ok-muted: var(--ok-muted);
   --color-ok-fg: var(--ok-fg);
 
   /* shadcn-compat aliases so pre-2B surfaces keep compiling.
@@ -38,7 +68,7 @@
   --color-foreground: var(--ink);
   --color-card: var(--paper-raised);
   --color-card-foreground: var(--ink);
-  --color-popover: var(--paper-raised);
+  --color-popover: var(--overlay);
   --color-popover-foreground: var(--ink);
   --color-primary: var(--ink);
   --color-primary-foreground: var(--paper);
@@ -147,28 +177,90 @@
 }
 
 :root {
-  /* Ink & Signal light — crisp alabaster neutrals with subtle cool slate undertone (hue 260) */
-  --paper: oklch(0.985 0.002 260);
-  --paper-sunken: oklch(0.955 0.004 260);
-  --paper-raised: oklch(1 0 0);
-  --ink: oklch(0.17 0.006 260);
-  --ink-muted: oklch(0.44 0.010 260);
-  --line: oklch(0.915 0.004 260);
-  --media-shade: oklch(0.12 0.015 260);
-  --media-copy: oklch(0.99 0.003 260);
-  --media-surface: oklch(0.995 0.002 260);
-  --media-surface-ink: oklch(0.17 0.006 260);
+  /* ===== 60% — ground =====
+     One hue (70°, warm bone) across four surfaces. The steps are ~0.037 L
+     apart so the elevation ladder is actually visible; the previous 0.03 gap
+     between paper and paper-sunken read as a single flat field, and
+     paper-raised was pure white, which put the brightest value in the
+     document on a card rather than on the page. */
+  --paper: oklch(0.972 0.009 70);
+  --paper-sunken: oklch(0.935 0.012 70);
+  --paper-raised: oklch(0.993 0.005 70);
+  --overlay: oklch(0.999 0.001 70);
+
+  /* ink ramp. ink 16.70:1, ink-muted 6.19:1 (both clear 4.5:1 body text);
+     ink-faint is a 3:1 caption/placeholder value and must never carry prose. */
+  --ink: oklch(0.2 0.012 70);
+  --ink-muted: oklch(0.43 0.015 70);
+  --ink-faint: oklch(0.55 0.012 70);
+
+  /* ===== 30% — structure =====
+     --line is ink at 12%, so a hairline composites correctly on any of the
+     four surfaces instead of matching exactly one of them. 8% measured
+     1.08:1 against paper and was effectively invisible. --line-strong is the
+     opaque 3:1 value for control boundaries. */
+  --line: oklch(0.2 0.012 70 / 12%);
+  --line-strong: oklch(0.59 0.012 70);
+
+  /* Photographic surfaces are pinned to imagery, not to paper, and so flip
+     with the theme independently of the ground. */
+  --media-shade: oklch(0.14 0.012 70);
+  --media-copy: oklch(0.99 0.003 70);
+  --media-surface: oklch(0.995 0.002 70);
+  --media-surface-ink: oklch(0.17 0.006 70);
   /* Uploaded marks keep their authored colours on the same neutral canvas in
      both themes instead of inheriting a dark surface. */
-  --logo-canvas: oklch(0.995 0 0);
+  --logo-canvas: oklch(0.995 0.002 70);
 
-  /* semantics: danger 25 / warn 75 / ok 145 — icon + label always, never colour alone */
-  --danger: oklch(0.54 0.20 25);
+  /* The colour shadows are made of. Overriding this in dark is what stops a
+     `color-mix(--ink)` shadow from becoming a white glow. */
+  --shade: oklch(0.2 0.012 70);
+
+  /* ===== status — icon + label always, never colour alone =====
+     warn sits at 55°, not 65°: it must stay separable from the recruiter gold
+     at 80°, and it does so on two axes — 25° of hue and 0.26 of lightness.
+     Every status fill carries a light foreground so darkening it on press
+     raises contrast rather than lowering it.
+
+     Each status has a fill grade and a text grade, exactly like --signal does.
+     The tinted badge is a wash of the *fill*, so type on it cannot be the fill
+     colour: lowering the fill's lightness darkens the wash by the same
+     proportion and the ratio barely moves. Measured, the shipped `bg-ok/15
+     text-ok` badge sat at 4.01:1 — under the floor, in every portal, unnoticed
+     because nothing measured it. The text grade is the darker value that
+     clears 4.5:1 on paper, on paper-raised, on paper-sunken, and on its own
+     wash. */
+  --danger: oklch(0.55 0.17 25);
+  --danger-hover: oklch(0.51 0.17 25);
+  --danger-pressed: oklch(0.47 0.17 25);
+  --danger-text: oklch(0.5 0.17 25);
   --danger-fg: oklch(0.99 0.004 25);
-  --warn: oklch(0.52 0.14 75);
-  --warn-fg: oklch(0.16 0.008 75);
-  --ok: oklch(0.50 0.15 145);
+  --warn: oklch(0.54 0.135 55);
+  --warn-text: oklch(0.495 0.122 55);
+  --warn-fg: oklch(0.99 0.004 55);
+  --ok: oklch(0.51 0.16 145);
+  --ok-text: oklch(0.465 0.146 145);
   --ok-fg: oklch(0.99 0.004 145);
+
+  /* ===== role aliases =====
+     Declared once, for every theme and every portal. Each is a pure function of
+     a value defined elsewhere, and a custom property resolves its var() in the
+     scope where it is *used*, so one declaration follows the portal and the
+     theme automatically. Six copies of these lines is how the previous system
+     ended up with a dark-mode --signal-fg pointing the wrong way in three
+     places and right in three others.
+
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and so answer to 3:1.
+     A translucent ring drawn over the fill, which is what shipped before,
+     measured 1.70:1 in the gold portal. */
+  --signal-muted: color-mix(in oklab, var(--signal) 12%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
+  --container-ink: var(--ink);
+  --danger-muted: color-mix(in oklab, var(--danger) 15%, transparent);
+  --warn-muted: color-mix(in oklab, var(--warn) 15%, transparent);
+  --ok-muted: color-mix(in oklab, var(--ok) 15%, transparent);
 
   /* motion */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -185,19 +277,45 @@
 }
 
 .dark {
-  --paper: oklch(0.16 0.01 60);
-  --paper-sunken: oklch(0.125 0.009 60);
-  --paper-raised: oklch(0.205 0.012 60);
-  --ink: oklch(0.965 0.006 82);
-  --ink-muted: oklch(0.72 0.012 75);
-  --line: oklch(1 0 0 / 9%);
+  /* Deep warm charcoal on the same 70° hue, so the theme flip changes value
+     without changing the family. */
+  --paper: oklch(0.19 0.01 70);
+  --paper-sunken: oklch(0.145 0.008 70);
+  --paper-raised: oklch(0.235 0.012 70);
+  --overlay: oklch(0.27 0.012 70);
 
-  --danger: oklch(0.68 0.17 25);
-  --danger-fg: oklch(0.165 0.006 95);
-  --warn: oklch(0.75 0.13 75);
-  --warn-fg: oklch(0.165 0.006 95);
-  --ok: oklch(0.7 0.13 145);
-  --ok-fg: oklch(0.165 0.006 95);
+  --ink: oklch(0.93 0.01 80);
+  --ink-muted: oklch(0.7 0.012 75);
+  --ink-faint: oklch(0.52 0.012 75);
+
+  --line: oklch(0.93 0.01 80 / 12%);
+  --line-strong: oklch(0.55 0.012 75);
+
+  --media-shade: oklch(0.1 0.008 70);
+  --media-copy: oklch(0.96 0.008 75);
+  --media-surface: oklch(0.96 0.008 75);
+  --media-surface-ink: oklch(0.2 0.012 70);
+
+  --shade: oklch(0.06 0.01 70);
+
+  /* Dark status fills are light, so their foreground is the dark ground — and
+     the interaction ramp therefore has to brighten, not darken. Chroma falls as
+     lightness rises because sRGB has no more red to give up there: the ceiling
+     at 25deg is 0.143 at L 0.76 and 0.114 at L 0.80. */
+  --danger: oklch(0.72 0.15 25);
+  --danger-hover: oklch(0.76 0.143 25);
+  --danger-pressed: oklch(0.8 0.114 25);
+  --danger-fg: oklch(0.19 0.01 70);
+  --warn: oklch(0.79 0.135 55);
+  --warn-fg: oklch(0.19 0.01 70);
+  --ok: oklch(0.74 0.16 145);
+  --ok-fg: oklch(0.19 0.01 70);
+  /* Dark mode needs no separate text grade: the wash darkens toward the dark
+     ground while the type stays light, so the gap widens instead of closing.
+     These alias rather than repeat the value so there is one place to change. */
+  --danger-text: var(--danger);
+  --warn-text: var(--warn);
+  --ok-text: var(--ok);
 
   --hero-image-brightness: 0.7;
   --hero-image-saturation: 0.82;
@@ -205,54 +323,80 @@
   --hero-wash-opacity: 0.68;
 }
 
-/* Signal — portal scoped, set only from the route. Default = seeker. */
+/* ===== 10% — signal =====
+   Portal identity is a triadic harmony: three hues exactly 120° apart on the
+   OKLCH wheel, which is the Adobe colour-wheel triad rule applied in a
+   perceptually uniform space rather than in HSB. seeker 200° (cool blue,
+   trust), recruiter 80° (gold, value), admin 320° (rose, authority).
+   Set only from the route. Default = seeker.
+
+   Two constraints shape every ramp below, and both were derived numerically
+   rather than by eye:
+
+   1. Chroma is per-hue, not shared. sRGB cannot render equal chroma at equal
+      lightness across hues — at L 0.55 the ceiling is 0.094 at 200° but
+      0.265 at 320°, a factor of 2.8. A shared value either clips (the
+      browser then clamps per channel and *shifts the hue*, silently breaking
+      the identity) or throws away most of the available saturation.
+   2. Hover and pressed always darken, and the fill's polarity is chosen so
+      that darkening always *raises* contrast with its own foreground.
+      Recruiter is therefore a light gold fill with dark text: gold below
+      L 0.60 stops reading as gold and turns olive, so it cannot be a dark
+      fill, and a light fill with light text has nowhere to go. */
 :root,
 [data-portal="seeker"] {
-  --signal: oklch(0.57 0.20 282);
-  --signal-text: oklch(0.40 0.20 282);
-  --signal-fg: oklch(0.99 0.004 282);
-  --signal-muted: oklch(0.57 0.20 282 / 10%);
-  --signal-ring: oklch(0.57 0.20 282 / 35%);
+  --signal: oklch(0.54 0.092 200);
+  --signal-hover: oklch(0.5 0.086 200);
+  --signal-pressed: oklch(0.46 0.079 200);
+  --signal-text: oklch(0.455 0.078 200);
+  --signal-fg: oklch(0.99 0.004 200);
+  --container: oklch(0.87 0.045 200);
 }
 [data-portal="recruiter"] {
-  --signal: oklch(0.52 0.14 180);
-  --signal-text: oklch(0.36 0.11 180);
-  --signal-fg: oklch(0.99 0.004 180);
-  --signal-muted: oklch(0.52 0.14 180 / 10%);
-  --signal-ring: oklch(0.52 0.14 180 / 35%);
+  --signal: oklch(0.8 0.164 80);
+  --signal-hover: oklch(0.76 0.156 80);
+  --signal-pressed: oklch(0.72 0.148 80);
+  --signal-text: oklch(0.46 0.096 80);
+  --signal-fg: var(--ink);
+  --container: oklch(0.87 0.045 80);
 }
-/* Admin. Hue 325 sits clear of warn, ok and danger, and is unmistakable
-   against seeker violet (282) and recruiter teal (180). --signal-text is
-   deliberately darker than --signal to clear 4.5:1 on paper, the same
-   treatment --warn and --ok already receive. */
 [data-portal="admin"] {
-  --signal: oklch(0.54 0.18 325);
-  --signal-text: oklch(0.38 0.18 325);
-  --signal-fg: oklch(0.99 0.004 325);
-  --signal-muted: oklch(0.54 0.18 325 / 10%);
-  --signal-ring: oklch(0.54 0.18 325 / 35%);
+  --signal: oklch(0.52 0.17 320);
+  --signal-hover: oklch(0.48 0.17 320);
+  --signal-pressed: oklch(0.44 0.17 320);
+  --signal-text: oklch(0.475 0.158 320);
+  --signal-fg: oklch(0.99 0.004 320);
+  --container: oklch(0.87 0.045 320);
 }
+/* Dark fills are light in every portal, so --signal-fg is the dark ground.
+   Referencing var(--paper) rather than restating a literal keeps the hue-
+   wander rule satisfied and makes the polarity impossible to get backwards —
+   an earlier draft pointed it at var(--ink), which is near-white in dark and
+   put every primary button label at 1.59:1. */
 .dark,
 .dark [data-portal="seeker"] {
-  --signal: oklch(0.74 0.16 282);
-  --signal-text: oklch(0.80 0.14 282);
-  --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.74 0.16 282 / 18%);
-  --signal-ring: oklch(0.74 0.16 282 / 55%);
+  --signal: oklch(0.74 0.124 200);
+  --signal-hover: oklch(0.705 0.118 200);
+  --signal-pressed: oklch(0.67 0.113 200);
+  --signal-text: oklch(0.8 0.132 200);
+  --signal-fg: var(--paper);
+  --container: oklch(0.32 0.045 200);
 }
 .dark [data-portal="recruiter"] {
-  --signal: oklch(0.72 0.12 180);
-  --signal-text: oklch(0.80 0.10 180);
-  --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.72 0.12 180 / 18%);
-  --signal-ring: oklch(0.72 0.12 180 / 55%);
+  --signal: oklch(0.8 0.164 80);
+  --signal-hover: oklch(0.765 0.157 80);
+  --signal-pressed: oklch(0.73 0.15 80);
+  --signal-text: oklch(0.84 0.14 80);
+  --signal-fg: var(--paper);
+  --container: oklch(0.32 0.045 80);
 }
 .dark [data-portal="admin"] {
-  --signal: oklch(0.72 0.15 325);
-  --signal-text: oklch(0.81 0.13 325);
-  --signal-fg: oklch(0.16 0.01 60);
-  --signal-muted: oklch(0.72 0.15 325 / 18%);
-  --signal-ring: oklch(0.72 0.15 325 / 55%);
+  --signal: oklch(0.74 0.17 320);
+  --signal-hover: oklch(0.705 0.17 320);
+  --signal-pressed: oklch(0.67 0.17 320);
+  --signal-text: oklch(0.8 0.15 320);
+  --signal-fg: var(--paper);
+  --container: oklch(0.32 0.045 320);
 }
 
 @layer base {
@@ -307,7 +451,7 @@
     content: "";
     background:
       linear-gradient(118deg, color-mix(in oklab, var(--signal) 7%, transparent), transparent 35%),
-      repeating-linear-gradient(90deg, color-mix(in oklab, var(--line) 34%, transparent) 0 1px, transparent 1px 5rem);
+      repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 5rem);
     opacity: 0.7;
   }
 
@@ -323,11 +467,14 @@
   }
 
   .auth-form-surface {
-    border: 1px solid color-mix(in oklab, var(--line) 86%, var(--signal));
+    /* --line is ink at 12%, so mixing signal into it would produce a
+       translucent edge. The opaque 3:1 value is --line-strong; 12% of signal
+       tints it without dropping it below the boundary floor in any portal. */
+    border: 1px solid color-mix(in oklab, var(--line-strong) 88%, var(--signal));
     border-radius: var(--radius-surface);
     background: color-mix(in oklab, var(--paper-raised) 93%, transparent);
     box-shadow:
-      0 2rem 5rem color-mix(in oklab, var(--ink) 9%, transparent),
+      0 2rem 5rem color-mix(in oklab, var(--shade) 9%, transparent),
       inset 0 1px color-mix(in oklab, var(--media-copy) 48%, transparent);
     padding: clamp(1.25rem, 3vw, 2.25rem);
     backdrop-filter: blur(16px);
