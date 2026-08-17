@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "lint:colour": "node scripts/check-colour-tokens.mjs",
+    "lint:colour": "node scripts/check-colour-tokens.mjs && node scripts/check-colour-contrast.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
