@@ -22,7 +22,7 @@ import { CircleCheck, CircleX, Menu, MoreVertical, TriangleAlert } from "lucide-
 import { toast } from "sonner";
 
 export default function DesignGallery() {
-  const portals = ["seeker", "recruiter"] as const;
+  const portals = ["seeker", "recruiter", "admin"] as const;
   const themes = ["light", "dark"] as const;
 
   return (
@@ -31,7 +31,13 @@ export default function DesignGallery() {
         <header className="space-y-2">
           <h1 className="font-display text-display-lg text-ink">Design Gallery</h1>
           <p className="text-lg text-ink-muted">
-            Ink & Signal token system — all components, both portals, both themes
+            Triad on Bone — every component, all three portals, both themes
+          </p>
+          <p className="max-w-2xl text-sm text-ink-muted">
+            Portal hues sit 120° apart on the OKLCH wheel: seeker 200°, recruiter
+            80°, admin 320°. The numeric floors are enforced by{" "}
+            <code className="font-mono text-xs">npm run lint:colour</code>; this
+            page is for the judgements a ratio cannot make.
           </p>
         </header>
 
@@ -59,32 +65,153 @@ export default function DesignGallery() {
   );
 }
 
+function Swatches({ tokens }: { tokens: readonly { name: string; class: string }[] }) {
+  return (
+    <div className="flex flex-wrap gap-3">
+      {tokens.map(({ name, class: className }) => (
+        <div key={name} className="w-32 space-y-1">
+          <div className={`h-12 rounded-sharp border border-line-strong ${className}`} />
+          <span className="block font-mono text-xs break-all text-ink-muted">{name}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function GallerySection({ theme }: { theme: "light" | "dark" }) {
   return (
     <div className="space-y-12">
-      {/* Token Swatches */}
+      {/* The 60/30/10 split, shown as area rather than claimed in prose. The
+          gate proves the ratios; this proves the proportion. */}
       <section className="space-y-4">
+        <h4 className="text-sm font-medium uppercase text-ink-muted">60 / 30 / 10</h4>
+        <div className="flex h-24 overflow-hidden rounded-surface border border-line-strong">
+          <div className="flex basis-[60%] items-end bg-paper p-2">
+            <span className="font-mono text-xs text-ink-muted">60 ground</span>
+          </div>
+          <div className="flex basis-[30%] items-end bg-container p-2">
+            <span className="font-mono text-xs text-container-ink">30 structure</span>
+          </div>
+          <div className="flex basis-[10%] items-end bg-signal p-2">
+            <span className="font-mono text-xs text-signal-fg">10</span>
+          </div>
+        </div>
+        <p className="max-w-2xl text-sm text-ink-muted">
+          Accent is the smallest field on the page, not the loudest one. When a
+          console needs the portal's hue at scale — the workbench rail, a table
+          header — it takes <code className="font-mono text-xs">container</code>,
+          the desaturated 30% band, never <code className="font-mono text-xs">signal</code>.
+        </p>
+      </section>
+
+      {/* Token swatches, grouped by band */}
+      <section className="space-y-6">
         <h4 className="text-sm font-medium uppercase text-ink-muted">Tokens</h4>
-        <div className="flex flex-wrap gap-4">
-          {[
-            { name: "paper", class: "bg-paper" },
-            { name: "paper-sunken", class: "bg-paper-sunken" },
-            { name: "paper-raised", class: "bg-paper-raised" },
-            { name: "ink", class: "bg-ink" },
-            { name: "ink-muted", class: "bg-ink-muted" },
-            { name: "line", class: "bg-line" },
-            { name: "signal", class: "bg-signal" },
-            { name: "signal-text", class: "bg-signal-text" },
-            { name: "signal-muted", class: "bg-signal-muted" },
-            { name: "danger", class: "bg-danger" },
-            { name: "warn", class: "bg-warn" },
-            { name: "ok", class: "bg-ok" },
-          ].map(({ name, class: className }) => (
-            <div key={name} className="flex items-center gap-2">
-              <div className={`size-16 rounded-sharp border border-line ${className}`} />
-              <span className="font-mono text-xs text-ink-muted">{name}</span>
-            </div>
-          ))}
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs text-ink-faint">60 — ground and ink ramp</p>
+          <Swatches
+            tokens={[
+              { name: "paper", class: "bg-paper" },
+              { name: "paper-sunken", class: "bg-paper-sunken" },
+              { name: "paper-raised", class: "bg-paper-raised" },
+              { name: "overlay", class: "bg-overlay" },
+              { name: "ink", class: "bg-ink" },
+              { name: "ink-muted", class: "bg-ink-muted" },
+              { name: "ink-faint", class: "bg-ink-faint" },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs text-ink-faint">
+            30 — structure. line is decorative (1.4.11 exempt); line-strong bounds controls at 3:1
+          </p>
+          <Swatches
+            tokens={[
+              { name: "line", class: "bg-line" },
+              { name: "line-strong", class: "bg-line-strong" },
+              { name: "container", class: "bg-container" },
+              { name: "container-ink", class: "bg-container-ink" },
+              { name: "shade", class: "bg-shade" },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs text-ink-faint">
+            10 — signal. signal is the fill; signal-text is the darkened grade that
+            carries 4.5:1 as type
+          </p>
+          <Swatches
+            tokens={[
+              { name: "signal", class: "bg-signal" },
+              { name: "signal-hover", class: "bg-signal-hover" },
+              { name: "signal-pressed", class: "bg-signal-pressed" },
+              { name: "signal-text", class: "bg-signal-text" },
+              { name: "signal-fg", class: "bg-signal-fg" },
+              { name: "signal-edge", class: "bg-signal-edge" },
+              { name: "signal-muted", class: "bg-signal-muted" },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <p className="font-mono text-xs text-ink-faint">
+            status — fill grade, text grade, wash. Never the only channel (1.4.1)
+          </p>
+          <Swatches
+            tokens={[
+              { name: "danger", class: "bg-danger" },
+              { name: "danger-hover", class: "bg-danger-hover" },
+              { name: "danger-pressed", class: "bg-danger-pressed" },
+              { name: "danger-text", class: "bg-danger-text" },
+              { name: "danger-muted", class: "bg-danger-muted" },
+              { name: "warn", class: "bg-warn" },
+              { name: "warn-text", class: "bg-warn-text" },
+              { name: "warn-muted", class: "bg-warn-muted" },
+              { name: "ok", class: "bg-ok" },
+              { name: "ok-text", class: "bg-ok-text" },
+              { name: "ok-muted", class: "bg-ok-muted" },
+            ]}
+          />
+        </div>
+      </section>
+
+      {/* Interaction ramps. Rest/hover/pressed sit side by side because the
+          failure mode is directional: a ramp that moves away from its own
+          foreground loses contrast mid-gesture, and rest state alone hides it. */}
+      <section className="space-y-4">
+        <h4 className="text-sm font-medium uppercase text-ink-muted">
+          Interaction ramp
+        </h4>
+        <div className="flex flex-wrap gap-6">
+          <div className="flex overflow-hidden rounded-sharp border border-signal-edge">
+            {(
+              [
+                ["rest", "bg-signal"],
+                ["hover", "bg-signal-hover"],
+                ["pressed", "bg-signal-pressed"],
+              ] as const
+            ).map(([label, className]) => (
+              <div key={label} className={`px-4 py-3 ${className}`}>
+                <span className="font-mono text-xs text-signal-fg">{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex overflow-hidden rounded-sharp">
+            {(
+              [
+                ["rest", "bg-danger"],
+                ["hover", "bg-danger-hover"],
+                ["pressed", "bg-danger-pressed"],
+              ] as const
+            ).map(([label, className]) => (
+              <div key={label} className={`px-4 py-3 ${className}`}>
+                <span className="font-mono text-xs text-danger-fg">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
