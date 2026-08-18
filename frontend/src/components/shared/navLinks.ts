@@ -22,9 +22,19 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
           { to: "/hire/jobs", label: "Jobs" },
         ];
       }
+      // The employer landing page's own bar. Both branches were the workspace
+      // pair, which was invisible for as long as `/hire` redirected an anonymous
+      // visitor to the sign-in form — nobody ever rendered the public one. With
+      // the landing page reachable again it offered a signed-out visitor two
+      // gated routes that bounced them straight back to that form.
+      //
+      // Shaped like the seeker's public bar: the other portal's landing page,
+      // then the pages both portals share. Sign in and Post a role are buttons
+      // the navbar renders itself, so they are not repeated here.
       return [
-        { to: "/hire/companies", label: "Companies" },
-        { to: "/hire/jobs", label: "Jobs" },
+        { to: "/", label: "For candidates" },
+        { to: "/about", label: "About" },
+        { to: "/help", label: "Help" },
       ];
     // The console's sections. `AdminShell` renders these as its sub-navigation
     // and the navbar/sheet render them as primary links, so all three agree by

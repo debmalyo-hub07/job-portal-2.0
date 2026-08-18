@@ -45,6 +45,36 @@ describe("public informational routes", () => {
   });
 });
 
+/**
+ * The employer marketing page.
+ *
+ * Not in PUBLIC_PAGES because it is a pitch rather than an informational
+ * surface, but it needs the same orphan guard: the page existed, complete, while
+ * `/hire` rendered a redirect to the sign-in form instead — so the footer's
+ * "Hire on Cairn", the navbar's "For employers", and the wordmark on every
+ * recruiter auth screen all pointed at a login form, and the page itself was
+ * mounted nowhere.
+ */
+describe("employer landing page", () => {
+  it("/hire renders its own page, not a sign-in redirect", async () => {
+    const view = renderAppAt("/hire");
+
+    expect(screen.queryByText(/page not found/i)).not.toBeInTheDocument();
+    expect(view.pathname()).toBe("/hire");
+
+    const h1s = await screen.findAllByRole("heading", { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveAccessibleName(/build the team, without the hiring theatre/i);
+  });
+
+  it("is reachable from the footer that every public page carries", async () => {
+    renderAppAt("/");
+
+    const footer = await screen.findByRole("contentinfo");
+    expect(footer.querySelector('a[href="/hire"]')).not.toBeNull();
+  });
+});
+
 describe("footer reach", () => {
   /**
    * The footer is chrome, so it belongs to the layout rather than to a page.

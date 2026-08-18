@@ -29,7 +29,7 @@ import { buildAuthRoutes } from "@/routes/authRoutes";
 import {
   AdminHomeRedirect,
   BrowseRedirect,
-  RecruiterHomeRedirect,
+  RecruiterHome,
   RootLayout,
   WorkspaceRedirect,
 } from "@/routes/routeElements";
@@ -104,6 +104,12 @@ export const appRoutes: RouteObject[] = [
               </ProtectedRoute>
             ),
           },
+          // The employer landing page. `/hire` is to the recruiter portal what `/`
+          // is to the seeker one, so it carries the same chrome — the navbar
+          // already treats it as a hero route and the footer links it as "Hire on
+          // Cairn". Mounted through RecruiterHome rather than as the page itself
+          // so a recruiter who already has a session gets their workspace.
+          { path: "/hire", element: <RecruiterHome /> },
           // The informational surfaces. `siteNav.ts` lists the same paths for
           // the footer, and publicPages.test.tsx asserts the two agree — a page
           // mounted but unlinked is how /jobs stayed orphaned for a phase.
@@ -120,11 +126,9 @@ export const appRoutes: RouteObject[] = [
       ...buildAuthRoutes("recruiter", "/hire"),
       // No signup on admin: the API's admin router mounts no /register either.
       ...buildAuthRoutes("admin", "/admin", { withSignup: false }),
-      // Bare portal URLs are session doors. Public auth screens remain
-      // reachable, but typing /hire or /admin never renders workspace data.
-      { path: "/hire", element: <RecruiterHomeRedirect /> },
-      // The admin console has no marketing page, but AuthLayout links its
-      // wordmark at the portal's own home. Send it to the only door there is.
+      // The admin console has no marketing page, but `/admin` is still typed and
+      // bookmarked, and it owns the whole console prefix. Resolves by session:
+      // dashboard for an admin, the sign-in for anyone else.
       { path: "/admin", element: <AdminHomeRedirect /> },
       // Public auth pages. All of them read `?portal=` and validate it.
       { path: "/verify-email", element: <VerifyEmail /> },

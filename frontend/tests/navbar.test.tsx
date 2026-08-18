@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { makeStore } from "./helpers/renderRoute";
 import { setUser } from "@/redux/authSlice";
 import Navbar from "@/components/shared/Navbar";
+import { navLinksFor } from "@/components/shared/navLinks";
 
 function storeWithUser(portal: "seeker" | "recruiter") {
   const s = makeStore();
@@ -76,6 +77,36 @@ describe("Navbar account menu", () => {
     );
     expect(getByRole("link", { name: "Companies" })).toHaveAttribute("href", "/hire/companies");
     expect(queryByRole("link", { name: "Home" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A public bar may only offer public destinations.
+   *
+   * `/hire` spent a phase redirecting signed-out visitors to `/hire/login`, so
+   * the recruiter *public* bar was never rendered and kept the workspace pair it
+   * had been copied from. The moment the landing page was reachable again, an
+   * anonymous visitor was handed "Companies" and "Jobs" — two gated routes whose
+   * only effect was to bounce them back to the sign-in form they had just left.
+   *
+   * Admin is excluded because it has no public bar: no console page is mounted
+   * under `PublicLayout`, so the navbar never renders for a signed-out admin.
+   */
+  it.each(["seeker", "recruiter"] as const)(
+    "offers a signed-out %s no link into a gated route",
+    (portal) => {
+      const gated = [/^\/profile/, /^\/hire\/(companies|jobs)/, /^\/admin\//];
+
+      for (const link of navLinksFor(portal, "public")) {
+        for (const pattern of gated) expect(link.to).not.toMatch(pattern);
+      }
+    },
+  );
+
+  it("renders the employer landing bar without the workspace pair", () => {
+    const { queryByRole, getByRole } = renderNavbar(makeStore(), "/hire");
+
+    expect(queryByRole("link", { name: "Companies" })).not.toBeInTheDocument();
+    expect(getByRole("link", { name: /for candidates/i })).toHaveAttribute("href", "/");
   });
 
   it("shows no auth links when signed in", () => {

@@ -47,14 +47,61 @@ describe("portal route isolation", () => {
     expect(view.pathname()).toBe("/");
   });
 
-  it("uses /hire as the recruiter session door", async () => {
+  it("sends a signed-in recruiter from /hire to the workspace", async () => {
     const view = renderAppAt("/hire", { store: sessionStore("recruiter") });
     await waitFor(() => expect(view.pathname()).toBe("/hire/companies"));
   });
 
+  /**
+   * `/hire` is the employer marketing page, not a login door.
+   *
+   * It redirected anonymous visitors to `/hire/login` for a phase, and because
+   * `AuthLayout` points the wordmark and the Back link of every recruiter auth
+   * screen at `/hire`, both controls became no-ops — the click navigated to
+   * `/hire` and the redirect threw you back at the form you were leaving. The
+   * portal read as though it were holding a session nobody had opened.
+   */
+  it("shows an anonymous visitor the employer landing page at /hire", async () => {
+    const view = renderAppAt("/hire", { store: anonymousStore() });
+
+    expect(
+      await view.findByRole("heading", {
+        level: 1,
+        name: /build the team, without the hiring theatre/i,
+      }),
+    ).toBeInTheDocument();
+    expect(view.pathname()).toBe("/hire");
+  });
+
+  it.each(["Back", "Cairn"])(
+    "leaves /hire/login for the employer landing page via %s",
+    async (control) => {
+      const view = renderAppAt("/hire/login", { store: anonymousStore() });
+      await userEvent.click(await view.findByRole("link", { name: new RegExp(control, "i") }));
+
+      await waitFor(() => expect(view.pathname()).toBe("/hire"));
+      expect(
+        await view.findByRole("heading", { level: 1, name: /build the team/i }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  /**
+   * A seeker session is not a recruiter session. Someone signed in on the
+   * candidate side who follows the footer's "Hire on Cairn" is an anonymous
+   * visitor as far as this portal is concerned, and gets the pitch.
+   */
+  it("shows the employer landing page to a signed-in seeker", async () => {
+    const view = renderAppAt("/hire", { store: sessionStore("seeker") });
+
+    expect(
+      await view.findByRole("heading", { level: 1, name: /build the team/i }),
+    ).toBeInTheDocument();
+    expect(view.pathname()).toBe("/hire");
+  });
+
   it.each([
     ["/profile", "/login"],
-    ["/hire", "/hire/login"],
     ["/hire/jobs", "/hire/login"],
     ["/admin/dashboard", "/admin/login"],
   ])("sends an anonymous visitor from %s to the matching sign-in", async (path, login) => {
