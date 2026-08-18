@@ -175,7 +175,7 @@ frontend/               React client
       auth/             login, signup, OAuth/OTP surfaces, AuthLayout, PortalPanel
       layout/           PageShell, PageHeader, EmptyState, FormField
       theme/            ThemeProvider, ThemeToggle, PortalScope
-      ui/               20 primitives on design tokens
+      ui/               21 primitives on design tokens, incl. PasswordInput
       admin/            recruiter workspace
       shared/           Navbar
       design/           DEV-only token gallery at /_design
@@ -318,7 +318,7 @@ mirroring the API's `buildAuthRouter(portal)`:
 | `/jobs` | seeker | The job board. Every filter lives in the URL, so a search is a shareable link |
 | `/description/:id`, `/profile` | seeker | Job detail is public; the profile requires a seeker session |
 | `/login`, `/signup` | seeker | |
-| `/hire` | recruiter | Protected session door: workspace with a recruiter session, otherwise recruiter sign-in |
+| `/hire` | recruiter | Employer landing page. Redirects to the workspace only when a recruiter session is active |
 | `/hire/login`, `/hire/signup` | recruiter | |
 | `/hire/companies`, `/hire/jobs`, applicants | recruiter | The workspace. Gated on admin approval |
 | `/admin` | admin | Protected session door: dashboard with an admin session, otherwise admin sign-in |
@@ -513,6 +513,7 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | Deploy | SPA fallback, not-found route, Render blueprint, CD on green main | Complete |
 | 2B-3 | Recruiter workspace: companies, jobs, applicants, remote + jobType fixes | Complete |
 | 2B-4 | Navigation and informational surfaces: about, contact, help, legal | Complete |
+| Auth fixes | `/hire` landing restored as a public page, admin door controls, password reveal on every form, Google mark + pending state | Complete |
 | 3 | Saved jobs, application status timeline | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 

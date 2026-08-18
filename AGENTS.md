@@ -57,9 +57,14 @@ Portal identity comes from server-owned route literals, never request input.
 - Sessions use portal-scoped access, refresh, and CSRF cookies.
 - Client users, bootstrap flags, CSRF tokens, and refresh promises are also
   portal-scoped. One portal must not overwrite or log out another.
-- `/hire` and `/admin` are protected session doors. Public jobs and job details
-  remain browseable; anonymous Apply redirects to seeker login with a safe
-  return path.
+- `/admin` is a protected session door. `/hire` is the public employer landing
+  page and redirects to the workspace only when a recruiter session is active.
+  Public jobs and job details remain browseable; anonymous Apply redirects to
+  seeker login with a safe return path.
+- A portal's bare prefix is load-bearing UI: `AuthLayout` points both the
+  wordmark and Back at `AUTH_COPY[portal].homeHref`. If that path redirects, both
+  controls become no-ops. Admin has no public home, so its `homeHref` is `null`
+  and neither control renders.
 - Recruiters may sign in while pending but protected recruiter mutations require
   admin approval.
 - Admin access is authorized by the backend. URL obscurity is not security.

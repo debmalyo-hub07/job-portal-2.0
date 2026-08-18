@@ -274,10 +274,21 @@ coexist, and signing out of one clears only that portal. See ADR-0008.
 that lived there through 2B-1 moved to `/hire/*`, so the whole recruiter surface
 — auth and workspace — sits under one prefix and resolves one signal colour.
 
-The bare `/hire` and `/admin` paths are protected session doors, not public
-workspace previews. They bootstrap the destination portal and route a matching
-session to its workspace or an anonymous/wrong-role visitor to that portal's
-login. Auth pages remain public, so a signed-in seeker may still open
+`/admin` is a protected session door, not a public workspace preview. It
+bootstraps the admin portal and routes a matching session to the dashboard and
+everyone else to the admin login. There is no admin marketing page and there will
+not be one, so `AUTH_COPY.admin.homeHref` is `null` and the admin auth screens
+render neither a Back link nor a linked wordmark.
+
+`/hire` is the public employer landing page. It bootstraps the recruiter portal
+and redirects to the workspace only when a recruiter session is active; anonymous
+and wrong-portal visitors get the landing page, which reads no workspace data. It
+was a session door from 2026-08-16 to 2026-08-18, which orphaned `HireLanding`
+entirely and turned the Back link and wordmark on every recruiter auth screen into
+no-ops — both point at the portal's own home, so the redirect returned the visitor
+to the page they were leaving. See the amendment to ADR-0008.
+
+Auth pages remain public in both portals, so a signed-in seeker may still open
 `/hire/signup` to create a separate recruiter account.
 
 Pre-3A URLs redirect via a prefix swap (`WorkspaceRedirect`) rather than a list
@@ -308,6 +319,24 @@ re-resolve those properties beneath them:
 
 Both work the same way and for the same reason: a component reads a token and
 asks no questions. Nothing branches on the theme, the portal or the surface.
+
+**Known defect, found 2026-08-18, not yet fixed.** Three of those tokens do not
+in fact follow the portal. `--signal-edge`, `--signal-ring` and `--signal-muted`
+are declared once in the `:root` block as functions of `--signal-text` and
+`--signal`. A custom property's `var()` is substituted where that property is
+*computed* — on `<html>` — and the resulting literal then inherits. The
+`[data-portal]` overrides sit on a `<div>` that `PortalScope` renders below
+`<html>`, so they can never feed a value back into an alias already resolved.
+Measured in Chromium, all three are the seeker's hue 200 in every portal: on
+recruiter and admin, every filled primary's border, every focus ring and every
+`bg-signal-muted` wash is the wrong portal's colour. Note that this is exactly
+the 3:1 boundary the recruiter gold is documented below as depending on.
+
+`lint:colour` cannot see it, because it replays the cascade from `index.css` and
+resolves the aliases per scope — which is the step the browser does not perform.
+Any fix wants a runtime assertion that reads the three aliases off the
+`[data-portal]` element in a real browser; re-pasting the aliases into each portal
+block is the six-copy duplication that the single declaration exists to prevent.
 Density follows the surface's job rather than the portal — `/hire` is
 recruiter-scoped but runs spacious, because it is a marketing page.
 

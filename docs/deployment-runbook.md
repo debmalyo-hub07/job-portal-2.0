@@ -271,9 +271,27 @@ client → **Authorised redirect URIs**. Add exactly these two — they are matc
 byte-for-byte, so a trailing slash is a different URI:
 
 ```
-https://jobportal-api.onrender.com/api/v1/seeker/auth/google/callback
-https://jobportal-api.onrender.com/api/v1/recruiter/auth/google/callback
+https://<your-api-host>.onrender.com/api/v1/seeker/auth/google/callback
+https://<your-api-host>.onrender.com/api/v1/recruiter/auth/google/callback
 ```
+
+Substitute the API service's own hostname from step 3 — deliberately a placeholder
+rather than a worked example, because `jobportal-api.onrender.com` is a *live
+service belonging to someone else*. Registering it here would authorise a stranger's
+domain to receive your OAuth codes.
+
+For local development, add the loopback pair to the **same** client, matching
+`API_BASE_URL` in `backend/.env` exactly. Google exempts localhost from the HTTPS
+requirement:
+
+```
+http://localhost:8000/api/v1/seeker/auth/google/callback
+http://localhost:8000/api/v1/recruiter/auth/google/callback
+```
+
+Do not swap in `127.0.0.1` unless `CLIENT_URLS`, `WEB_BASE_URL` and `API_BASE_URL`
+all move with it: it is a different origin from `localhost`, so cookie delivery and
+the CORS allowlist break the moment only one of them changes.
 
 Leave **Authorised JavaScript origins** empty: this is a server-side PKCE flow
 and the browser never calls Google directly. There is deliberately no admin

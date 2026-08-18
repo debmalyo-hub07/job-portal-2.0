@@ -20,10 +20,12 @@ could become a recruiter by filling in a form. The checks worked as designed;
 the flaw was that the caller they authorised was self-appointed. Recruiter
 accounts now start `pending` and an admin approves them.
 
-Portal session isolation is now complete in the browser as well. `/hire` and
-`/admin` are protected session doors, wrong-role sessions are sent to the
+Portal session isolation is now complete in the browser as well. `/admin` is a
+protected session door, the recruiter workspace under `/hire/*` is gated on a
+recruiter session and on admin approval, wrong-role sessions are sent to the
 destination portal's login, and seeker, recruiter, and admin cookies can coexist
-without overwriting one another. These client guards prevent accidental UI
+without overwriting one another. `/hire` itself is a public marketing page and
+was never a boundary — it reads no workspace data. These client guards prevent accidental UI
 exposure; the actual boundary remains server-side portal authentication and
 ownership checks. The admin URL is not secret and does not need to be hidden or
 encrypted to be secure.
