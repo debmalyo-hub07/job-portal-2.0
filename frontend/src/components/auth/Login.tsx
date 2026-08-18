@@ -5,9 +5,11 @@ import { Loader2 } from "lucide-react";
 import type { AuthResponse, Portal } from "@jobportal/shared";
 
 import { AuthLayout } from "./AuthLayout";
+import { GoogleButton } from "./GoogleButton";
 import { AUTH_COPY } from "./authCopy";
 import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
@@ -35,6 +37,8 @@ const Login = ({ portal }: { portal: Portal }) => {
   const location = useLocation();
   const dispatch = useAppDispatch();
   const copy = AUTH_COPY[portal];
+  // A local const so the narrowing below survives into the onClick closure.
+  const googleStartPath = copy.googleStartPath;
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });
   };
@@ -94,9 +98,8 @@ const Login = ({ portal }: { portal: Portal }) => {
         </FormField>
 
         <FormField label="Password" htmlFor="password" required>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             name="password"
             autoComplete="current-password"
             value={input.password}
@@ -131,19 +134,24 @@ const Login = ({ portal }: { portal: Portal }) => {
         </Button>
 
         {/*
-          A real navigation, not a fetch: the OAuth flow is a series of top-level
-          redirects and XHR cannot follow them.
+          Only where the API mounts the route — see authCopy.
+
+          The rule and its label are structure, not decoration: password and
+          Google are alternative ways in, and stacking two full-width buttons
+          with nothing between them read as a sequence — a second submit under
+          the first. The rules are decorative, so they are hidden; the word is
+          the part that carries the meaning, so it is not.
         */}
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-3 w-full"
-          onClick={() => {
-            window.location.href = `${import.meta.env.VITE_API_URL}/${portal}/auth/google`;
-          }}
-        >
-          Continue with Google
-        </Button>
+        {googleStartPath ? (
+          <>
+            <div className="my-5 flex items-center gap-3">
+              <span aria-hidden="true" className="h-px flex-1 bg-line" />
+              <span className="font-mono text-[0.68rem] uppercase text-ink-muted">or</span>
+              <span aria-hidden="true" className="h-px flex-1 bg-line" />
+            </div>
+            <GoogleButton startPath={googleStartPath} />
+          </>
+        ) : null}
 
         {/* No self-service registration on admin — admins are seeded, then
             created by an existing admin. */}

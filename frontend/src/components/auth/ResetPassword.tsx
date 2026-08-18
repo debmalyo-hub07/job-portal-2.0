@@ -7,6 +7,7 @@ import { AuthLayout } from "./AuthLayout";
 import { AUTH_COPY } from "./authCopy";
 import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
@@ -78,10 +79,9 @@ const ResetPassword = () => {
           hint="At least 12 characters, and not one you have used before."
           required
         >
-          <Input
+          <PasswordInput
             id="newPassword"
             name="newPassword"
-            type="password"
             autoComplete="new-password"
             value={input.newPassword}
             onChange={(e) => setInput({ ...input, newPassword: e.target.value })}

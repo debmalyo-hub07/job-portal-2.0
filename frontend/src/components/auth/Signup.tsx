@@ -8,6 +8,7 @@ import { AuthLayout } from "./AuthLayout";
 import { AUTH_COPY } from "./authCopy";
 import { FormField } from "../layout/FormField";
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -120,9 +121,8 @@ const Signup = ({ portal }: { portal: Portal }) => {
           hint="At least 12 characters."
           required
         >
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             name="password"
             autoComplete="new-password"
             value={input.password}

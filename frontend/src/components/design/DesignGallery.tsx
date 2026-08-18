@@ -6,6 +6,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -289,6 +290,13 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
           <div className="space-y-2">
             <Label htmlFor="error">Error</Label>
             <Input id="error" placeholder="Invalid input" aria-invalid />
+          </div>
+          {/* Shown here because the reveal toggle has to hold up against both
+              surfaces and both signal colours, which is exactly what this page
+              renders side by side. */}
+          <div className="space-y-2">
+            <Label htmlFor="gallery-password">Password</Label>
+            <PasswordInput id="gallery-password" placeholder="Reveals on request" />
           </div>
         </div>
       </section>

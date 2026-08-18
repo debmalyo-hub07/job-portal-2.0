@@ -25,14 +25,17 @@ export function AuthLayout({
     <div className="auth-layout grid min-h-screen bg-paper md:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]">
       <div className="auth-form-column flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14">
         <div className="flex items-center justify-between gap-4">
-          <Wordmark portal={portal} to={copy.homeHref} className="text-xl" />
-          <Link
-            to={copy.homeHref}
-            className="inline-flex items-center gap-2 rounded-sharp text-sm font-medium text-ink-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-signal-ring"
-          >
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            Back
-          </Link>
+          <Wordmark portal={portal} to={copy.homeHref ?? undefined} className="text-xl" />
+          {/* Only where the portal has a public home to return to — see authCopy. */}
+          {copy.homeHref ? (
+            <Link
+              to={copy.homeHref}
+              className="inline-flex items-center gap-2 rounded-sharp text-sm font-medium text-ink-muted outline-none hover:text-ink focus-visible:ring-[3px] focus-visible:ring-signal-ring"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Back
+            </Link>
+          ) : null}
         </div>
 
         <div className="flex flex-1 items-center py-12">

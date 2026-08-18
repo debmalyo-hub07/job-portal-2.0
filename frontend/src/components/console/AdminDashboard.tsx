@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/layout/FormField";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { getApiErrorMessage } from "@/lib/apiError";
 
 /**
@@ -193,10 +194,9 @@ export function AdminDashboard() {
               hint="Use the private key supplied by the platform owner. It is verified only by the server."
               required
             >
-              <Input
+              <PasswordInput
                 id="admin-provisioning-key"
                 name="provisioningKey"
-                type="password"
                 autoComplete="off"
                 spellCheck={false}
                 value={invite.provisioningKey}

@@ -47,6 +47,18 @@ describe("admin portal sign-in", () => {
     expect(screen.queryByText(/create one/i)).not.toBeInTheDocument();
   });
 
+  /**
+   * The API mounts no Google routes on admin, so a button offering it could only
+   * ever 404. It was rendered unconditionally until this test existed.
+   */
+  it("offers no Google sign-in button", async () => {
+    renderAppAt("/admin/login");
+    await screen.findByLabelText(/email/i);
+    expect(
+      screen.queryByRole("button", { name: /continue with google/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("mounts no /admin/signup route at all", () => {
     expect(paths).not.toContain("/admin/signup");
   });
@@ -63,13 +75,18 @@ describe("admin portal sign-in", () => {
   });
 
   /**
-   * The wordmark links to /admin, so that path must resolve rather than 404.
+   * `/admin` is typed and bookmarked, and it owns the console prefix, so it must
+   * resolve rather than 404.
    *
    * Signed out, that is the sign-in — the only destination before the console
    * existed. The store is bootstrapped first because `AdminHomeRedirect` waits
    * for `/me` before choosing: rendering nothing while the session is unknown
    * is what stops a signed-in admin seeing a login form flash. In the app,
    * `useAuthBootstrap` sets that flag; a test has to set it itself.
+   *
+   * No auth screen links here any more — because this resolves to the sign-in
+   * for a signed-out visitor, the Back link and wordmark that pointed at it were
+   * no-ops. See the two tests below.
    */
   it("gives /admin a front door", async () => {
     const store = makeStore();
@@ -77,6 +94,27 @@ describe("admin portal sign-in", () => {
 
     const view = renderAppAt("/admin", { store });
     await waitFor(() => expect(view.pathname()).toBe("/admin/login"));
+  });
+
+  /**
+   * The console door carries no control that leads back to itself.
+   *
+   * `AuthLayout` aims both the wordmark and Back at the portal's own home, and
+   * admin's home is this page — so both silently returned you here. The
+   * recruiter portal had the same defect and got its landing page back; admin
+   * has no marketing page to restore, so the controls are simply not rendered.
+   */
+  it("offers no Back link on the console door", async () => {
+    renderAppAt("/admin/login");
+    await screen.findByLabelText(/email/i);
+    expect(screen.queryByRole("link", { name: /back/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the console wordmark as text rather than a self-link", async () => {
+    renderAppAt("/admin/login");
+    await screen.findByLabelText(/email/i);
+    expect(screen.getByText("Cairn")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /cairn/i })).not.toBeInTheDocument();
   });
 
   /**
