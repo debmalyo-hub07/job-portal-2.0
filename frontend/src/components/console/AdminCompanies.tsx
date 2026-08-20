@@ -54,37 +54,35 @@ export function AdminCompanies() {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Jobs</TableHead>
-                <TableHead>Created</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Company</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead className="text-right">Jobs</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((company) => (
+              <TableRow key={company.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <CompanyAvatar name={company.name} logoUrl={company.logoUrl} className="size-8" />
+                    <span className="font-medium">{company.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>{company.ownerEmail ?? "—"}</TableCell>
+                <TableCell>{company.location ?? "—"}</TableCell>
+                <TableCell className="text-right font-mono">{company.jobCount}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {company.createdAt.split("T")[0]}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <CompanyAvatar name={company.name} logoUrl={company.logoUrl} className="size-8" />
-                      <span className="font-medium">{company.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{company.ownerEmail ?? "—"}</TableCell>
-                  <TableCell>{company.location ?? "—"}</TableCell>
-                  <TableCell className="text-right font-mono">{company.jobCount}</TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {company.createdAt.split("T")[0]}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </AdminShell>
   );

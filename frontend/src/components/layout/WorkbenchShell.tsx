@@ -31,17 +31,17 @@ export function WorkbenchShell({
     <>
       <Navbar />
       <PageShell density="compact" width="wide" motion="response" className="py-0">
-        <div className="grid min-h-[calc(100svh-4.5rem)] md:grid-cols-[13rem_minmax(0,1fr)]">
+        <div className="grid min-h-[calc(100svh-4.5rem)] lg:grid-cols-[13rem_minmax(0,1fr)]">
           {/* The 30% band. A workbench is mostly chrome, so the portal's hue
               belongs here as a large quiet field rather than only in the small
               accents — that is what makes the recruiter and admin consoles
               legible as different places at a glance. */}
-          <aside className="border-b border-line bg-container px-4 py-5 md:border-r md:border-b-0 md:py-8 md:pr-6">
+          <aside className="border-b border-line bg-container px-4 py-5 lg:border-r lg:border-b-0 lg:py-8 lg:pr-6">
             <p className="mb-3 text-xs font-semibold uppercase text-signal-text">
               {eyebrow}
             </p>
             <nav aria-label={navLabel}>
-              <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+              <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
                 {links.map((link) => (
                   <li key={link.to}>
                     <NavLink

@@ -95,96 +95,94 @@ export function Applicants() {
           description="Applications appear here as seekers apply to this role."
         />
       ) : (
-        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Resume</TableHead>
-                <TableHead>Fit</TableHead>
-                <TableHead>Applied</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((item) => {
-                const status = STATUS[item.status];
-                const StatusIcon = status.icon;
-                return (
-                  <TableRow key={item.applicationId}>
-                    <TableCell className="font-medium">{item.fullName}</TableCell>
-                    <TableCell>{item.email}</TableCell>
-                    <TableCell>{item.phone ?? "—"}</TableCell>
-                    <TableCell>
-                      {item.resumeUrl ? (
-                        <a
-                          className="text-signal-text underline"
-                          href={item.resumeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Resume</TableHead>
+              <TableHead>Fit</TableHead>
+              <TableHead>Applied</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((item) => {
+              const status = STATUS[item.status];
+              const StatusIcon = status.icon;
+              return (
+                <TableRow key={item.applicationId}>
+                  <TableCell className="font-medium">{item.fullName}</TableCell>
+                  <TableCell>{item.email}</TableCell>
+                  <TableCell>{item.phone ?? "—"}</TableCell>
+                  <TableCell>
+                    {item.resumeUrl ? (
+                      <a
+                        className="text-signal-text underline"
+                        href={item.resumeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {item.resumeName ?? "Download"}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell className="min-w-56">
+                    {item.fit ? (
+                      <FitBadge
+                        fit={item.fit}
+                        perfectLabel="Matches every requirement"
+                        className="flex-col items-start gap-1"
+                      />
+                    ) : (
+                      <span className="text-ink-muted">&mdash;</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {item.appliedAt.split("T")[0]}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={status.variant}>
+                      <StatusIcon aria-hidden="true" className="size-3" />
+                      {status.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Decide on ${item.fullName}`}
                         >
-                          {item.resumeName ?? "Download"}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell className="min-w-56">
-                      {item.fit ? (
-                        <FitBadge
-                          fit={item.fit}
-                          perfectLabel="Matches every requirement"
-                          className="flex-col items-start gap-1"
-                        />
-                      ) : (
-                        <span className="text-ink-muted">&mdash;</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {item.appliedAt.split("T")[0]}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={status.variant}>
-                        <StatusIcon aria-hidden="true" className="size-3" />
-                        {status.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Decide on ${item.fullName}`}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => void onDecide(item.applicationId, "accepted")}
-                          >
-                            <Check className="size-4" />
-                            Accept
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => void onDecide(item.applicationId, "rejected")}
-                          >
-                            <X className="size-4" />
-                            Reject
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onSelect={() => void onDecide(item.applicationId, "accepted")}
+                        >
+                          <Check className="size-4" />
+                          Accept
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => void onDecide(item.applicationId, "rejected")}
+                        >
+                          <X className="size-4" />
+                          Reject
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
     </HireShell>
   );

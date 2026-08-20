@@ -96,53 +96,51 @@ export function AdminRecruiters() {
           description="Every recruiter who has registered is already approved or denied."
         />
       ) : (
-        /* The table scrolls inside its own container rather than the page:
-           at 375px the email column alone is wider than the viewport. */
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Registered</TableHead>
-                <TableHead className="text-right">Decision</TableHead>
+        /* Table's own container scrolls rather than the page: at 375px the email
+           column alone is wider than the viewport. */
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Registered</TableHead>
+              <TableHead className="text-right">Decision</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((recruiter) => (
+              <TableRow key={recruiter.id}>
+                <TableCell className="font-medium">{recruiter.fullName}</TableCell>
+                <TableCell>{recruiter.email}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {recruiter.createdAt.split("T")[0]}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="signal"
+                      size="sm"
+                      disabled={decision.isPending}
+                      onClick={() => approve(recruiter.id, recruiter.email)}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={decision.isPending}
+                      onClick={() =>
+                        setDenying({ id: recruiter.id, email: recruiter.email })
+                      }
+                    >
+                      Deny
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((recruiter) => (
-                <TableRow key={recruiter.id}>
-                  <TableCell className="font-medium">{recruiter.fullName}</TableCell>
-                  <TableCell>{recruiter.email}</TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {recruiter.createdAt.split("T")[0]}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="signal"
-                        size="sm"
-                        disabled={decision.isPending}
-                        onClick={() => approve(recruiter.id, recruiter.email)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={decision.isPending}
-                        onClick={() =>
-                          setDenying({ id: recruiter.id, email: recruiter.email })
-                        }
-                      >
-                        Deny
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       <Dialog open={denying !== null} onOpenChange={(open) => !open && closeDeny()}>

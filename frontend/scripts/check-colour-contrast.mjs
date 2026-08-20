@@ -25,6 +25,13 @@ const UI = 3.0; // WCAG 1.4.11, control boundaries, focus rings, icons
 const HAIRLINE = 1.1; // house rule: a divider you cannot see is not a divider
 const BAND = 1.2; // house rule: the 30% container must read as its own field
 const HUE_WANDER = 2; // degrees a ramp may drift from its portal anchor
+// Added after the first system shipped green while looking visibly flat. Each of
+// these is a *step* rather than a level: the original gate asked whether a
+// pairing was legible and never whether two things that must look different
+// actually do.
+const ELEVATION = 1.09; // a card that does not lift off the page is not a card
+const STATE_STEP = 1.15; // rest -> hover must read as a change
+const PRESS_STEP = 1.13; // hover -> pressed likewise
 const STATUS_GAP = 20; // degrees a portal hue must keep from every status hue
 const CLIP_TOLERANCE = 0.002; // out-of-gamut margin before a browser clamps and shifts hue
 
@@ -178,6 +185,63 @@ function parse(tokens, raw, seen, origin) {
 // ------------------------------------------------------------------- the checks
 let failures = 0;
 let checks = 0;
+const fail = (message) => {
+  failures++;
+  console.log("FAIL  " + message);
+};
+
+// Every token that is a function of --signal must be *declared* in each portal
+// block rather than inherited from :root.
+//
+// This is the check the previous system lacked, and its absence let a
+// twelve-value bug ship. A custom property substitutes its var() at the element
+// that declares it and then inherits the already-resolved value; it does not
+// re-resolve per consumer. --signal is declared on the [data-portal] element, so
+// a :root-only derivative resolved once against seeker's teal and every other
+// portal inherited it: teal focus rings, teal control borders and teal menu
+// washes in the gold workspace and the rose console. All of them still cleared
+// 4.5:1, which is why a contrast-only gate stayed green.
+//
+// Resolving values here cannot catch it, because scope() below merges :root with
+// the portal block and so computes the value the author intended rather than the
+// one the browser paints. The declaration site is the honest thing to assert, and
+// it is what /design depends on too: that page puts three data-portal blocks on
+// one document, so each must carry its own derivation.
+const DERIVED_FROM_SIGNAL = ["--signal-muted", "--signal-ring", "--signal-edge"];
+for (const portal of ["seeker", "recruiter", "admin"]) {
+  for (const selector of ['[data-portal="' + portal + '"]', '.dark [data-portal="' + portal + '"]']) {
+    const declared = blocks.get(selector);
+    for (const token of DERIVED_FROM_SIGNAL) {
+      checks++;
+      if (!declared || !declared.has(token)) {
+        fail(token + " is not declared in " + selector + " - it would inherit :root's seeker value");
+      }
+    }
+  }
+}
+
+// The dark portal blocks are selected twice on purpose. PortalScope mirrors the
+// portal onto <html>, which is also where next-themes writes `.dark`, so on a
+// dark page both land on one element and only the no-space form matches it.
+// Radix renders every overlay into a portal on document.body, outside the
+// PortalScope div, so <html> is the only element those can inherit from.
+for (const portal of ["seeker", "recruiter", "admin"]) {
+  checks++;
+  if (!blocks.has('.dark[data-portal="' + portal + '"]')) {
+    fail('.dark[data-portal="' + portal + '"] (same element) is missing - overlays on <html> would keep the light ramp');
+  }
+}
+
+// Light mode cannot separate its top two surfaces by lightness, so it separates
+// them by shadow. If the elevation tokens go missing that separation silently
+// becomes nothing at all.
+for (const [selector, theme] of [[":root", "light"], [".dark", "dark"]]) {
+  for (const token of ["--elevate-1", "--elevate-2", "--elevate-3"]) {
+    checks++;
+    const declared = blocks.get(selector);
+    if (!declared || !declared.has(token)) fail(token + " is not declared for " + theme);
+  }
+}
 const report = (label, value, floor) => {
   checks++;
   const ok = value >= floor;
@@ -223,13 +287,47 @@ for (const theme of ["light", "dark"]) {
     ]) {
       report(`${where}: ink on ${name}`, ratio(ink, surface), TEXT);
     }
-    for (const [name, surface] of [["paper", paper], ["paper-sunken", sunken], ["paper-raised", raised]]) {
+    for (const [name, surface] of [
+      ["paper", paper],
+      ["paper-sunken", sunken],
+      ["paper-raised", raised],
+      ["overlay", overlay],
+    ]) {
       report(`${where}: ink-muted on ${name}`, ratio(get("--ink-muted"), surface), TEXT);
     }
     // ink-faint is a caption/placeholder value, so it answers to 3:1 and must
-    // never be used for prose.
-    report(`${where}: ink-faint on paper`, ratio(get("--ink-faint"), paper), UI);
-    report(`${where}: ink-faint on paper-sunken`, ratio(get("--ink-faint"), sunken), UI);
+    // never carry prose. overlay is included rather than assumed to duplicate
+    // paper: it is the lightest surface in light mode and the lightest in dark
+    // mode, so it is the binding case at both ends. Raising dark overlay during
+    // this pass is exactly what pushed dark ink-faint under 3:1.
+    for (const [name, surface] of [["paper", paper], ["paper-sunken", sunken], ["overlay", overlay]]) {
+      report(`${where}: ink-faint on ${name}`, ratio(get("--ink-faint"), surface), UI);
+    }
+
+    // The elevation ladder has to be an actual ladder. Ordering is asserted
+    // separately from spacing, because a palette can keep every pairing legible
+    // while putting the brightest value in the document on a card rather than on
+    // the page - which is what made paper-raised pure white in an earlier draft.
+    const ladder = [
+      ["paper-sunken", sunken],
+      ["paper", paper],
+      ["paper-raised", raised],
+      ["overlay", overlay],
+    ];
+    for (let i = 1; i < ladder.length; i += 1) {
+      const [loName, lo] = ladder[i - 1];
+      const [hiName, hi] = ladder[i];
+      checks++;
+      if (!(hi.L > lo.L)) {
+        fail(`${where}: ${hiName} (L ${hi.L}) must sit above ${loName} (L ${lo.L}) in the ladder`);
+      }
+    }
+    // raised -> overlay is deliberately not given a floor: near white there is no
+    // lightness left to spend, so that step is carried by --elevate-3. The two
+    // below are the ones either theme can always afford, and both were failing
+    // before this pass - paper-raised vs paper measured 1.06:1 in light mode.
+    report(`${where}: paper-sunken to paper is a visible step`, ratio(sunken, paper), ELEVATION);
+    report(`${where}: paper to paper-raised is a visible step`, ratio(paper, raised), ELEVATION);
 
     // 30% — structure
     for (const [name, surface] of [["paper", paper], ["paper-raised", raised], ["paper-sunken", sunken]]) {
@@ -275,6 +373,19 @@ for (const theme of ["light", "dark"]) {
     for (const state of ["", "-hover", "-pressed"]) {
       report(`${where}: signal-fg on signal${state}`, ratio(signalFg, get(`--signal${state}`)), TEXT);
     }
+    // A hover nobody can see is not a hover. The shipped ramps moved 1.13-1.19:1
+    // between states, which is the weakest end of the useful range and a large
+    // part of why the app read as inert. Contrast with the *label* is checked
+    // above; this checks contrast with the *previous state*, which is the thing
+    // the pointer is looking for and which nothing had ever measured.
+    for (const [label, from, to, floor] of [
+      ["signal to signal-hover", "--signal", "--signal-hover", STATE_STEP],
+      ["danger to danger-hover", "--danger", "--danger-hover", STATE_STEP],
+      ["signal-hover to signal-pressed", "--signal-hover", "--signal-pressed", PRESS_STEP],
+      ["danger-hover to danger-pressed", "--danger-hover", "--danger-pressed", PRESS_STEP],
+    ]) {
+      report(`${where}: ${label} is a visible change`, ratio(get(from), get(to)), floor);
+    }
     const signalText = get("--signal-text");
     for (const [name, surface] of [
       ["paper", paper],
@@ -296,12 +407,24 @@ for (const theme of ["light", "dark"]) {
     // clipping is the other way this breaks, and it is checked above.
     const anchor = get("--signal").hue;
     anchors[portal] = anchor;
-    for (const name of ["--signal", "--signal-hover", "--signal-pressed", "--signal-text", "--container"]) {
-      const drift = Math.abs(get(name).hue - anchor);
+    for (const name of [
+      "--signal",
+      "--signal-hover",
+      "--signal-pressed",
+      "--signal-text",
+      "--container",
+      // Checked here as well as at the declaration site above. Declaration proves
+      // they are in scope; hue proves they are in scope of the *right* portal.
+      // The shipped bug put all three exactly 120deg off anchor.
+      ...DERIVED_FROM_SIGNAL,
+    ]) {
+      // hueDistance rather than a raw subtraction: the derived tokens can land on
+      // the far side of 0deg from their anchor, where a subtraction reports 240
+      // for a 120deg error and 358 for a 2deg one.
+      const drift = hueDistance(get(name).hue, anchor);
       checks++;
       if (drift > HUE_WANDER) {
-        failures++;
-        console.log(`FAIL  ${where}: ${name} sits ${drift}deg off the ${anchor}deg anchor (max ${HUE_WANDER})`);
+        fail(`${where}: ${name} sits ${drift}deg off the ${anchor}deg anchor (max ${HUE_WANDER})`);
       }
     }
   }

@@ -6,9 +6,16 @@ import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
+    // The surface lives here rather than at each call site. It used to be the
+    // caller's job, and the three portals had each answered differently: the
+    // recruiter tables were wrapped in a bordered, elevated panel, the three admin
+    // consoles in a bare `overflow-x-auto` div with no surface at all, and the
+    // seeker's applied-jobs table in a plain <div> with neither a surface nor
+    // horizontal scroll. Same component, same semantics, three appearances — and
+    // the seeker one overflowed on narrow screens.
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto rounded-surface border border-line bg-paper-raised shadow-[var(--elevate-1)]"
     >
       <table
         data-slot="table"

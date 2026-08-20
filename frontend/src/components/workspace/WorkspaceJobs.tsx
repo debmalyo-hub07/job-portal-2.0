@@ -80,54 +80,52 @@ export function WorkspaceJobs() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Role</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Posted</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Role</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Posted</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((job) => (
+              <TableRow key={job.id}>
+                <TableCell className="font-medium">{job.title}</TableCell>
+                <TableCell>{job.company?.name ?? "—"}</TableCell>
+                <TableCell>{job.jobType}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {job.createdAt.split("T")[0]}
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" aria-label={`Actions for ${job.title}`}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => navigate(`/hire/companies/${job.company?.id ?? ""}`)}
+                      >
+                        <Edit2 />
+                        Edit company
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => navigate(`/hire/jobs/${job.id}/applicants`)}
+                      >
+                        <Eye />
+                        Applicants
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell className="font-medium">{job.title}</TableCell>
-                  <TableCell>{job.company?.name ?? "—"}</TableCell>
-                  <TableCell>{job.jobType}</TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {job.createdAt.split("T")[0]}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" aria-label={`Actions for ${job.title}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onSelect={() => navigate(`/hire/companies/${job.company?.id ?? ""}`)}
-                        >
-                          <Edit2 />
-                          Edit company
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => navigate(`/hire/jobs/${job.id}/applicants`)}
-                        >
-                          <Eye />
-                          Applicants
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </HireShell>
   );

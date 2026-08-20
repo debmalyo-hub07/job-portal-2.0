@@ -15,7 +15,7 @@ export function PortalPanel({ portal }: { portal: Portal }) {
   const { count, ready } = usePublicJobCount();
 
   return (
-    <aside className="auth-visual relative hidden min-h-screen overflow-hidden bg-media-shade text-media-copy md:flex md:items-end md:p-10 lg:p-14">
+    <aside className="auth-visual relative hidden min-h-screen overflow-hidden bg-media-shade text-media-copy lg:flex lg:items-end lg:p-10 xl:p-14">
       <img
         src={PANEL_IMAGE[portal]}
         alt=""

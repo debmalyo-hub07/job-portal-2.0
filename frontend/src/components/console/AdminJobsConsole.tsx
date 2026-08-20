@@ -52,39 +52,37 @@ export function AdminJobsConsole() {
           }
         />
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Posted by</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Applicants</TableHead>
-                <TableHead>Posted</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Posted by</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead className="text-right">Applicants</TableHead>
+              <TableHead>Posted</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((job) => (
+              <TableRow key={job.id}>
+                <TableCell className="font-medium">
+                  {job.title}
+                  <Badge variant="outline" className="ml-2">
+                    {job.jobType}
+                  </Badge>
+                </TableCell>
+                <TableCell>{job.companyName ?? "—"}</TableCell>
+                <TableCell>{job.recruiterEmail ?? "—"}</TableCell>
+                <TableCell>{job.location}</TableCell>
+                <TableCell className="text-right font-mono">{job.applicationCount}</TableCell>
+                <TableCell className="font-mono text-sm">
+                  {job.createdAt.split("T")[0]}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell className="font-medium">
-                    {job.title}
-                    <Badge variant="outline" className="ml-2">
-                      {job.jobType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{job.companyName ?? "—"}</TableCell>
-                  <TableCell>{job.recruiterEmail ?? "—"}</TableCell>
-                  <TableCell>{job.location}</TableCell>
-                  <TableCell className="text-right font-mono">{job.applicationCount}</TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {job.createdAt.split("T")[0]}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </AdminShell>
   );

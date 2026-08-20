@@ -415,7 +415,7 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
       {/* Tabs */}
       <section className="space-y-4">
         <h4 className="text-sm font-medium uppercase text-ink-muted">Tabs</h4>
-        <Tabs defaultValue="tab1" className="w-[400px]">
+        <Tabs defaultValue="tab1" className="w-full max-w-[400px]">
           <TabsList>
             <TabsTrigger value="tab1">Tab 1</TabsTrigger>
             <TabsTrigger value="tab2">Tab 2</TabsTrigger>

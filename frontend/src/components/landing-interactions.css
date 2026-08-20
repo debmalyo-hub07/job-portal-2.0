@@ -90,13 +90,15 @@
   transition: transform var(--dur-base) var(--ease-out-quint);
 }
 
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .role-index-row:hover,
-  .role-index-row:focus-visible {
-    padding-right: 0.75rem;
-    padding-left: 0.75rem;
-  }
-
+/* Hover is split across two queries on purpose.
+   Everything that communicates *state* — the signal border, the elevation, the
+   accent wash, the rule that marks the active row — lives here, behind
+   `hover: hover` alone. It used to sit inside the reduced-motion query below,
+   which meant a reader who asks for less motion got no hover feedback at all:
+   not a border, not a shade, nothing. Reduced motion is a request for less
+   movement, not for less information. The reveals here are transform-based but
+   read as instant state changes once the reduce block strips their transitions. */
+@media (hover: hover) {
   .role-index-row:hover::before,
   .role-index-row:focus-visible::before {
     opacity: 1;
@@ -108,15 +110,15 @@
     transform: scaleY(1);
   }
 
-  .role-index-row:hover .role-index-row__action,
-  .role-index-row:focus-visible .role-index-row__action {
-    transform: rotate(8deg) translate3d(2px, -2px, 0);
-  }
-
   .job-spotlight-card:hover {
     border-color: var(--signal);
-    box-shadow: 0 1.5rem 3rem color-mix(in oklab, var(--ink) 12%, transparent);
-    transform: perspective(75rem) rotateX(var(--job-tilt-x)) rotateY(var(--job-tilt-y)) translateY(-0.35rem);
+    /* --shade, not --ink. --ink is near-white in dark mode, so a
+       color-mix(--ink) shadow paints a white glow around the card instead of a
+       shadow under it — the exact failure --shade exists to prevent, and which
+       index.css documents where that token is declared. --elevate-2 already
+       carries the correct per-theme weight, so this reuses it rather than
+       restating a depth. */
+    box-shadow: var(--elevate-2);
   }
 
   .job-spotlight-card:hover::before {
@@ -125,6 +127,24 @@
 
   .job-spotlight-card:hover .job-spotlight-card__rule {
     transform: scaleY(1);
+  }
+}
+
+/* Movement only: the tilt, the lift, the nudge, the reflow. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .role-index-row:hover,
+  .role-index-row:focus-visible {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .role-index-row:hover .role-index-row__action,
+  .role-index-row:focus-visible .role-index-row__action {
+    transform: rotate(8deg) translate3d(2px, -2px, 0);
+  }
+
+  .job-spotlight-card:hover {
+    transform: perspective(75rem) rotateX(var(--job-tilt-x)) rotateY(var(--job-tilt-y)) translateY(-0.35rem);
   }
 
   .job-spotlight-card:hover .job-spotlight-card__depth {
@@ -136,6 +156,10 @@
   }
 }
 
+/* Reduced motion strips the transitions so every state change lands instantly,
+   and clears the resting transforms. The hover rules above are more specific
+   than these, so the state reveals still apply — they simply arrive without an
+   animation, which is the intended behaviour rather than a side effect. */
 @media (prefers-reduced-motion: reduce) {
   .role-index-progress__fill,
   .role-index-row,
@@ -148,6 +172,13 @@
   .job-spotlight-card__depth,
   .job-spotlight-card__arrow {
     transition: none;
+  }
+
+  .role-index-row,
+  .role-index-row__action,
+  .job-spotlight-card,
+  .job-spotlight-card__depth,
+  .job-spotlight-card__arrow {
     transform: none;
   }
 }

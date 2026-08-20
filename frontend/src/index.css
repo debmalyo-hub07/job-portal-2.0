@@ -178,29 +178,29 @@
 
 :root {
   /* ===== 60% — ground =====
-     One hue (70°, warm bone) across four surfaces. The steps are ~0.037 L
+     A quiet neutral family across four surfaces. The steps are ~0.037 L
      apart so the elevation ladder is actually visible; the previous 0.03 gap
      between paper and paper-sunken read as a single flat field, and
      paper-raised was pure white, which put the brightest value in the
      document on a card rather than on the page. */
-  --paper: oklch(0.972 0.009 70);
-  --paper-sunken: oklch(0.935 0.012 70);
-  --paper-raised: oklch(0.993 0.005 70);
-  --overlay: oklch(0.999 0.001 70);
+  --paper: oklch(0.948 0.003 80);
+  --paper-sunken: oklch(0.9 0.005 80);
+  --paper-raised: oklch(0.986 0.002 80);
+  --overlay: oklch(0.995 0.001 80);
 
   /* ink ramp. ink 16.70:1, ink-muted 6.19:1 (both clear 4.5:1 body text);
      ink-faint is a 3:1 caption/placeholder value and must never carry prose. */
-  --ink: oklch(0.2 0.012 70);
-  --ink-muted: oklch(0.43 0.015 70);
-  --ink-faint: oklch(0.55 0.012 70);
+  --ink: oklch(0.2 0.008 70);
+  --ink-muted: oklch(0.435 0.009 70);
+  --ink-faint: oklch(0.56 0.007 70);
 
   /* ===== 30% — structure =====
      --line is ink at 12%, so a hairline composites correctly on any of the
      four surfaces instead of matching exactly one of them. 8% measured
      1.08:1 against paper and was effectively invisible. --line-strong is the
      opaque 3:1 value for control boundaries. */
-  --line: oklch(0.2 0.012 70 / 12%);
-  --line-strong: oklch(0.59 0.012 70);
+  --line: oklch(0.2 0.008 70 / 14%);
+  --line-strong: oklch(0.575 0.007 70);
 
   /* Photographic surfaces are pinned to imagery, not to paper, and so flip
      with the theme independently of the ground. */
@@ -214,7 +214,7 @@
 
   /* The colour shadows are made of. Overriding this in dark is what stops a
      `color-mix(--ink)` shadow from becoming a white glow. */
-  --shade: oklch(0.2 0.012 70);
+  --shade: oklch(0.2 0.008 70);
 
   /* ===== status — icon + label always, never colour alone =====
      warn sits at 55°, not 65°: it must stay separable from the recruiter gold
@@ -242,25 +242,61 @@
   --ok-text: oklch(0.465 0.146 145);
   --ok-fg: oklch(0.99 0.004 145);
 
-  /* ===== role aliases =====
-     Declared once, for every theme and every portal. Each is a pure function of
-     a value defined elsewhere, and a custom property resolves its var() in the
-     scope where it is *used*, so one declaration follows the portal and the
-     theme automatically. Six copies of these lines is how the previous system
-     ended up with a dark-mode --signal-fg pointing the wrong way in three
-     places and right in three others.
+  /* ===== theme-scoped aliases =====
+     These may live here because every token they read is declared on the *same
+     element* this block targets. `.dark` is a class on <html>, so :root and
+     .dark cascade onto one element and var(--ink) / var(--danger) resolve to
+     the active theme's value.
 
-     --signal-ring and --signal-edge alias --signal-text because a focus ring
-     and the boundary of a filled control are both UI, and so answer to 3:1.
-     A translucent ring drawn over the fill, which is what shipped before,
-     measured 1.70:1 in the gold portal. */
-  --signal-muted: color-mix(in oklab, var(--signal) 12%, transparent);
-  --signal-ring: var(--signal-text);
-  --signal-edge: var(--signal-text);
+     The three --signal-* derivatives that used to sit here do NOT qualify, and
+     moving them here was a bug. A custom property substitutes its var() at the
+     element that *declares* it and then inherits the already-resolved value;
+     it does not re-resolve per consumer. --signal is declared on the
+     [data-portal] div (PortalScope), which is a descendant of <html>, so a
+     :root-declared derivative could only ever see seeker's teal — recruiter and
+     admin inherited it, giving teal focus rings, teal control borders and teal
+     menu washes in a gold workspace and a rose console. Twelve values across
+     six theme x portal scopes, every one off by a full 120deg of hue.
+
+     It stayed invisible because it is not a contrast failure: measured, the
+     shipped recruiter badge was 5.68:1 and admin 5.73:1, both clear of 4.5:1.
+     Only the hue was wrong, and the gate merged :root with the portal block
+     into one scope, so it computed the intended value rather than the shipped
+     one. The derivatives now live in each portal block, where their var() can
+     see the portal, and check-colour-contrast.mjs asserts both that no
+     :root token depends on a portal-scoped one and that the portals actually
+     differ. */
   --container-ink: var(--ink);
   --danger-muted: color-mix(in oklab, var(--danger) 15%, transparent);
   --warn-muted: color-mix(in oklab, var(--warn) 15%, transparent);
   --ok-muted: color-mix(in oklab, var(--ok) 15%, transparent);
+
+  /* ===== elevation =====
+     The two themes cannot share one elevation strategy, and this is arithmetic
+     rather than taste. Light mode reads elevation as *lighter*, but a page has
+     to sit near the top of the range to read as paper at all, so there is very
+     little headroom above it: at paper L 0.948 the card step is 1.12:1 and the
+     popover-above-card step is only 1.04:1, and no choice of values fixes the
+     second without pushing paper darker than a page should be. Dark mode has
+     the whole range below its page and gets 1.15:1 and 1.17:1 for free.
+
+     So the top of the light ladder separates by shadow depth instead, and the
+     shadows are deliberately heavier than a dark theme would want. --shade is
+     already the shadow colour and is overridden per theme, so these three
+     tokens follow the theme without restating a colour.
+
+     Before this, paper-raised vs paper measured 1.06:1 and overlay vs
+     paper-raised 1.02:1 — a card and the page were one flat field and a popover
+     was indistinguishable from the card beneath it. */
+  --elevate-1:
+    0 1px 2px color-mix(in oklab, var(--shade) 7%, transparent),
+    0 2px 6px color-mix(in oklab, var(--shade) 6%, transparent);
+  --elevate-2:
+    0 2px 4px color-mix(in oklab, var(--shade) 9%, transparent),
+    0 8px 20px color-mix(in oklab, var(--shade) 11%, transparent);
+  --elevate-3:
+    0 6px 12px color-mix(in oklab, var(--shade) 12%, transparent),
+    0 24px 48px color-mix(in oklab, var(--shade) 16%, transparent);
 
   /* motion */
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
@@ -279,17 +315,17 @@
 .dark {
   /* Deep warm charcoal on the same 70° hue, so the theme flip changes value
      without changing the family. */
-  --paper: oklch(0.19 0.01 70);
-  --paper-sunken: oklch(0.145 0.008 70);
-  --paper-raised: oklch(0.235 0.012 70);
-  --overlay: oklch(0.27 0.012 70);
+  --paper: oklch(0.19 0.011 70);
+  --paper-sunken: oklch(0.12 0.009 70);
+  --paper-raised: oklch(0.248 0.013 70);
+  --overlay: oklch(0.298 0.014 70);
 
-  --ink: oklch(0.93 0.01 80);
-  --ink-muted: oklch(0.7 0.012 75);
-  --ink-faint: oklch(0.52 0.012 75);
+  --ink: oklch(0.935 0.011 80);
+  --ink-muted: oklch(0.715 0.013 75);
+  --ink-faint: oklch(0.59 0.013 75);
 
-  --line: oklch(0.93 0.01 80 / 12%);
-  --line-strong: oklch(0.55 0.012 75);
+  --line: oklch(0.935 0.011 80 / 16%);
+  --line-strong: oklch(0.6 0.013 75);
 
   --media-shade: oklch(0.1 0.008 70);
   --media-copy: oklch(0.96 0.008 75);
@@ -316,6 +352,17 @@
   --danger-text: var(--danger);
   --warn-text: var(--warn);
   --ok-text: var(--ok);
+
+  /* A shadow on a dark ground is nearly invisible, and dark mode does not need
+     it: its lightness ladder already separates every layer. These stay only so
+     a lifted surface still reads as lifted, at a fraction of the light weight. */
+  --elevate-1: 0 1px 2px color-mix(in oklab, var(--shade) 24%, transparent);
+  --elevate-2:
+    0 2px 4px color-mix(in oklab, var(--shade) 30%, transparent),
+    0 8px 20px color-mix(in oklab, var(--shade) 24%, transparent);
+  --elevate-3:
+    0 6px 12px color-mix(in oklab, var(--shade) 36%, transparent),
+    0 24px 48px color-mix(in oklab, var(--shade) 30%, transparent);
 
   --hero-image-brightness: 0.7;
   --hero-image-saturation: 0.82;
@@ -345,58 +392,106 @@
       fill, and a light fill with light text has nowhere to go. */
 :root,
 [data-portal="seeker"] {
-  --signal: oklch(0.54 0.092 200);
-  --signal-hover: oklch(0.5 0.086 200);
-  --signal-pressed: oklch(0.46 0.079 200);
-  --signal-text: oklch(0.455 0.078 200);
+  --signal: oklch(0.545 0.09 200);
+  --signal-hover: oklch(0.505 0.083 200);
+  --signal-pressed: oklch(0.469 0.078 200);
+  --signal-text: oklch(0.442 0.074 200);
   --signal-fg: oklch(0.99 0.004 200);
-  --container: oklch(0.87 0.045 200);
+  --container: oklch(0.835 0.034 200);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 9%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
 [data-portal="recruiter"] {
-  --signal: oklch(0.8 0.164 80);
-  --signal-hover: oklch(0.76 0.156 80);
-  --signal-pressed: oklch(0.72 0.148 80);
-  --signal-text: oklch(0.46 0.096 80);
+  --signal: oklch(0.815 0.164 80);
+  --signal-hover: oklch(0.765 0.154 80);
+  --signal-pressed: oklch(0.723 0.146 80);
+  --signal-text: oklch(0.458 0.093 80);
   --signal-fg: var(--ink);
-  --container: oklch(0.87 0.045 80);
+  --container: oklch(0.845 0.034 80);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 9%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
 [data-portal="admin"] {
-  --signal: oklch(0.52 0.17 320);
-  --signal-hover: oklch(0.48 0.17 320);
-  --signal-pressed: oklch(0.44 0.17 320);
-  --signal-text: oklch(0.475 0.158 320);
+  --signal: oklch(0.545 0.255 320);
+  --signal-hover: oklch(0.503 0.236 320);
+  --signal-pressed: oklch(0.465 0.218 320);
+  --signal-text: oklch(0.484 0.227 320);
   --signal-fg: oklch(0.99 0.004 320);
-  --container: oklch(0.87 0.045 320);
+  --container: oklch(0.85 0.034 320);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 9%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
 /* Dark fills are light in every portal, so --signal-fg is the dark ground.
    Referencing var(--paper) rather than restating a literal keeps the hue-
    wander rule satisfied and makes the polarity impossible to get backwards —
    an earlier draft pointed it at var(--ink), which is near-white in dark and
-   put every primary button label at 1.59:1. */
+   put every primary button label at 1.59:1.
+
+   Each dark portal is selected twice, and both forms are load-bearing.
+   `.dark[data-portal=X]` (no space) matches the *same element*: PortalScope
+   mirrors the portal onto <html>, which is also where next-themes writes
+   `.dark`, so on a dark recruiter page both live on one element and a
+   descendant selector would not match it. `.dark [data-portal=X]` (space)
+   matches the PortalScope div and the side-by-side blocks in /design. Ship one
+   without the other and either every overlay or the whole gallery loses its
+   portal colour. */
 .dark,
+.dark[data-portal="seeker"],
 .dark [data-portal="seeker"] {
-  --signal: oklch(0.74 0.124 200);
-  --signal-hover: oklch(0.705 0.118 200);
-  --signal-pressed: oklch(0.67 0.113 200);
+  --signal: oklch(0.75 0.123 200);
+  --signal-hover: oklch(0.704 0.116 200);
+  --signal-pressed: oklch(0.664 0.11 200);
   --signal-text: oklch(0.8 0.132 200);
   --signal-fg: var(--paper);
-  --container: oklch(0.32 0.045 200);
+  --container: oklch(0.335 0.057 200);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 12%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
+.dark[data-portal="recruiter"],
 .dark [data-portal="recruiter"] {
-  --signal: oklch(0.8 0.164 80);
-  --signal-hover: oklch(0.765 0.157 80);
-  --signal-pressed: oklch(0.73 0.15 80);
-  --signal-text: oklch(0.84 0.14 80);
+  --signal: oklch(0.805 0.162 80);
+  --signal-hover: oklch(0.757 0.152 80);
+  --signal-pressed: oklch(0.715 0.144 80);
+  --signal-text: oklch(0.845 0.146 80);
   --signal-fg: var(--paper);
-  --container: oklch(0.32 0.045 80);
+  --container: oklch(0.335 0.058 80);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 12%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
+.dark[data-portal="admin"],
 .dark [data-portal="admin"] {
-  --signal: oklch(0.74 0.17 320);
-  --signal-hover: oklch(0.705 0.17 320);
-  --signal-pressed: oklch(0.67 0.17 320);
-  --signal-text: oklch(0.8 0.15 320);
+  --signal: oklch(0.735 0.218 320);
+  --signal-hover: oklch(0.691 0.218 320);
+  --signal-pressed: oklch(0.653 0.218 320);
+  --signal-text: oklch(0.8 0.16 320);
   --signal-fg: var(--paper);
-  --container: oklch(0.32 0.045 320);
+  --container: oklch(0.34 0.058 320);
+  /* Derived in portal scope so var(--signal) resolves to *this* portal.
+     --signal-ring and --signal-edge alias --signal-text because a focus ring
+     and the boundary of a filled control are both UI, and answer to 3:1. */
+  --signal-muted: color-mix(in oklab, var(--signal) 12%, transparent);
+  --signal-ring: var(--signal-text);
+  --signal-edge: var(--signal-text);
 }
 
 @layer base {

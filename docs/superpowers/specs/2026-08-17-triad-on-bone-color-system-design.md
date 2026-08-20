@@ -90,7 +90,7 @@ spec pins hard: the hue angles (the harmony) and the ramp delta system (the
 contrast-constancy). OKLCH throughout — equal lightness steps keep contrast
 constant along a ramp.
 
-### House — warm bone family, hue 70° in both themes
+### House — quiet near-white neutral family in light mode
 
 Chroma ≤ 0.012 so the ground reads warm, never yellow.
 
@@ -277,17 +277,17 @@ truth. What changed and why:
 | gold anchor `0.62 0.15 80`, light text | `0.80 0.164 80`, `var(--ink)` text | Gold below L 0.60 reads olive. Keeping a real gold forces a *light* fill with dark text — recruiter's fill polarity is inverted relative to seeker and admin, and it needs `signal-edge` for the 3:1 boundary its lightness cannot supply |
 | `warn` hue 65°, ≥15° from gold | hue 55°, and L 0.54 vs gold's 0.80 | 15° is not separable at similar lightness. Warn now differs on two axes: 25° of hue and 0.26 of lightness |
 | light `line` = ink at 8% | 12% | 8% measured 1.08:1 — a divider you cannot see |
-| light `paper` `0.985` | `0.972` | A near-white paper leaves `sunken`/`raised` no room and reads cold rather than bone. `sunken` 0.94→0.935, `raised` 0.997→0.993, `ink-faint` 0.56→0.55, `line-strong` 0.6→0.59 |
+| light `paper` `0.985` | `0.972`, then `0.948` (2026-08-19) | A near-white paper leaves `sunken`/`raised` no room. 0.972 was still too high: it bought a 1.06:1 card step and a 1.02:1 popover step. See the 2026-08-19 amendment |
 | one grade per status | a fill grade **and** a text grade | Not in the spec at all, and the most serious find: a tinted badge is a wash of its own status colour, so darkening the type darkens the wash proportionally and the ratio barely moves. The *already shipped* `bg-ok/15 text-ok` badges measured **4.01:1 in every portal** — a live WCAG 1.4.3 failure nothing had ever measured. Dark mode needs no text grade; its wash darkens toward the ground while the type stays light |
 | `signal-muted` panel pairs with `ink-muted` | pairs with `ink` | ink-muted on that panel lands 2.74–3.33:1 at every useful alpha |
-| roles per portal block | declared once in `:root` | A custom property resolves its `var()` in the *consuming* scope, so one declaration follows both portal and theme. Six copies is how a dark `signal-fg` ended up pointing the wrong way in three blocks and the right way in three others |
+| roles per portal block | declared once in `:root` — **wrong, corrected 2026-08-19** | The stated reason was that "a custom property resolves its `var()` in the consuming scope". It does not. A custom property is substituted at the element that *declares* it, and descendants inherit the already-resolved value. `--signal` lived on the `[data-portal]` div, so the three `:root`-declared derivatives resolved once against seeker's teal and every other portal inherited it. See the 2026-08-19 amendment |
 | — | `shade` added | A scrim must dim its backdrop in *both* themes; `bg-ink/40` lightened the page in dark mode |
 
 ### Enforcement, as built
 
 `tests/visual/contrast.mjs` needs a running dev server, so `npm run ci` had never
 executed it — the 4.5:1 and 3:1 floors were documented and unenforced. The gate
-is now `frontend/scripts/check-colour-contrast.mjs`: pure Node, no browser, **440
+is now `frontend/scripts/check-colour-contrast.mjs`: pure Node, no browser, **551
 checks** over all six theme×portal scopes, run by `lint:colour` in CI. It holds
 no palette of its own — it parses `index.css`, replays the cascade, and derives
 the portal anchors from the parsed values, so a redesign changes what it checks
@@ -312,3 +312,161 @@ gate that fails for the wrong reasons. What shipped instead: `container` wired
 into the three genuine chrome surfaces (workbench rail, tabs list, table header),
 and a proportional band demo in `/design` showing the split directly. The rule is
 demonstrated and structurally enforced; it is not asserted as a measured number.
+
+---
+
+## Amendment — 2026-08-19: recalibration, and the bug the `:root` decision caused
+
+Reported as "the light mode palette is terribly built, and it is the same for
+every role". Both halves were correct, and they had different causes.
+
+### 1. The role aliases were frozen to seeker's teal
+
+`--signal-muted`, `--signal-ring` and `--signal-edge` were declared once in
+`:root`, on the reasoning quoted in the "As built" table above. That reasoning is
+false. A custom property is substituted at the element that **declares** it and
+descendants inherit the resolved value; it is not re-resolved per consumer.
+`--signal` is declared on the `[data-portal]` element, which `PortalScope` renders
+as a `div` below `<html>`, so the three derivatives could only ever see seeker's
+teal.
+
+Twelve wrong values — recruiter and admin, light and dark, three tokens each, every
+one exactly 120° off its anchor — across 63 usages: 26 focus rings, 28 accent
+washes, 9 filled-control borders. In the recruiter workspace every focus ring was
+teal, every `Select` and `DropdownMenu` highlight was teal (`focus:bg-signal-muted`),
+and the gold primary button carried a teal border — load-bearing, because gold
+measures 1.75:1 against paper and cannot supply its own boundary.
+
+It survived a 440-check gate because **it is not a contrast failure**. Measured, the
+shipped recruiter badge was 5.68:1 and admin 5.73:1, both clear of 4.5:1. Only the
+hue was wrong. And `scope()` merged `:root` with the portal block into a single map
+before resolving, so the gate computed the value the author intended rather than the
+one the browser painted.
+
+### 2. Radix overlays never saw the portal at all
+
+A larger instance of the same class. `Dialog`, `DropdownMenu`, `Select`, `Popover`,
+`Sheet`, `Tooltip` and Sonner's toaster all render into a portal on `document.body`,
+which is a **sibling** of the `PortalScope` div. Inheritance follows the DOM, not
+the React tree, so every overlay in the application took *all* of its signal tokens
+from `<html>` — not just the three derivatives.
+
+`PortalScope` now mirrors the portal onto `document.documentElement`, which is where
+`next-themes` already writes the theme class for the same reason. The wrapper `div`
+stays: `/design` renders three portals on one document, and `canvasShader` resolves
+its hue through `closest("[data-portal]")`. Because `.dark` and `data-portal` now
+land on one element, each dark portal block is selected twice — `.dark[data-portal=X]`
+for that case and `.dark [data-portal=X]` for the div. Ship one without the other and
+either every overlay or the whole gallery loses its portal colour.
+
+### 3. `--overlay` had never been wired to an overlay
+
+`bg-overlay` appeared in exactly one place in the codebase: a swatch in `/design`.
+Every real overlay used `bg-paper-raised` — the *card* surface — so a popover over a
+card was the same colour, separated only by a default shadow. The token documented an
+intent that was never implemented. All five surfaces now use it.
+
+### 4. Light mode's elevation ladder was collapsed
+
+| step | light was | light now | dark was | dark now |
+|---|---|---|---|---|
+| card vs page | 1.06:1 | **1.12:1** | 1.11:1 | 1.15:1 |
+| popover vs card | 1.02:1 | 1.03:1 + `--elevate-3` | 1.11:1 | 1.17:1 |
+| lightness span | 0.064 | **0.095** | 0.125 | **0.178** |
+
+All six figures are read back out of `index.css` rather than recorded from the
+working notes; the two spans in an earlier draft of this amendment were estimates
+and both were wrong.
+
+The cause is arithmetic, not taste: light-mode elevation reads as *lighter*, and at
+`paper` L 0.972 there is almost no headroom left above the page. Dark mode has the
+whole range below its page and gets its steps for free.
+
+So the two themes **cannot share one elevation strategy**, and that is now explicit.
+`paper` remains at L 0.948 for the required light-mode elevation range, while its
+chroma was later reduced to 0.003 and the structural container chroma to 0.034.
+This keeps the card step without the former cream cast or cyan-heavy chrome.
+(`ink` stays at 15.55:1). The top of the ladder cannot be fixed by lightness at all —
+near white there is nothing left to spend — so it is carried by three new
+`--elevate-1/2/3` shadow tokens, deliberately heavier in light than in dark.
+
+### 5. Interaction states
+
+Hover moved 1.13–1.19:1 between states, the weakest end of the useful range. Ramps
+were re-derived per hue against the in-gamut ceiling for a ≥1.18:1 hover step and
+≥1.16:1 pressed step, with the label held ≥4.5:1 at *every* state — the binding
+constraint for recruiter, whose light gold fill carries dark text and so loses label
+contrast as it darkens.
+
+Also fixed: `Card` had no interaction states at all and is the primary content unit,
+so it gains an opt-in `interactive` variant (opt-in because most cards are containers,
+and a container that lights up promises a click that never happens). `Input` had no
+hover. `Profile.tsx` had the one raw focus gap in the codebase.
+
+`landing-interactions.css` had two defects. Its entire hover block sat inside
+`@media (prefers-reduced-motion: no-preference)`, so a reader who asks for less motion
+got **no hover feedback at all** — not a border, not a shade. State and movement are
+now separate queries. And its hover shadow was `color-mix(in oklab, var(--ink) 12%, …)`;
+`--ink` is near-white in dark mode, so that painted a white glow around the card —
+precisely the failure `--shade` exists to prevent, as `index.css` documents where that
+token is declared.
+
+### 6. One data table, three appearances
+
+Same component, same semantics, three treatments: recruiter tables were wrapped in a
+bordered elevated panel, the three admin consoles in a bare `overflow-x-auto` div with
+no surface, and the seeker's applied-jobs table in a plain `<div>` with neither a
+surface nor horizontal scroll — an overflow bug at narrow widths. The surface moved
+into the `Table` primitive's own container and all six call-site wrappers were removed.
+
+### 7. Chroma left on the table
+
+sRGB's chroma ceiling varies by hue *and* by lightness, and admin was using 67% of
+what was available (0.170 of 0.252 at L 0.52). Admin's fill is now C 0.255, a ~50%
+increase. Seeker cannot be improved this way: 200° is the poorest hue on the wheel for
+chroma in sRGB, capping near 0.09 at usable lightnesses, and was already at 99% of its
+ceiling — close enough to clip, which is why it now carries a 3% safety margin.
+
+### The triad was re-derived and deliberately kept
+
+All 120 triad rotations were swept against the sRGB gamut, the ≥20° status-hue
+separation, and hue distance from the bone ground. Ranked by the weakest of the three
+hues, 80/200/320 does not win — 100/220/340 does, by roughly 0.01 chroma.
+
+It was kept anyway. The margin is negligible, the semantics are right (blue = trust
+for candidates, gold = value for employers, rose = authority for admin), and the
+"optimal" rotation turns the gold to lime. The one finding worth recording is that the
+recruiter gold sits only 10° from the 70° bone ground; that is harmony rather than a
+defect, and the 1.75:1 contrast it produces is a *lightness* problem already solved by
+`--signal-edge` — which makes getting that token's hue right (§1) matter more for
+recruiter than for either other portal.
+
+Confirmed numerically: at 80° the chroma ceiling **rises** with lightness to a peak at
+L 0.80 and falls to 0.105 by L 0.50. A dark gold is not available in sRGB. The
+recruiter fill is forced to be light with dark text, exactly as the original build
+found by eye.
+
+### Enforcement
+
+`lint:colour` goes from 440 to **551 checks**. Every floor added is a *step* rather
+than a level, because the original gate asked whether a pairing was legible and never
+whether two things that must look different actually do:
+
+- `--signal-muted/-ring/-edge` must be **declared** in each portal block. Declaration
+  site is the only honest assertion here, since resolving values through the merged
+  `scope()` reproduces the intended value rather than the painted one.
+- `.dark[data-portal=X]` (same element) must exist, or overlays keep the light ramp.
+- `--elevate-1/2/3` must be declared in both themes.
+- The ladder must be **ordered** (`sunken < paper < raised < overlay` by L) and its two
+  affordable steps must clear 1.09:1. `raised → overlay` is deliberately given no
+  floor; it is carried by shadow.
+- `signal`/`danger` must change ≥1.15:1 rest→hover and ≥1.13:1 hover→pressed.
+- Hue wander now covers the three derivatives, and uses `hueDistance` rather than a raw
+  subtraction — which reported 240 for a 120° error.
+- `ink-muted`, `ink-faint` and `line-strong` are now checked on `overlay` too. That is
+  what caught dark `ink-faint` falling to 2.77:1 when dark `overlay` was raised.
+
+Mutation-tested against seven regressions — the freeze reintroduced, a flat ladder, an
+inverted ladder, a weak hover step, a missing same-element selector, a missing
+elevation token, and a derived token hard-coded to the wrong portal's hue. All seven
+fail the gate.

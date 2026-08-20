@@ -22,7 +22,7 @@ export function AuthLayout({
   const copy = AUTH_COPY[portal];
 
   return (
-    <div className="auth-layout grid min-h-screen bg-paper md:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]">
+    <div className="auth-layout grid min-h-screen bg-paper lg:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]">
       <div className="auth-form-column flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14">
         <div className="flex items-center justify-between gap-4">
           <Wordmark portal={portal} to={copy.homeHref ?? undefined} className="text-xl" />
