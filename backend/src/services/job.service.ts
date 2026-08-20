@@ -8,6 +8,7 @@ import type {
   PaginationQuery,
 } from "@jobportal/shared";
 import { Job, type JobDocument } from "../models/job.model.js";
+import { Company } from "../models/company.model.js";
 import type { CompanyDocument } from "../models/company.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
@@ -54,6 +55,7 @@ export function toJobDto(doc: PopulatedJob, viewer: FitViewer = null): JobDto {
     experienceLevel: doc.experienceLevel,
     location: doc.location,
     jobType: doc.jobType,
+    department: doc.department ?? "Other",
     position: doc.position,
     remote: doc.remote ?? false,
     company: doc.company ? toCompanyDto(doc.company) : null,
@@ -77,6 +79,7 @@ export async function createJob(ownerId: string, body: JobCreateBody): Promise<J
     experienceLevel: body.experience,
     location: body.location,
     jobType: body.jobType,
+    department: body.department,
     position: body.position,
     // 4A.3 in body (optional boolean); falls back to the schema default when absent.
     remote: body.remote ?? false,
@@ -124,22 +127,51 @@ export async function listPublicJobs(
   const split = (s: string) => s.split(",").map((v) => v.trim()).filter(Boolean);
   const locations = split(query.location);
   const jobTypes = split(query.jobType);
+  const departments = split(query.department);
+  const companies = split(query.company);
   if (locations.length > 0)
     filter.location =
       locations.length === 1 ? locations[0] : mongoose.trusted({ $in: locations });
   if (jobTypes.length > 0)
     filter.jobType =
       jobTypes.length === 1 ? jobTypes[0] : mongoose.trusted({ $in: jobTypes });
+  if (departments.length > 0)
+    filter.department =
+      departments.length === 1 ? departments[0] : mongoose.trusted({ $in: departments });
+  if (companies.length > 0) {
+    const companyDocs = await Company.find({
+      name: mongoose.trusted({
+        $in: companies.map((name) => new RegExp(`^${escapeRegex(name)}$`, "i")),
+      }),
+    }).select("_id");
+    const companyIds = companyDocs.map((company) => company._id);
+    filter.company =
+      companyIds.length === 1
+        ? mongoose.trusted({ $eq: companyIds[0] })
+        : mongoose.trusted({ $in: companyIds });
+  }
   if (query.salaryMax !== undefined) filter.salary = mongoose.trusted({ $lte: query.salaryMax });
   if (query.experienceMax !== undefined)
     filter.experienceLevel = mongoose.trusted({ $lte: query.experienceMax });
   if (query.remote !== undefined) filter.remote = query.remote;
 
   if (query.keyword) {
-    const re = new RegExp(escapeRegex(query.keyword), "i");
-    // Wrap each $or branch, matching the established pattern: `trusted` belongs
-    // on the operator value, not the whole top-level filter.
-    filter.$or = [{ title: re }, { description: re }];
+    const tokens = /[\p{L}\p{N}]/u.test(query.keyword)
+      ? query.keyword.match(/[\p{L}\p{N}+#.-]+/gu)?.slice(0, 8) ?? []
+      : [query.keyword];
+    // Literal, case-insensitive search across every field a candidate expects:
+    // title, description, location, requirements and the populated company's
+    // name. Company names are handled with a second query because the job row
+    // stores only the referenced ObjectId.
+    const tokenFilters = await Promise.all(tokens.map(async (token) => {
+      const re = new RegExp(escapeRegex(token), "i");
+      const companyDocs = await Company.find({ name: re }).select("_id");
+      return { $or: [
+        { title: re }, { description: re }, { location: re }, { department: re }, { requirements: re },
+        ...(companyDocs.length > 0 ? [{ company: mongoose.trusted({ $in: companyDocs.map((company) => company._id) }) }] : []),
+      ] };
+    }));
+    if (tokenFilters.length > 0) filter.$and = mongoose.trusted(tokenFilters);
   }
 
   return paginate(filter, query, await resolveFitViewer(viewerId));

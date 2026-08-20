@@ -87,7 +87,7 @@ const Navbar = () => {
         isHeroRoute ? "fixed inset-x-0" : "sticky",
         mediaTone
           ? "navbar-hero border-transparent bg-transparent shadow-none"
-          : "border-line bg-paper/95 shadow-[0_0.5rem_2rem_color-mix(in_oklab,var(--shade)_8%,transparent)]",
+          : "border-line-strong/55 bg-paper/98 shadow-[var(--elevate-1)]",
       )}
     >
       <nav className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -120,11 +120,11 @@ const Navbar = () => {
                   className={({ isActive }) =>
                     isActive
                       ? cn(
-                          "rounded-sharp px-3 py-2",
+                          "rounded-sharp border border-line px-3 py-2",
                           mediaTone ? "bg-media-copy/12 text-media-copy" : "bg-paper-sunken text-ink",
                         )
                       : cn(
-                          "rounded-sharp px-3 py-2",
+                          "rounded-sharp border border-transparent px-3 py-2",
                           mediaTone
                             ? "text-media-copy/75 hover:bg-media-copy/10 hover:text-media-copy"
                             : "text-ink-muted hover:bg-paper-sunken hover:text-ink",

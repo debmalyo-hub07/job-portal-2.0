@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { Button } from "./ui/button";
 import ImageHero from "./landing/ImageHero";
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import { FadeIn } from "@/lib/motion";
+import { JobSearchCombobox } from "./search/JobSearchCombobox";
 
 function HeroSection() {
   const [query, setQuery] = useState("");
@@ -15,6 +16,7 @@ function HeroSection() {
     event.preventDefault();
     navigate(jobBoardPath(query));
   };
+  const runSearch = (value: string) => navigate(jobBoardPath(value));
 
   return (
     <ImageHero
@@ -23,14 +25,14 @@ function HeroSection() {
       alt="A product team working together around a shared table"
       objectPosition="center 56%"
       mobileObjectPosition="65% 56%"
-      className="min-h-[calc(100svh-9rem)] max-h-[50rem] bg-media-shade text-media-copy md:min-h-[calc(100svh-7rem)]"
+      className="min-h-[46rem] bg-media-shade text-media-copy md:min-h-[min(56rem,100svh)]"
     >
-      <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-end px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
-        <div data-hero-copy="seeker" className="max-w-[44rem]">
-          <p className="mb-5 text-sm font-semibold uppercase text-media-copy/75">
+      <FadeIn className="relative z-20 mx-auto flex min-h-[inherit] max-w-7xl items-center px-4 pt-28 pb-12 sm:px-6 sm:pt-32 sm:pb-16 lg:-translate-y-12">
+        <div data-hero-copy="seeker" className="max-w-[45rem]">
+          <p className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-media-copy/75 before:h-px before:w-8 before:bg-signal">
             Cairn for candidates
           </p>
-          <h1 className="font-display text-5xl font-semibold leading-[0.92] text-balance text-media-copy sm:text-7xl lg:text-[6rem]">
+          <h1 className="font-display text-5xl font-semibold leading-[0.94] text-balance text-media-copy sm:text-7xl lg:text-[5.5rem]">
             Work that fits your next move.
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-media-copy/80 sm:text-lg">
@@ -39,24 +41,9 @@ function HeroSection() {
 
           <form
             onSubmit={searchJobHandler}
-            className="mt-8 flex w-full max-w-2xl flex-col gap-2 rounded-surface bg-media-surface p-2 text-media-surface-ink shadow-2xl sm:flex-row"
+            className="hero-search-shell mt-8 flex w-full max-w-[43rem] flex-col gap-2 rounded-surface border border-media-copy/25 bg-media-surface/95 p-1.5 text-media-surface-ink shadow-[var(--elevate-3)] backdrop-blur-xl sm:flex-row"
           >
-            <label htmlFor="hero-search" className="sr-only">
-              Search for jobs, companies, or skills
-            </label>
-            <div className="flex min-w-0 flex-1 items-center gap-3 px-3">
-              <Search aria-hidden="true" className="size-5 shrink-0 text-media-surface-ink/55" />
-              <input
-                id="hero-search"
-                type="search"
-                name="keyword"
-                autoComplete="off"
-                placeholder="Role, company, or skill"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-12 w-full min-w-0 border-none bg-transparent text-base text-media-surface-ink outline-none placeholder:text-media-surface-ink/55"
-              />
-            </div>
+            <JobSearchCombobox id="hero-search" label="Search for jobs, companies, or skills" value={query} onChange={setQuery} onSubmit={runSearch} tone="hero" />
             <Button type="submit" variant="signal" size="lg" className="sm:px-7">
               Search roles
               <ArrowRight data-icon="inline-end" />

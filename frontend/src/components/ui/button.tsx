@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-ink text-paper shadow-sm hover:bg-ink/90 hover:shadow-md",
+        default: "bg-ink text-paper shadow-[var(--elevate-1)] hover:bg-ink/90 hover:shadow-[var(--elevate-2)]",
         // The fill is --signal, not --signal-text: --signal is the portal's
         // identity colour and --signal-text is the darkened variant that only
         // exists to carry 4.5:1 as *type on paper*. Using the text grade as a
@@ -19,7 +19,7 @@ const buttonVariants = cva(
         // itself; hover and pressed step toward --signal-fg's opposite so the
         // gesture never dips below the text floor mid-press.
         signal:
-          "border border-signal-edge bg-signal text-signal-fg shadow-sm hover:bg-signal-hover hover:shadow-md active:bg-signal-pressed",
+          "border border-signal-edge bg-signal text-signal-fg shadow-[var(--elevate-1)] hover:bg-signal-hover hover:shadow-[var(--elevate-2)] active:bg-signal-pressed",
         destructive:
           "bg-danger text-danger-fg hover:bg-danger-hover active:bg-danger-pressed",
         outline:

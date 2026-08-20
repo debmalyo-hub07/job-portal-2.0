@@ -44,6 +44,16 @@ export function useAuthBootstrap(requestedPortal?: Portal): void {
   const cachedUser = useAppSelector((state) =>
     portal ? userForPortal(state.auth, portal) : null,
   );
+  // The cached user is a bootstrap hint, not an effect trigger. The /me success
+  // path writes the live user into Redux; depending on that changing value here
+  // starts the same bootstrap again before the portal flag settles and can leave
+  // protected routes permanently empty (and repeatedly call /me in a browser).
+  // PersistGate has already completed before this hook renders, so the value from
+  // this render is the only cache state this request needs to inspect.
+  const cachedUsersAtBootstrap = useRef<Partial<Record<Portal, SessionUser | null>>>({});
+  if (portal && !(portal in cachedUsersAtBootstrap.current)) {
+    cachedUsersAtBootstrap.current[portal] = cachedUser;
+  }
   const bootstrapped = useAppSelector((state) =>
     portal ? portalIsBootstrapped(state.auth, portal) : state.auth.bootstrapped,
   );
@@ -67,7 +77,7 @@ export function useAuthBootstrap(requestedPortal?: Portal): void {
     // A cache entry is only a hint that a httpOnly session may exist. The old
     // single-portal hint is kept as a one-release migration path for browsers
     // that signed in before portal-scoped caches shipped.
-    if (!cachedUser && getPortalHint() !== portal) {
+    if (!cachedUsersAtBootstrap.current[portal] && getPortalHint() !== portal) {
       dispatch(setPortalBootstrapped({ portal, value: true }));
       return;
     }
@@ -99,5 +109,5 @@ export function useAuthBootstrap(requestedPortal?: Portal): void {
     return () => {
       cancelled = true;
     };
-  }, [bootstrapped, cachedUser, dispatch, portal]);
+  }, [bootstrapped, dispatch, portal]);
 }

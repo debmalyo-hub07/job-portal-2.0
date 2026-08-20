@@ -16,6 +16,21 @@ import { portalSchema, type Portal } from "./auth.js";
  */
 export const JOB_TYPES = ["Full-time", "Part-time", "Internship", "Contract"] as const;
 export const WORK_MODES = ["onsite", "hybrid", "remote"] as const;
+export const JOB_DEPARTMENTS = [
+  "Engineering",
+  "Data & AI",
+  "Product Management",
+  "Design & Research",
+  "Consulting & Strategy",
+  "Sales & Business Development",
+  "Marketing & Communications",
+  "Finance & Accounting",
+  "Human Resources",
+  "Operations & Supply Chain",
+  "Customer Service",
+  "Legal & Compliance",
+  "Other",
+] as const;
 export const APPLICATION_STATUSES = [
   "applied",
   "reviewed",
@@ -36,8 +51,10 @@ export const PORTALS: readonly Portal[] = Object.freeze([...portalSchema.options
 
 export const jobTypeSchema = z.enum(JOB_TYPES);
 export const workModeSchema = z.enum(WORK_MODES);
+export const jobDepartmentSchema = z.enum(JOB_DEPARTMENTS);
 export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 
 export type JobType = z.infer<typeof jobTypeSchema>;
 export type WorkMode = z.infer<typeof workModeSchema>;
+export type JobDepartment = z.infer<typeof jobDepartmentSchema>;
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;

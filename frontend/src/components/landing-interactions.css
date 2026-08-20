@@ -15,6 +15,81 @@
   transition: height var(--dur-slow) var(--ease-out-quint);
 }
 
+.job-board-search {
+  position: relative;
+  transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.job-board-search::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  content: "";
+  background: var(--signal);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-out-quint);
+}
+
+.job-board-search:focus-within {
+  border-color: var(--line-strong);
+  box-shadow: var(--elevate-2);
+}
+
+.job-board-search:focus-within::after {
+  transform: scaleX(1);
+}
+
+.employer-stream {
+  position: relative;
+  height: 14rem;
+  overflow: hidden;
+  border-block: 1px solid var(--line);
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}
+
+.employer-stream__track {
+  display: grid;
+  animation: employer-stream-up 22s linear infinite;
+}
+
+.employer-stream__row {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.employer-stream__mark {
+  display: grid;
+  width: 3.25rem;
+  height: 2rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sharp);
+  background: var(--logo-canvas);
+}
+
+.employer-stream__mark img {
+  width: 2.5rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.employer-stream:hover .employer-stream__track,
+.employer-stream:focus-within .employer-stream__track {
+  animation-play-state: paused;
+}
+
+@keyframes employer-stream-up {
+  to {
+    transform: translateY(-50%);
+  }
+}
+
 .role-index-row {
   position: relative;
   isolation: isolate;
@@ -180,5 +255,9 @@
   .job-spotlight-card__depth,
   .job-spotlight-card__arrow {
     transform: none;
+  }
+
+  .employer-stream__track {
+    animation: none;
   }
 }

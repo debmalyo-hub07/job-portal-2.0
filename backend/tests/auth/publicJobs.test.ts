@@ -75,6 +75,7 @@ describe("the public job board", () => {
     const base = [
       "company",
       "createdAt",
+      "department",
       "description",
       "experienceLevel",
       "id",

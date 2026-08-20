@@ -204,6 +204,52 @@ describe("job routes", () => {
       expect(res.body.items[0].title).toBe("Type Lead");
     });
 
+    it("filters by company name without sanitizeFilter rejecting ObjectIds", async () => {
+      await post("Company role", {});
+      const res = await request(app).get(
+        `/api/v1/job/get?company=${encodeURIComponent("Co-owner@example.com")}`,
+      );
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(res.body.items[0].company.name).toBe("Co-owner@example.com");
+    });
+
+    it("keyword reaches the company name, the location and the department", async () => {
+      await post("Ledger work", { location: "Kolkata", department: "Finance & Accounting" });
+      await post("Elsewhere", { location: "Berlin", department: "Engineering" });
+
+      // The job row stores only a company ObjectId, so the employer name is
+      // matched through a second query rather than on the job itself.
+      const byCompany = await request(app).get("/api/v1/job/get?keyword=owner");
+      expect(byCompany.body.total).toBe(2);
+
+      const byLocation = await request(app).get("/api/v1/job/get?keyword=Kolkata");
+      expect(byLocation.body.total).toBe(1);
+      expect(byLocation.body.items[0].title).toBe("Ledger work");
+
+      const byDepartment = await request(app).get(
+        `/api/v1/job/get?keyword=${encodeURIComponent("Finance & Accounting")}`,
+      );
+      expect(byDepartment.body.total).toBe(1);
+      expect(byDepartment.body.items[0].title).toBe("Ledger work");
+    });
+
+    it("ANDs the words of a multi-word keyword instead of demanding the phrase", async () => {
+      await post("Senior Platform Engineer", { location: "Pune" });
+      await post("Senior Analyst", { location: "Pune" });
+
+      // "Engineer Senior" is neither job's phrasing; both words are present in
+      // exactly one of them.
+      const reordered = await request(app).get("/api/v1/job/get?keyword=Engineer%20Senior");
+      expect(reordered.body.total).toBe(1);
+      expect(reordered.body.items[0].title).toBe("Senior Platform Engineer");
+
+      // A word matched by neither job removes the whole result, rather than
+      // widening it the way an OR across tokens would.
+      const absent = await request(app).get("/api/v1/job/get?keyword=Senior%20Nonexistent");
+      expect(absent.body.total).toBe(0);
+    });
+
     it("a facet with no matches returns an empty page, not a fallback to everything", async () => {
       await post("x-one", { location: "Bengaluru" });
       const res = await request(app).get("/api/v1/job/get?location=Nowhere");

@@ -55,7 +55,7 @@ export function WorkbenchShell({
                           // an already-tinted field is a tint on a tint, and
                           // nothing measures that pairing.
                           isActive
-                            ? "bg-paper-raised text-ink shadow-sm"
+                            ? "bg-paper-raised text-ink shadow-[var(--elevate-1)]"
                             : "text-ink-muted hover:bg-paper-raised hover:text-ink",
                         )
                       }

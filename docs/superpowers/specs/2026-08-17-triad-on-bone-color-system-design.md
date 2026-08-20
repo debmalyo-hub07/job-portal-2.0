@@ -470,3 +470,79 @@ Mutation-tested against seven regressions — the freeze reintroduced, a flat la
 inverted ladder, a weak hover step, a missing same-element selector, a missing
 elevation token, and a derived token hard-coded to the wrong portal's hue. All seven
 fail the gate.
+
+## Amendment — 2026-08-20: the bone went gray, and the shadow hand-off was half-built
+
+Two defects, and they share a cause: §4 of the 2026-08-19 amendment made a correct
+decision and then under-delivered on the half of it that was not arithmetic.
+
+### 1. Chroma ≤ 0.012 was a ceiling with no floor
+
+The house palette above says "Chroma ≤ 0.012 so the ground reads warm, never yellow"
+and specified `paper` at `0.985 0.006 70`. §4 then dropped light `paper` to chroma
+**0.003** to remove a "cream cast". That crossed a boundary the spec never named: at
+L 0.95 a chroma of 0.003 sits at or below the just-noticeable difference, so the hue
+was still 80° and simply invisible.
+
+Measured as red-to-blue channel spread in sRGB — what the eye actually reads as a tint:
+
+| | light was | light now | dark |
+|---|---|---|---|
+| `paper` | `#efedeb`, spread 4 (**1.7%** of its red channel) | `#f2ebe1`, spread 17 (7.0%) | `#17130f`, spread 8 (**34.8%**) |
+| `paper-sunken` | `#e0deda`, spread 6 | `#e8dfd2`, spread 22 | `#080503`, spread 5 |
+
+A palette named for bone was painting neutral gray in the theme most people use, and
+the two themes were no longer one family: dark mode was warm charcoal, light mode was
+office fluorescent. That is what "the lighting is off" describes, and no floor in the
+gate could see it — it is not a contrast failure, not a gamut failure, and not a
+hue-wander failure.
+
+**There are two failure modes on this axis and the spec had named only one.** The
+ceiling stays; a floor joins it. `lint:colour` now holds `paper` and `paper-sunken` to
+chroma ≥ 0.008 in *both* themes and requires the two themes' `paper` to agree within
+0.006, so neither "too yellow" nor "invisible" can ship. `paper-sunken` at 0.020 is
+above the old ceiling deliberately: the ceiling was written for the page, and the band
+beneath the page is where the ground's identity is most legible.
+
+### 2. The ladder delegated to shadow; the shadows could not carry it
+
+§4's arithmetic was right — light mode has ~0.09 of lightness above a page that still
+reads as paper, so `raised → overlay` has to be carried by `--elevate-3` and the gate
+records that exemption at the assertion. What shipped alongside it was a shadow set at
+**6-7% of `--shade`**, fainter than the 0.1-alpha black in the middle of Tailwind's own
+default scale. Both mechanisms were simultaneously too weak. A card sat on the page at
+1.12:1 with no shadow worth the name and a popover sat on a card at 1.026:1 with
+nothing at all, and 551 checks passed over it, because a delegation had been recorded
+but never verified.
+
+Twelve component surfaces made it worse: `rounded-surface border border-line
+bg-paper-raised … shadow-sm` had been hand-copied six times in place of the `Card`
+primitive, so those surfaces took Tailwind's 5% **pure black** — off the token system,
+outside the contrast gate, and identical in both themes.
+
+Fixed on all three fronts:
+
+- The ground is redistributed so all three rungs clear the floor — the page came *down*
+  to L 0.943, which §4 had ruled out on the grounds that it would look dingy. That is
+  true of a neutral and false of a warm value: chroma is what buys the headroom.
+- Each elevation grade is layered rather than scaled — a tight contact shadow, a mid
+  form shadow, and on grades 2 and 3 a wide ambient that carries what lightness cannot.
+- `check-colour-tokens.mjs` fails on Tailwind's whole shadow scale
+  (`shadow-2xs…2xl`, `inner`). `shadow-none` remains a reset, not a colour.
+
+`--ink` also comes down from 15.56:1 to 14.11:1 and onto the ground's warm family.
+Near-black on near-white is the maximum-glare pairing in the palette and nothing needs
+15:1 when the floor is 4.5:1.
+
+| step | light before | light after | dark (unchanged) |
+|---|---|---|---|
+| `sunken → paper` | 1.158 | 1.116 | 1.099 |
+| `paper → raised` | 1.118 | 1.090 | 1.147 |
+| `raised → overlay` | **1.026** | 1.057 + a real `--elevate-3` | 1.171 |
+
+### Enforcement
+
+`lint:colour` goes from 551 to **556 checks**. Both new gates were shown to fail before
+being trusted: the chroma floor rejects the shipped ground three times over (both
+surfaces, plus the cross-theme agreement check), and the shadow rule catches a single
+`shadow-sm` restored to one component.

@@ -106,7 +106,7 @@ grandfathered.
 
 ### Seed an empty demo marketplace
 
-An empty database can be given a small, clearly labelled preview catalog:
+An empty database can be given a realistic, clearly labelled catalogue:
 
 ```bash
 npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
@@ -115,14 +115,16 @@ npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
 Replace `jobportal` with the exact database name in `MONGO_URI` — for local work
 that is `jobportal_dev`, never the deployed one. The explicit confirmation
 prevents a typo from targeting MongoDB's implicit `test` database. The script
-creates three `(Demo)` companies and six jobs under a synthetic recruiter that
-has no password or Google identity. It is idempotent and refuses to mix demo
-jobs into an existing non-demo catalog unless `--allow-nonempty` is also
-supplied deliberately.
+creates nine common MNC/product/service companies and 90 roles across
+engineering, data, product, design, consulting, sales, marketing, finance,
+HR, and operations under a synthetic recruiter that has no password or Google
+identity. It is idempotent, upgrades the original three-company preview seed,
+and refuses to add seeded jobs to a catalog that already holds real ones unless
+`--allow-nonempty` is supplied deliberately.
 
-The company marks are stored as paths (`/images/companies/demo-*.svg`), not
-absolute URLs, so they resolve against whatever origin serves the page and work
-in development and production from one seeded value. They are files in
+Each company mark is stored as a path (`/images/companies/<company>.png|svg`),
+not an absolute URL, so it resolves against whatever origin serves the page and
+works in development and production from one seeded value. They are files in
 `frontend/public/`, so in production the logos appear once the frontend deploys.
 Recruiter-uploaded logos stay absolute — those genuinely live on Cloudinary.
 

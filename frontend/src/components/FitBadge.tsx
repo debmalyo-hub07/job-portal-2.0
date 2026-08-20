@@ -93,7 +93,7 @@ export function FitBreakdown({ fit, className }: { fit?: ScoreBreakdown; classNa
     <section
       aria-labelledby={headingId}
       className={cn(
-        "rounded-surface border border-line bg-paper-raised p-5 shadow-sm",
+        "rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)]",
         className,
       )}
     >

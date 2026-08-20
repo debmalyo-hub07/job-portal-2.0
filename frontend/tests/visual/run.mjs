@@ -22,6 +22,7 @@ const ROUTES = [
   ["about", "/about"],
   ["contact", "/contact"],
   ["help", "/help"],
+  ["updates", "/updates"],
   ["privacy", "/privacy"],
   ["terms", "/terms"],
 ];
@@ -30,6 +31,27 @@ async function waitForHeroMedia(page) {
   await page.waitForFunction(
     () => [...document.querySelectorAll("[data-hero-media] img")].every((image) => image.complete),
   );
+}
+
+// A screenshot of nothing is the one failure this harness could not see. Its three
+// assertions — no console errors, the expected data-portal, no native radios — all
+// pass on an empty page, so `light-workbench-recruiter.png` was a flat --paper
+// rectangle for as long as it existed and the run reported success. Measured under
+// the mocks below, /hire/jobs paints #root with three children and *zero* characters
+// of text, no console error and no failed request; the guard does not redirect and
+// nothing throws. Whether that is a gap in these mocks or a defect in the bootstrap
+// is a question for a signed-in run against a live API — but either way the harness
+// must refuse to record a blank frame rather than filing it as a pass.
+//
+// The floor is text, not pixels: a page whose shell renders and whose content does
+// not is exactly the case a pixel diff would call "mostly fine".
+async function assertPainted(page, label, minChars = 200) {
+  const text = await page.evaluate(() => document.body.innerText.trim());
+  if (text.length >= minChars) return 0;
+  console.log(
+    `FAIL  ${label}: painted only ${text.length} chars of text (needs ${minChars}) — the screenshot is blank or near-blank`,
+  );
+  return 1;
 }
 
 const JOBS = [
@@ -196,6 +218,7 @@ for (const theme of ["light", "dark"]) {
     await page.waitForTimeout(900);
     if (path === "/" || path === "/hire") await waitForHeroMedia(page);
     await page.screenshot({ path: `${OUT}/${theme}-${name}.png`, fullPage: true });
+    failures += await assertPainted(page, `${theme}/${name}`);
 
     // The portal the page resolved to, asserted against the URL it is on.
     const portal = await page.getAttribute("[data-portal]", "data-portal");
@@ -262,11 +285,13 @@ for (const theme of ["light", "dark"]) {
     ["hire", "/hire"],
     ["login", "/login"],
     ["hire-login", "/hire/login"],
+    ["updates", "/updates"],
   ]) {
     await page.goto(BASE + path, { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(700);
     if (path === "/" || path === "/hire") await waitForHeroMedia(page);
     await page.screenshot({ path: `${OUT}/mobile-light-${name}.png`, fullPage: true });
+    failures += await assertPainted(page, `mobile/${name}`);
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -288,6 +313,7 @@ for (const theme of ["light", "dark"]) {
   await page.goto(BASE + "/jobs", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/mobile-light-jobs.png`, fullPage: true });
+  failures += await assertPainted(page, "mobile/jobs");
   await page.getByRole("button", { name: /^Filters/ }).click();
   await page.screenshot({ path: `${OUT}/mobile-light-jobs-filters.png` });
 
@@ -313,7 +339,9 @@ for (const [portal, path, name] of [
   await mockWorkbench(page, portal);
   await page.goto(BASE + path, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(900);
-  if (portal === "admin") {
+  const blank = await assertPainted(page, `workbench-${portal}`);
+  failures += blank;
+  if (portal === "admin" && !blank) {
     await page.getByRole("button", { name: /invite admin/i }).click();
     await page.screenshot({ path: `${OUT}/light-admin-invite.png` });
     await page.getByRole("button", { name: /close/i }).click();

@@ -41,6 +41,8 @@ export interface JobSearchQuery {
   keyword: string;
   location: string[];
   jobType: string[];
+  department: string[];
+  company: string[];
   salaryMax?: number;
   experienceMax?: number;
   remote?: boolean;
@@ -66,6 +68,8 @@ export function parseJobSearchParams(sp: URLSearchParams): JobSearchQuery {
     keyword: sp.get("keyword") ?? "",
     location: sp.get("location") ?? "",
     jobType: sp.get("jobType") ?? "",
+    department: sp.get("department") ?? "",
+    company: sp.get("company") ?? "",
     ...(salary ? { salaryMax: Number(salary) } : {}),
     ...(experience ? { experienceMax: Number(experience) } : {}),
     ...(remote ? { remote } : {}),
@@ -74,11 +78,13 @@ export function parseJobSearchParams(sp: URLSearchParams): JobSearchQuery {
   });
   // safeParse, not parse: the URL is user-controlled. A malformed value just
   // falls back to the unfiltered list rather than throwing a teal screen.
-  const q = parsed.success ? parsed.data : { keyword: "", location: "", jobType: "", page: 1, limit: 20 };
+  const q = parsed.success ? parsed.data : { keyword: "", location: "", jobType: "", department: "", company: "", page: 1, limit: 20 };
   return {
     keyword: q.keyword,
     location: splitFacet(q.location),
     jobType: splitFacet(q.jobType),
+    department: splitFacet(q.department),
+    company: splitFacet(q.company),
     ...(q.salaryMax !== undefined ? { salaryMax: q.salaryMax } : {}),
     ...(q.experienceMax !== undefined ? { experienceMax: q.experienceMax } : {}),
     ...(q.remote !== undefined ? { remote: q.remote } : {}),
@@ -93,6 +99,8 @@ export function toSearchParams(q: JobSearchQuery): URLSearchParams {
   if (q.keyword) sp.set("keyword", q.keyword);
   if (q.location.length > 0) sp.set("location", q.location.join(","));
   if (q.jobType.length > 0) sp.set("jobType", q.jobType.join(","));
+  if (q.department.length > 0) sp.set("department", q.department.join(","));
+  if (q.company.length > 0) sp.set("company", q.company.join(","));
   if (q.salaryMax !== undefined) sp.set("salaryMax", String(q.salaryMax));
   if (q.experienceMax !== undefined) sp.set("experienceMax", String(q.experienceMax));
   if (q.remote) sp.set("remote", "true");
@@ -148,7 +156,7 @@ export function jobBoardPath(keyword: string): string {
 /** Toggles a facet value in the URL; the query refetches on the next render. */
 export function useFacetToggle() {
   const [searchParams, setSearchParams] = useSearchParams();
-  return (facet: "location" | "jobType", value: string) => {
+  return (facet: "location" | "jobType" | "department" | "company", value: string) => {
     const sp = new URLSearchParams(searchParams);
     const current = new Set(splitFacet(sp.get(facet)));
     if (current.has(value)) {

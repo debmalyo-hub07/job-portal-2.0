@@ -38,6 +38,7 @@ import Contact from "@/pages/Contact";
 import Help from "@/pages/Help";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import Updates from "@/pages/Updates";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 
 const DesignGallery = import.meta.env.DEV
@@ -116,6 +117,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/about", element: <About /> },
           { path: "/contact", element: <Contact /> },
           { path: "/help", element: <Help /> },
+          { path: "/updates", element: <Updates /> },
           { path: "/privacy", element: <Privacy /> },
           { path: "/terms", element: <Terms /> },
         ],

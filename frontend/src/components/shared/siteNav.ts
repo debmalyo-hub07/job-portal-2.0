@@ -38,6 +38,7 @@ export const FOOTER_COLUMNS: NavColumn[] = [
       { to: "/about", label: "About" },
       { to: "/contact", label: "Contact" },
       { to: "/help", label: "FAQ" },
+      { to: "/updates", label: "Product updates" },
     ],
   },
   {
@@ -56,4 +57,4 @@ export const FOOTER_COLUMNS: NavColumn[] = [
  * table and the tests agree on what "public informational page" means without
  * either restating it.
  */
-export const INFO_PATHS = ["/about", "/contact", "/privacy", "/terms", "/help"] as const;
+export const INFO_PATHS = ["/about", "/contact", "/privacy", "/terms", "/help", "/updates"] as const;

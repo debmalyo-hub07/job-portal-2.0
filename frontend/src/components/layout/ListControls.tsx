@@ -27,7 +27,7 @@ export function ListControls({
   children?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 rounded-surface border border-line bg-paper-raised p-4 shadow-sm">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4 rounded-surface border border-line bg-paper-raised p-4 shadow-[var(--elevate-1)]">
       <div className="w-full max-w-sm">
         <Label htmlFor="list-search" className="mb-2 block text-xs font-semibold uppercase text-ink-muted">{label}</Label>
         <Input

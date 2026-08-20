@@ -30,6 +30,16 @@ const RULES = [
     pattern: /\b(?:bg|text|border)(?:-[trblxyse])?-(?:white|black)\b/,
   },
   {
+    // Tailwind's own shadow scale. Every one of these bakes in `rgb(0 0 0 /
+    // ...)`: a neutral black shadow that does not follow --shade, does not flip
+    // with the theme, and is not reachable by the contrast gate. Twelve of them
+    // had accumulated on --paper-raised surfaces, where `shadow-sm` (5% black)
+    // was standing in for --elevate-1 on a warm palette whose light mode
+    // *delegates the top of its elevation ladder to shadow*. Use
+    // shadow-[var(--elevate-1|2|3)]. `shadow-none` is a reset, not a colour.
+    pattern: /\bshadow-(?:2xs|xs|sm|md|lg|xl|2xl|inner)\b/,
+  },
+  {
     // raw OKLCH literals outside the token source
     pattern: /oklch\(/,
     // index.css is where the palette is defined; oklch.ts is the runtime parser

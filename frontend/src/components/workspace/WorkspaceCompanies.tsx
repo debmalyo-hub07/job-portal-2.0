@@ -81,7 +81,7 @@ export function WorkspaceCompanies() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-sm">
+        <div className="overflow-hidden rounded-surface border border-line bg-paper-raised shadow-[var(--elevate-1)]">
           <Table>
             <TableHeader>
               <TableRow>

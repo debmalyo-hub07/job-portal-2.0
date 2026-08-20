@@ -3,6 +3,7 @@ import { AxiosHeaders } from "axios";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { render, waitFor } from "@testing-library/react";
+import type { Portal } from "@jobportal/shared";
 
 import { apiClient } from "@/lib/apiClient";
 import { clearPortalHint, setPortalHint } from "@/lib/portal";
@@ -16,8 +17,8 @@ import {
 } from "@/redux/authSlice";
 import { makeStore } from "./helpers/renderRoute";
 
-function BootstrapProbe() {
-  useAuthBootstrap();
+function BootstrapProbe({ portal }: { portal?: Portal }) {
+  useAuthBootstrap(portal);
   return null;
 }
 
@@ -27,6 +28,35 @@ afterEach(() => {
 });
 
 describe("session persistence", () => {
+  it("bootstraps an explicit portal once after /me restores its session", async () => {
+    const store = makeStore();
+    setPortalHint("recruiter");
+    const user = {
+      id: "recruiter-1",
+      portal: "recruiter",
+      fullName: "Recruiter",
+      email: "recruiter@example.test",
+      emailVerified: true,
+      avatarUrl: null,
+      status: "active",
+    } as const;
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, user, csrfToken: "csrf.next" },
+    } as never);
+
+    render(
+      <Provider store={store}>
+        <BootstrapProbe portal="recruiter" />
+      </Provider>,
+    );
+
+    await waitFor(() =>
+      expect(portalIsBootstrapped(store.getState().auth, "recruiter")).toBe(true),
+    );
+    expect(userForPortal(store.getState().auth, "recruiter")).toEqual(user);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
   it("recovers the portal from the cached session when the standalone hint is missing", async () => {
     const store = makeStore();
     store.dispatch(

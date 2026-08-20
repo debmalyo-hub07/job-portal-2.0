@@ -1,10 +1,22 @@
-import { ArrowDown, ArrowUpRight } from "lucide-react";
+import { ArrowDown, ArrowUpRight, BadgeCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import { Reveal } from "@/lib/motion";
 import "./landing-interactions.css";
+
+const EMPLOYERS = [
+  { name: "Amazon", logo: "/images/companies/amazon.png", tone: "bg-signal-muted" },
+  { name: "Flipkart", logo: "/images/companies/flipkart.png", tone: "bg-paper-sunken" },
+  { name: "Meta", logo: "/images/companies/meta.png", tone: "bg-signal-muted" },
+  { name: "IBM", logo: "/images/companies/ibm.svg", tone: "bg-paper-sunken" },
+  { name: "Microsoft", logo: "/images/companies/microsoft.png", tone: "bg-signal-muted" },
+  { name: "Tata Consultancy Services", logo: "/images/companies/tcs.png", tone: "bg-paper-sunken" },
+  { name: "Cognizant", logo: "/images/companies/cognizant.png", tone: "bg-signal-muted" },
+  { name: "Accenture", logo: "/images/companies/accenture.png", tone: "bg-paper-sunken" },
+  { name: "Infosys", logo: "/images/companies/infosys.png", tone: "bg-signal-muted" },
+] as const;
 
 const CATEGORIES = [
   {
@@ -136,6 +148,37 @@ const CategoryCarousel = () => {
                 className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
               />
             </Link>
+
+            <div className="mt-10">
+              <div className="mb-3 flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                <span>Trusted teams</span>
+                <span className="font-mono text-[0.62rem] normal-case tracking-normal">01 — 09</span>
+              </div>
+              <div className="employer-stream" aria-label="Featured employers">
+                <div className="employer-stream__track">
+                  {[...EMPLOYERS, ...EMPLOYERS].map((employer, index) => (
+                    <Link
+                      key={`${employer.name}-${index}`}
+                      to={jobBoardPath(employer.name)}
+                      className="employer-stream__row group px-1 focus-visible:rounded-sharp focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
+                    >
+                      <span className={`employer-stream__mark ${employer.tone}`} aria-hidden="true"><img src={employer.logo} alt="" /></span>
+                      <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-ink transition-colors group-hover:text-signal-text"><span className="truncate">{employer.name}</span><BadgeCheck aria-label="Verified employer" className="size-3.5 shrink-0 text-signal-text" /></span>
+                      <ArrowUpRight aria-hidden="true" className="size-3.5 text-ink-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-3 border-y border-line py-4">
+                {[{ value: "90", label: "open roles" }, { value: "9", label: "verified teams" }, { value: "10", label: "disciplines" }].map((item) => (
+                  <div key={item.label} className="px-3 first:pl-0 last:pr-0 [&+&]:border-l [&+&]:border-line">
+                    <strong className="block font-display text-2xl font-semibold text-ink">{item.value}</strong>
+                    <span className="mt-1 block text-[0.68rem] font-semibold uppercase leading-4 text-ink-muted">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-xs leading-5 text-ink-muted">Technical, creative, commercial, finance, people, and operations careers in one marketplace.</p>
+            </div>
           </div>
         </Reveal>
 

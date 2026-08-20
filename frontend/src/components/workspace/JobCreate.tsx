@@ -2,7 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { JOB_TYPES } from "@jobportal/shared";
+import { JOB_DEPARTMENTS, JOB_TYPES } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
 import { FormField } from "@/components/layout/FormField";
@@ -49,6 +49,7 @@ export function JobCreate() {
     salary: "",
     location: "",
     jobType: JOB_TYPES[0] as string,
+    department: JOB_DEPARTMENTS[0] as string,
     experience: "",
     position: "",
     companyId: "",
@@ -216,6 +217,12 @@ export function JobCreate() {
                   {type}
                 </option>
               ))}
+            </select>
+          </FormField>
+
+          <FormField label="Department" htmlFor="department" hint="Used to help candidates browse beyond engineering roles.">
+            <select id="department" name="department" value={input.department} onChange={onField} className={FIELD}>
+              {JOB_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}
             </select>
           </FormField>
 

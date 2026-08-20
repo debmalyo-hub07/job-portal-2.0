@@ -35,6 +35,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
         { to: "/", label: "For candidates" },
         { to: "/about", label: "About" },
         { to: "/help", label: "Help" },
+        { to: "/updates", label: "Updates" },
       ];
     // The console's sections. `AdminShell` renders these as its sub-navigation
     // and the navbar/sheet render them as primary links, so all three agree by
@@ -60,6 +61,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
           { to: "/jobs", label: "Jobs" },
           { to: "/profile", label: "Profile" },
           { to: "/help", label: "Help" },
+          { to: "/updates", label: "Updates" },
         ];
       }
       return [
@@ -67,6 +69,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
         { to: "/hire", label: "For employers" },
         { to: "/about", label: "About" },
         { to: "/help", label: "Help" },
+        { to: "/updates", label: "Updates" },
       ];
   }
 }

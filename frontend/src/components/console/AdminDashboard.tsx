@@ -48,7 +48,7 @@ function StatTile({
 }) {
   return (
     <Reveal delay={delay}>
-      <div className="rounded-surface border border-line bg-paper-raised p-5 shadow-sm">
+      <div className="rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)]">
         <div className="flex items-center gap-2 text-ink-muted">
           <Icon aria-hidden="true" className="size-4" />
           <span className="text-sm font-medium">{label}</span>

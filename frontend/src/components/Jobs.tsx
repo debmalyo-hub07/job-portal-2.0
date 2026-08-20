@@ -1,4 +1,5 @@
-import { Search, SearchX, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { SearchX, SlidersHorizontal } from "lucide-react";
 import { useSearchParams } from "react-router";
 
 import FilterCard from "./FilterCard";
@@ -6,8 +7,8 @@ import Job from "./Job";
 import { EmptyState } from "./layout/EmptyState";
 import { Pager } from "./layout/ListControls";
 import PageShell from "./layout/PageShell";
-import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { JobSearchCombobox } from "./search/JobSearchCombobox";
 import {
   Sheet,
   SheetClose,
@@ -27,7 +28,10 @@ const Jobs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const jobs = data?.items ?? [];
   const keyword = searchParams.get("keyword") ?? "";
-  const activeFilterCount = ["location", "jobType"].reduce(
+  const [searchDraft, setSearchDraft] = useState(keyword);
+  const resultsRef = useRef<HTMLElement>(null);
+  useEffect(() => setSearchDraft(keyword), [keyword]);
+  const activeFilterCount = ["location", "jobType", "department", "company"].reduce(
     (count, key) => count + (searchParams.get(key)?.split(",").filter(Boolean).length ?? 0),
     ["salaryMax", "experienceMax", "remote"].reduce(
       (count, key) => count + (searchParams.has(key) ? 1 : 0),
@@ -35,12 +39,19 @@ const Jobs = () => {
     ),
   );
 
-  const setKeyword = (next: string) => {
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
     const sp = new URLSearchParams(searchParams);
-    if (next.trim()) sp.set("keyword", next);
+    if (searchDraft.trim()) sp.set("keyword", searchDraft.trim());
     else sp.delete("keyword");
     sp.delete("page");
-    setSearchParams(sp, { replace: true });
+    setSearchParams(sp);
+  };
+  const runSearch = (value: string) => {
+    const sp = new URLSearchParams(searchParams);
+    if (value.trim()) sp.set("keyword", value.trim()); else sp.delete("keyword");
+    sp.delete("page");
+    setSearchParams(sp);
   };
 
   const goToPage = (next: number) => {
@@ -48,7 +59,7 @@ const Jobs = () => {
     if (next <= 1) sp.delete("page");
     else sp.set("page", String(next));
     setSearchParams(sp);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -56,7 +67,7 @@ const Jobs = () => {
       <header className="border-b border-line pb-7">
         <p className="text-xs font-semibold uppercase text-signal-text">Job marketplace</p>
         <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <h1 className="max-w-4xl font-display text-4xl font-semibold leading-none text-balance text-ink sm:text-5xl lg:text-6xl">
               {keyword ? `Jobs matching "${keyword}"` : "Open roles"}
             </h1>
@@ -64,35 +75,26 @@ const Jobs = () => {
               Compare focused opportunities across location, experience, compensation, and ways of working.
             </p>
           </div>
-          <label className="relative block w-full max-w-md">
-            <span className="sr-only">Search open roles</span>
-            <Search aria-hidden="true" className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-ink-muted" />
-            <Input
-              type="search"
-              name="keyword"
-              autoComplete="off"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              placeholder="Search roles, teams, or skills"
-              className="pl-10"
-            />
-          </label>
+          <form onSubmit={submitSearch} className="job-board-search flex w-full max-w-xl items-stretch overflow-hidden rounded-surface border border-line bg-paper shadow-[var(--elevate-1)]">
+            <JobSearchCombobox id="job-board-search" label="Search open roles" value={searchDraft} onChange={setSearchDraft} onSubmit={runSearch} />
+            <Button type="submit" variant="signal" className="m-1 h-auto rounded-sharp border-0 px-5">Search</Button>
+          </form>
         </div>
       </header>
 
-      <div className="mt-7 grid gap-6 md:grid-cols-[17rem_minmax(0,1fr)]">
-        <div className="hidden md:block">
+      <div className="mt-7 grid items-start gap-6 lg:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
           <FilterCard idPrefix="desktop-filter" />
         </div>
 
-        <main className="min-w-0">
+        <main ref={resultsRef} className="min-w-0 scroll-mt-24">
           <div className="mb-4 flex min-h-11 items-center justify-between gap-4 border-b border-line pb-3">
             <p className="text-sm font-medium text-ink">
               {isPending ? "Finding roles..." : `${data?.total ?? jobs.length} roles`}
             </p>
             <Sheet>
               <SheetTrigger asChild>
-                <Button type="button" variant="outline" className="md:hidden">
+                <Button type="button" variant="outline" className="lg:hidden">
                   <SlidersHorizontal data-icon="inline-start" />
                   Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
                 </Button>
@@ -117,9 +119,12 @@ const Jobs = () => {
           </div>
 
           {isPending ? (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="divide-y divide-line overflow-hidden rounded-surface border border-line bg-paper-raised shadow-[var(--elevate-1)]">
               {Array.from({ length: 6 }, (_, index) => (
-                <Skeleton key={index} className="h-80 rounded-surface" />
+                <div key={index} className="grid min-h-52 gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_11rem] sm:p-6">
+                  <div className="space-y-4"><Skeleton className="h-8 w-3/5" /><Skeleton className="h-4 w-2/5" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-4/5" /></div>
+                  <Skeleton className="hidden h-full sm:block" />
+                </div>
               ))}
             </div>
           ) : isError ? (
@@ -134,7 +139,7 @@ const Jobs = () => {
             />
           ) : (
             <>
-              <StaggerList className="divide-y divide-line border-y border-line">
+              <StaggerList className="divide-y divide-line overflow-hidden rounded-surface border border-line bg-paper-raised shadow-[var(--elevate-1)]">
                 {jobs.map((job) => (
                   <StaggerItem key={job.id} className="h-full">
                     <Job job={job} />

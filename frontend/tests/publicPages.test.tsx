@@ -28,6 +28,7 @@ const PUBLIC_PAGES = [
   { path: "/privacy", heading: /privacy/i },
   { path: "/terms", heading: /terms/i },
   { path: "/help", heading: /help|frequently asked/i },
+  { path: "/updates", heading: /product, in motion/i },
 ];
 
 describe("public informational routes", () => {

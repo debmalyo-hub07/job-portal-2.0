@@ -126,6 +126,7 @@ const JobDescription = () => {
             </h1>
 
             <div className="mt-6 flex flex-wrap gap-2">
+              <Badge variant="outline">{singleJob.department}</Badge>
               <Badge variant="secondary"><BriefcaseBusiness aria-hidden="true" />{singleJob.jobType}</Badge>
               <Badge variant="outline">{singleJob.position}</Badge>
               {singleJob.remote ? <Badge variant="signal">Remote</Badge> : null}
@@ -159,7 +160,7 @@ const JobDescription = () => {
           ) : null}
         </div>
 
-        <aside className="rounded-surface border border-line bg-paper-raised p-5 shadow-sm lg:sticky lg:top-24">
+        <aside className="rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)] lg:sticky lg:top-24">
           <Button
             onClick={isApplied ? undefined : applyJobHandler}
             disabled={isApplied}

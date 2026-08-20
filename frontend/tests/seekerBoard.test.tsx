@@ -4,7 +4,9 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderAppAt, renderRoute } from "./helpers/renderRoute";
 import FilterCard from "@/components/FilterCard";
 import Job from "@/components/Job";
+import HeroSection from "@/components/HeroSection";
 import { navLinksFor } from "@/components/shared/navLinks";
+import { JOB_SEARCH_SUGGESTIONS } from "@/data/jobSearchSuggestions";
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import jobReducer from "@/redux/jobSlice";
 
@@ -54,6 +56,22 @@ describe("jobBoardPath", () => {
   });
 });
 
+describe("job search suggestions", () => {
+  it("suggests companies and navigates from the landing search", async () => {
+    renderRoute(<HeroSection />, { route: "/" });
+    const search = screen.getByRole("combobox", { name: /search for jobs/i });
+    fireEvent.change(search, { target: { value: "Micro" } });
+    expect(await screen.findByRole("option", { name: /Microsoft/i })).toBeInTheDocument();
+  });
+
+  it("shows useful suggestions before a query is entered", async () => {
+    renderRoute(<HeroSection />, { route: "/" });
+    fireEvent.focus(screen.getByRole("combobox", { name: /search for jobs/i }));
+    expect(await screen.findByRole("listbox", { name: /search suggestions/i })).toBeInTheDocument();
+    expect(screen.getByText("Popular searches")).toBeInTheDocument();
+  });
+});
+
 describe("the redux search field", () => {
   /**
    * `searchedQuery` was the board's filter state before 4B moved it to the URL.
@@ -87,9 +105,21 @@ describe("FilterCard", () => {
   it("offers an explicit Any option for each ceiling", () => {
     renderRoute(<FilterCard />, { route: "/jobs" });
     // Rather than click-to-unset, which cannot be reached from the keyboard and
-    // would depend on onClick firing before onChange for a radio.
+    // would depend on onClick firing before onChange for a radio. Without it the
+    // only route back from a chosen ceiling is Clear all, which drops every
+    // other facet with it.
     expect(screen.getByLabelText("Any salary")).toBeChecked();
     expect(screen.getByLabelText("Any experience")).toBeChecked();
+  });
+
+  it("names companies exactly as the search suggestions do", () => {
+    // The company facet is matched against the employer name exactly, anchored
+    // and case-insensitively, so a familiar short form silently returns nothing.
+    renderRoute(<FilterCard />, { route: "/jobs" });
+    const employers = JOB_SEARCH_SUGGESTIONS.filter((item) => item.group === "Companies");
+    for (const employer of employers) {
+      expect(screen.getByLabelText(employer.label)).toBeInTheDocument();
+    }
   });
 
   it("reflects the URL rather than holding filter state of its own", () => {

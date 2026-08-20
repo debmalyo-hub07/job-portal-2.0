@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { jobTypeSchema } from "./enums.js";
+import { jobDepartmentSchema, jobTypeSchema } from "./enums.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
@@ -47,6 +47,7 @@ export const jobCreateBodySchema = z.object({
    * displayed on the card, and unfilterable.
    */
   jobType: jobTypeSchema,
+  department: jobDepartmentSchema.default("Other"),
   position: z.string().trim().min(1).max(120),
   /** Flat remote flag (4A.3). A `true`-ish form string coerces to true; absent → false. */
   remote: z
@@ -61,6 +62,9 @@ export const jobListQuerySchema = paginationQuerySchema.extend({
   /** 4B: OR-within-facet, AND-across-facets. Comma-joined values; empty → no filter. */
   location: z.string().trim().max(200).default(""),
   jobType: z.string().trim().max(200).default(""),
+  department: z.string().trim().max(300).default(""),
+  /** Company names are comma-joined so the board can select several employers. */
+  company: z.string().trim().max(500).default(""),
   salaryMax: z.coerce.number().int().min(0).optional(),
   experienceMax: z.coerce.number().int().min(0).max(50).optional(),
   /** "?remote=true" → only remotely-flagged jobs. Absent → no constraint. */
@@ -113,6 +117,7 @@ export type JobDto = {
   experienceLevel: number;
   location: string;
   jobType: string;
+  department: string;
   position: string;
   /** 4A.3: whether the role is remote. Drives the fit pipeline's remote factor. */
   remote: boolean;

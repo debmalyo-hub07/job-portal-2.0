@@ -10,15 +10,15 @@ describe("seedDemoCatalog", () => {
     await Promise.all([Recruiter.init(), Company.init()]);
   });
 
-  it("creates a non-login owner, labelled companies, logos, and six jobs", async () => {
+  it("creates a non-login owner, realistic companies, logos, and ninety jobs", async () => {
     const result = await seedDemoCatalog({});
 
     expect(result).toMatchObject({
       recruiterCreated: true,
-      companiesCreated: 3,
-      jobsCreated: 6,
-      companiesTotal: 3,
-      jobsTotal: 6,
+      companiesCreated: 9,
+      jobsCreated: 90,
+      companiesTotal: 9,
+      jobsTotal: 90,
     });
 
     const owner = await Recruiter.findOne({ email: "catalog@demo.invalid" }).select(
@@ -29,16 +29,11 @@ describe("seedDemoCatalog", () => {
     expect(owner?.status).toBe("active");
 
     const companies = await Company.find({ userId: owner?._id }).sort({ name: 1 });
-    expect(companies).toHaveLength(3);
-    expect(companies.every((company) => company.name.endsWith("(Demo)"))).toBe(true);
-    // Relative, so the logo resolves against whichever origin serves the page.
-    // An absolute URL here would be same-origin in production and cross-origin
-    // from localhost, where the CSP's `img-src 'self'` drops it to initials.
-    expect(companies.map((company) => company.logo).sort()).toEqual([
-      "/images/companies/demo-common-thread.svg",
-      "/images/companies/demo-fieldwork.svg",
-      "/images/companies/demo-northstar.svg",
+    expect(companies).toHaveLength(9);
+    expect(companies.map((company) => company.name).sort()).toEqual([
+      "Accenture", "Amazon", "Cognizant", "Flipkart", "IBM", "Infosys", "Meta", "Microsoft", "Tata Consultancy Services",
     ]);
+    expect(companies.every((company) => company.logo?.startsWith("/images/companies/"))).toBe(true);
   });
 
   it("is idempotent", async () => {
@@ -49,10 +44,43 @@ describe("seedDemoCatalog", () => {
       recruiterCreated: false,
       companiesCreated: 0,
       jobsCreated: 0,
-      companiesTotal: 3,
-      jobsTotal: 6,
+      companiesTotal: 9,
+      jobsTotal: 90,
     });
     expect(await Recruiter.countDocuments({ email: "catalog@demo.invalid" })).toBe(1);
+  });
+
+  it("replaces the original (Demo) preview catalog instead of stacking on top of it", async () => {
+    const owner = await Recruiter.create({
+      email: "catalog@demo.invalid",
+      fullName: "Cairn Demo Catalog",
+      emailVerifiedAt: new Date(),
+      status: "active",
+    });
+    const legacy = await Company.create({
+      name: "Northstar Labs (Demo)",
+      userId: owner._id,
+      logo: "/images/companies/demo-northstar.svg",
+    });
+    await Job.create({
+      title: "Senior Product Engineer",
+      description: "A legacy preview listing",
+      requirements: [],
+      salary: 34,
+      experienceLevel: 5,
+      location: "Bengaluru",
+      jobType: "Full-time",
+      position: "2 openings",
+      remote: true,
+      company: legacy._id,
+      created_by: owner._id,
+    });
+
+    const result = await seedDemoCatalog({});
+
+    expect(result).toMatchObject({ companiesTotal: 9, jobsTotal: 90 });
+    expect(await Company.countDocuments({ name: /\(Demo\)$/ })).toBe(0);
+    expect(await Job.countDocuments({ company: legacy._id })).toBe(0);
   });
 
   it("refuses to mix demo jobs into a populated real catalog", async () => {

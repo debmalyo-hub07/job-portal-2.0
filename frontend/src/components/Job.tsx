@@ -41,6 +41,7 @@ const Job = ({ job }: JobProps) => {
         <h3 className="mt-5 font-display text-2xl font-semibold leading-tight text-ink group-hover:text-signal-text sm:text-[1.75rem]">
           {job.title}
         </h3>
+        <p className="mt-2 text-xs font-semibold uppercase text-signal-text">{job.department}</p>
         <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-ink-muted">{job.description}</p>
 
         <FitBadge fit={job.fit} className="mt-4 border-l-2 border-signal pl-3" />

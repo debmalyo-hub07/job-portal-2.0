@@ -24,13 +24,13 @@ export function CompanyAvatar({ name, logoUrl, alt = "", className }: CompanyAva
     <Avatar
       data-company-avatar=""
       aria-hidden={decorative ? true : undefined}
-      className={cn("rounded-sharp border border-line bg-paper-raised shadow-sm", className)}
+      className={cn("rounded-sharp border border-line bg-paper-raised shadow-[var(--elevate-1)]", className)}
     >
       <AvatarImage
         key={logoUrl ?? "fallback"}
         src={logoUrl ?? undefined}
         alt={alt}
-        className="bg-logo-canvas object-contain p-1.5"
+        className="bg-logo-canvas object-contain p-1"
       />
       <AvatarFallback className="relative rounded-sharp bg-signal-muted font-display text-sm font-semibold text-signal-text">
         <span aria-hidden="true" className="absolute inset-x-2 bottom-1.5 h-px bg-signal/45" />

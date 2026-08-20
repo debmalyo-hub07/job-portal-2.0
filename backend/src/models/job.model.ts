@@ -32,6 +32,11 @@ const jobSchema = new Schema(
       type: String,
       required: true,
     },
+    department: {
+      type: String,
+      default: "Other",
+      required: true,
+    },
     position: {
       type: String,
       required: true,
@@ -68,7 +73,7 @@ const jobSchema = new Schema(
 // deliberately returns exactly one hit for, breaking the search contract
 // (job.test.ts). Text indexing is deferred until keyword semantics get a
 // deliberate exact-vs-ranked decision; it is not a silent swap.
-jobSchema.index({ location: 1, jobType: 1, experienceLevel: 1, salary: 1 });
+jobSchema.index({ location: 1, jobType: 1, department: 1, experienceLevel: 1, salary: 1 });
 
 export type JobDocument = InferSchemaType<typeof jobSchema>;
 export const Job: Model<JobDocument> = defineModel<JobDocument>("Job", jobSchema);

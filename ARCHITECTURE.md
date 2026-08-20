@@ -320,23 +320,28 @@ re-resolve those properties beneath them:
 Both work the same way and for the same reason: a component reads a token and
 asks no questions. Nothing branches on the theme, the portal or the surface.
 
-**Known defect, found 2026-08-18, not yet fixed.** Three of those tokens do not
-in fact follow the portal. `--signal-edge`, `--signal-ring` and `--signal-muted`
-are declared once in the `:root` block as functions of `--signal-text` and
-`--signal`. A custom property's `var()` is substituted where that property is
-*computed* — on `<html>` — and the resulting literal then inherits. The
+**Resolved 2026-08-20.** Three of those tokens once did not follow the portal.
+`--signal-edge`, `--signal-ring` and `--signal-muted` were declared once in the
+`:root` block as functions of `--signal-text` and `--signal`. A custom property's
+`var()` is substituted where that property is *computed* — on `<html>` — and the
+resulting literal then inherits; it is never re-resolved per consumer. The
 `[data-portal]` overrides sit on a `<div>` that `PortalScope` renders below
-`<html>`, so they can never feed a value back into an alias already resolved.
-Measured in Chromium, all three are the seeker's hue 200 in every portal: on
+`<html>`, so they could not feed a value back into an alias already resolved.
+Measured in Chromium, all three were the seeker's hue 200 in every portal: on
 recruiter and admin, every filled primary's border, every focus ring and every
-`bg-signal-muted` wash is the wrong portal's colour. Note that this is exactly
-the 3:1 boundary the recruiter gold is documented below as depending on.
+`bg-signal-muted` wash carried the wrong portal's colour — including the very
+3:1 boundary the recruiter gold is documented below as depending on.
 
-`lint:colour` cannot see it, because it replays the cascade from `index.css` and
-resolves the aliases per scope — which is the step the browser does not perform.
-Any fix wants a runtime assertion that reads the three aliases off the
-`[data-portal]` element in a real browser; re-pasting the aliases into each portal
-block is the six-copy duplication that the single declaration exists to prevent.
+All three are now declared inside each of the six portal blocks. That
+duplication is the fix rather than a compromise: an alias is computed where its
+input is declared, so for a portal-scoped input there is no non-duplicating
+form. `lint:colour` could not have caught the original by resolving values,
+because `scope()` merges `:root` with the portal block and therefore computes
+the value the author intended rather than the one the browser paints. It asserts
+the **declaration site** instead — every portal block, in both themes, must
+carry its own derivation. That is the honest check, and it is what `/design`
+depends on too, since that page puts three `data-portal` blocks on one
+document.
 Density follows the surface's job rather than the portal — `/hire` is
 recruiter-scoped but runs spacious, because it is a marketing page.
 
@@ -348,7 +353,7 @@ perceptually uniform space rather than HSB.
 
 | Band | Tokens | Role |
 |---|---|---|
-| 60 — ground | `paper`, `-sunken`, `-raised`, `overlay`, `ink`, `-muted`, `-faint` | Warm bone, house hue 70° |
+| 60 — ground | `paper`, `-sunken`, `-raised`, `overlay`, `ink`, `-muted`, `-faint` | Warm bone — surfaces at 80°, ink ramp at 70° |
 | 30 — structure | `line`, `line-strong`, `container`, `container-ink`, `shade` | Chrome; `container` is the portal hue desaturated to a field |
 | 10 — signal | `signal`, `-hover`, `-pressed`, `-text`, `-fg`, `-edge`, `-muted` | The only chromatic fill in the layout |
 
@@ -373,6 +378,24 @@ shipped a bug:
   every portal. Type on a wash takes `-text`; the fill takes `-fg`.
 - **`shade` vs `ink`.** A scrim must dim its backdrop in both themes, so it
   cannot use a token that flips with the theme.
+- **Chroma on the ground is load-bearing, not decoration.** At L 0.95 a chroma
+  of 0.003 is at or below the just-noticeable difference, so the light theme
+  shipped a `--paper` of `#efedeb` — 1.7% red-to-blue spread against dark mode's
+  24-35% on the same hue. The palette is named for bone and light mode painted
+  neutral gray; the two themes were not one family. `lint:colour` now holds both
+  themes' `--paper` and `--paper-sunken` to a chroma floor and requires the two
+  themes' pages to agree, because no contrast, gamut or hue check can see a hue
+  that is merely invisible.
+
+Light mode has only ~0.09 of lightness above a page that still reads as paper,
+so its four ground surfaces sit at the 1.09:1 minimum and `--elevate-1/2/3`
+carries the rest — the popover-above-card step is delegated to shadow entirely
+and `lint:colour` records that exemption at the assertion. A delegation is only
+as good as what receives it: the shadows shipped at 6-7% of `--shade`, so for a
+time neither mechanism separated anything and the theme read as one flat field
+while 551 checks passed. Each grade is now layered — contact, form, and on
+grades 2 and 3 a wide ambient. Dark mode needs none of this; its ladder has the
+whole range below the page.
 
 Two shapes are forced rather than chosen. Recruiter gold is a *light* fill
 (L 0.80) with dark text, because gold below L 0.60 reads olive — so its fill
@@ -383,8 +406,9 @@ which is why the dark-mode ramps brighten while the light-mode ramps darken.
 
 `npm run lint:colour` enforces this in CI, with no palette of its own — it parses
 `index.css`, replays the cascade for each of the six theme×portal scopes, and
-checks 440 pairings against the 4.5:1 and 3:1 floors plus sRGB gamut and the 120°
-triad. It also fails on a *dead class*: a palette token used as `bg-x` without a
+checks 556 assertions against the 4.5:1 and 3:1 floors plus sRGB gamut, the 120°
+triad, the elevation and interaction *steps*, and the ground's chroma floor. It
+also fails on a *dead class*: a palette token used as `bg-x` without a
 `--color-x` alias emits no CSS and renders uncoloured, silently.
 
 Composition is four primitives in `src/components/layout` — `PageShell`,
@@ -396,6 +420,14 @@ than merely displayed.
 Motion goes through `src/lib/motion.tsx`. Each composable short-circuits to a
 plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 `framer-motion` directly.
+
+Public release notes live at `/updates`. `src/data/updates.ts` is the canonical
+registry: entries have a stable id, ISO date, category, user-facing summary and
+detail list, and are kept newest first. The page reads that contract directly
+and exposes category filters in the URL, so publishing is currently a reviewed
+content change rather than a database operation. The shape is intentionally
+API-ready; when volume or multiple publishers justify a service, the registry
+can move behind a paginated endpoint without changing the page model.
 
 ### Client state
 

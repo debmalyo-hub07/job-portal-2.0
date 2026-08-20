@@ -337,16 +337,17 @@ and working transactional email.
 
 ### Optional: seed an empty marketplace
 
-After the Vercel deployment containing the demo company marks is live, an empty
+After the Vercel deployment containing the catalogue company mark is live, an empty
 jobs database can be populated from a Render shell:
 
 ```bash
 npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
 ```
 
-Use the exact database name from `MONGO_URI`. The script creates only labelled
-demo companies and jobs under a recruiter with no login identity. It is safe to
-re-run, and it stops if any non-demo job already exists unless the operator adds
+Use the exact database name from `MONGO_URI`. The script creates nine labelled
+companies and 90 representative jobs under a recruiter with no login identity.
+It is safe to re-run, upgrades the original preview catalogue, and stops if
+any non-catalogue job already exists unless the operator adds
 `--allow-nonempty` intentionally.
 
 ## 7. Verify

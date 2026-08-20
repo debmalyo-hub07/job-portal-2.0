@@ -442,6 +442,46 @@ for (const [a, b] of [["seeker", "recruiter"], ["recruiter", "admin"], ["admin",
   }
 }
 
+// The ground has to actually be bone. This palette is named for a warm
+// off-white and the light theme shipped painting neutral gray: --paper resolved
+// to #efedeb at chroma 0.003, which at L 0.95 is at or below the
+// just-noticeable difference, while dark mode carried 0.011 on the same hue.
+// Nothing above catches that. It is not a contrast failure, not a gamut
+// failure, and not a hue-wander failure — the hue was correct and simply
+// invisible, so the two themes were different families and only the light one
+// looked unlit.
+//
+// The floor applies to --paper and --paper-sunken because those two cover most
+// of the viewport and are what set the theme's temperature; --paper-raised and
+// --overlay legitimately wash out toward white as they lift. The agreement
+// check is the other half: a floor alone would let one theme sit at the floor
+// while the other sat far above it, which is the same defect in a milder form.
+const GROUND_CHROMA = 0.008; // below this a tint is not perceptible as a tint
+const GROUND_AGREEMENT = 0.006; // how far the two themes' pages may differ
+const paperChroma = {};
+for (const theme of ["light", "dark"]) {
+  const t = scope(theme, "seeker");
+  for (const token of ["--paper", "--paper-sunken"]) {
+    const { C } = resolve(t, token);
+    checks++;
+    if (C < GROUND_CHROMA) {
+      failures++;
+      console.log(
+        `FAIL  ${theme} ${token} chroma ${C} is below ${GROUND_CHROMA} — the ground reads as neutral gray, not as bone`,
+      );
+    }
+  }
+  paperChroma[theme] = resolve(t, "--paper").C;
+}
+checks++;
+const chromaGap = Math.abs(paperChroma.light - paperChroma.dark);
+if (chromaGap > GROUND_AGREEMENT) {
+  failures++;
+  console.log(
+    `FAIL  light --paper chroma ${paperChroma.light} and dark ${paperChroma.dark} differ by ${chromaGap.toFixed(3)} — the two themes are not one family`,
+  );
+}
+
 // Portal identity and status meaning must never be confusable.
 const light = scope("light", "seeker");
 const statusHues = Object.fromEntries(
