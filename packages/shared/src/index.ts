@@ -6,4 +6,5 @@ export * from "./legacy-dto.js";
 export * from "./domain.js";
 export * from "./admin.js";
 export * from "./matching/index.js";
+export * from "./catalogue.js";
 

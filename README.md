@@ -115,12 +115,22 @@ npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
 Replace `jobportal` with the exact database name in `MONGO_URI` — for local work
 that is `jobportal_dev`, never the deployed one. The explicit confirmation
 prevents a typo from targeting MongoDB's implicit `test` database. The script
-creates nine common MNC/product/service companies and 90 roles across
-engineering, data, product, design, consulting, sales, marketing, finance,
-HR, and operations under a synthetic recruiter that has no password or Google
-identity. It is idempotent, upgrades the original three-company preview seed,
-and refuses to add seeded jobs to a catalog that already holds real ones unless
-`--allow-nonempty` is supplied deliberately.
+creates 27 companies and 198 roles under a synthetic recruiter that has no
+password or Google identity: nine global product companies and IT majors, nine
+Indian IT services firms, and nine consumer-internet, fintech and SaaS
+companies, spanning engineering, data, product, design, consulting, sales,
+marketing, finance, HR, operations, customer service, and legal. Each employer
+posts a curated role set of its own rather than one list repeated across the
+roster.
+
+The roster lives in `packages/shared/src/catalogue.ts` and is the single source
+for the seed, the board's company facet, and the landing search suggestions —
+the facet matches employer names by exact equality, so a name that drifts
+between those three returns an empty board rather than an error. The seed is
+idempotent, upgrades the original three-company preview, reconciles away
+listings the catalogue no longer describes, and refuses to add seeded jobs to a
+catalog that already holds real ones unless `--allow-nonempty` is supplied
+deliberately.
 
 Each company mark is stored as a path (`/images/companies/<company>.png|svg`),
 not an absolute URL, so it resolves against whatever origin serves the page and
@@ -347,6 +357,35 @@ There is no control anywhere that picks a portal. `PortalScope` derives it from
 `useLocation().pathname` and nothing else — never a body, query or cookie —
 matching on a segment boundary so `/hired` and `/administrator` stay seeker
 paths. A `?portal=` query cannot move it.
+
+### One roster behind the search box and the sidebar
+
+The hero and the board share a `JobSearchCombobox`, and its suggestions —
+employers, cities, departments — are **derived** from
+`packages/shared/src/catalogue.ts` rather than typed out, as is the board's
+company facet. That is not tidiness. `?company=` is matched against the employer
+name exactly, anchored and case-insensitively, so a hand-written name that drifts
+from the seeded spelling does not error: it returns an empty board. The same is
+true of `location`, which is why every seeded employer sits in one of the eight
+cities the facet offers and both Gurugram and Noida are written "Delhi NCR".
+Tests pin the sidebar's employers to the suggestion list, and every suggested
+role and skill to something a listing actually asks for.
+
+Two traps live in that combobox. Its input is a `PopoverAnchor`, not a
+`PopoverTrigger` — and `triggerRef` is the only element Radix exempts from the
+outside-interaction check that dismisses the list. Opening on focus therefore
+armed a layer that caught the very `focusin` that opened it, read the input as
+outside itself, and closed again: one frame of suggestions on every click, on
+both pages. `onInteractOutside` now exempts the anchor by hand. The second trap
+is why that shipped at all — `fireEvent.focus` dispatches a React-synthetic
+event that never reaches `document`, so the test that focused the input and found
+the listbox passed throughout. Reproducing it needs a real bubbling `focusin`.
+
+The company facet opens on eight of the twenty-seven employers with a toggle for
+the rest, because the full list is an 800px wall in a rail that also carries
+location, type and department. A checked employer is always rendered even when
+collapsed — the facet is driven by the URL, so a shared link filtered to Zensar
+has to show that box ticked rather than hide the filter it applied.
 
 ### Design system — "Triad on Bone"
 

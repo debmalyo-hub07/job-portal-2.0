@@ -44,8 +44,11 @@ Seed the development database to match production's catalog:
 npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal_dev
 ```
 
-That is 3 companies and 6 jobs. Do not copy production's accounts — the admin,
-seekers, applications and refresh tokens there belong to real people.
+That is 27 companies and 198 jobs, defined once in
+`packages/shared/src/catalogue.ts` and read from there by the seed, the board's
+company facet, and the landing search suggestions. Do not copy production's
+accounts — the admin, seekers, applications and refresh tokens there belong to
+real people.
 
 ### Atlas network access
 
@@ -344,11 +347,32 @@ jobs database can be populated from a Render shell:
 npm run seed:catalog --workspace @jobportal/api -- --confirm-database jobportal
 ```
 
-Use the exact database name from `MONGO_URI`. The script creates nine labelled
-companies and 90 representative jobs under a recruiter with no login identity.
-It is safe to re-run, upgrades the original preview catalogue, and stops if
-any non-catalogue job already exists unless the operator adds
-`--allow-nonempty` intentionally.
+Use the exact database name from `MONGO_URI`. The script creates 27 companies
+and 198 curated jobs under a recruiter with no login identity: nine global
+product companies and IT majors, nine Indian services firms, and nine
+consumer-internet, fintech and SaaS companies, each posting a role set of its
+own rather than one shared list.
+
+It is safe to re-run and stops if any non-catalogue job already exists unless the
+operator adds `--allow-nonempty` intentionally. Re-running also *reconciles*:
+it upgrades the original preview catalogue, and withdraws any seeded listing the
+catalogue no longer describes along with applications pointing at it. Without
+that step a database seeded from an earlier roster keeps both rosters, because a
+stale row still matches the (owner, company, title) check and is skipped rather
+than removed.
+
+Posting dates are staggered over the eight weeks **before the run**, interleaved
+so the newest listings come from different employers — the board sorts on
+`createdAt`, and one shared timestamp makes "latest openings" mean "whichever
+employer the seed reached last". They are written at creation only, so a re-run
+never re-dates an existing row. If a database already holds listings stamped by
+an older seed, delete that owner's jobs before re-running or the dates stay as
+they were.
+
+Data and code are coupled here: the facet offers all 27 employer names and the
+logos are files in the web bundle, so seeding production before the web host
+deploys leaves those employers filterable but rendered as initials. Deploy the
+web app in the same window as the seed.
 
 ## 7. Verify
 

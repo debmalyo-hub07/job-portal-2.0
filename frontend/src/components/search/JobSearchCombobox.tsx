@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Building2, Layers3, MapPin, Search, Sparkles, X } from "lucide-react";
 
 import { JOB_SEARCH_SUGGESTIONS, type JobSearchSuggestion } from "@/data/jobSearchSuggestions";
@@ -16,6 +16,7 @@ type JobSearchComboboxProps = {
 
 export function JobSearchCombobox({ value, onChange, onSubmit, id, label, tone = "board" }: JobSearchComboboxProps) {
   const listboxId = useId();
+  const anchorRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const normalized = value.trim().toLocaleLowerCase();
@@ -53,7 +54,7 @@ export function JobSearchCombobox({ value, onChange, onSubmit, id, label, tone =
   return (
     <Popover open={open && matches.length > 0} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <div className="relative min-w-0 flex-1">
+        <div ref={anchorRef} className="relative min-w-0 flex-1">
           <label htmlFor={id} className="sr-only">{label}</label>
           <Search aria-hidden="true" className={cn("absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2", tone === "hero" ? "text-media-surface-ink/55" : "text-ink-muted")} />
           <input
@@ -87,6 +88,17 @@ export function JobSearchCombobox({ value, onChange, onSubmit, id, label, tone =
         sideOffset={8}
         collisionPadding={16}
         onOpenAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={(event) => {
+          // The list is opened by focusing the input, and the input is a
+          // PopoverAnchor rather than a PopoverTrigger. Radix only exempts
+          // `triggerRef` from its outside-interaction check, so with no trigger
+          // registered nothing here is ever "inside": the dismissable layer
+          // mounts while the opening `focusin` is still travelling to document,
+          // receives that same event, reads the input as outside, and closes
+          // again — the list flashed on and off on every click. Exempting the
+          // anchor restores the guard Radix would have applied itself.
+          if (anchorRef.current?.contains(event.target as Node)) event.preventDefault();
+        }}
         className={cn(
           "max-h-[min(20rem,var(--radix-popover-content-available-height))] overflow-y-auto p-2",
           tone === "hero"

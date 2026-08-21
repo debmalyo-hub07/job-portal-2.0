@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { renderAppAt, renderRoute } from "./helpers/renderRoute";
 import FilterCard from "@/components/FilterCard";
@@ -7,6 +7,7 @@ import Job from "@/components/Job";
 import HeroSection from "@/components/HeroSection";
 import { navLinksFor } from "@/components/shared/navLinks";
 import { JOB_SEARCH_SUGGESTIONS } from "@/data/jobSearchSuggestions";
+import { CATALOGUE_COMPANY_NAMES, CATALOGUE_ROLES } from "@jobportal/shared";
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import jobReducer from "@/redux/jobSlice";
 
@@ -70,6 +71,47 @@ describe("job search suggestions", () => {
     expect(await screen.findByRole("listbox", { name: /search suggestions/i })).toBeInTheDocument();
     expect(screen.getByText("Popular searches")).toBeInTheDocument();
   });
+
+  /**
+   * A click on the input used to flash the list on and off.
+   *
+   * The list opens on focus, and its input is a `PopoverAnchor`, not a
+   * `PopoverTrigger` — the only element Radix exempts from its
+   * outside-interaction check. So the dismissable layer mounted while the
+   * opening `focusin` was still travelling up to `document`, caught that very
+   * event, judged the input to be outside itself and closed again. `fireEvent`
+   * cannot see it (a React-synthetic focus never reaches `document`), which is
+   * why the test above passed throughout; a real bubbling `focusin` does.
+   */
+  it("keeps the open list open when a real focusin reaches the input", async () => {
+    renderRoute(<HeroSection />, { route: "/" });
+    const search = screen.getByRole("combobox", { name: /search for jobs/i });
+    fireEvent.focus(search);
+    await screen.findByRole("listbox", { name: /search suggestions/i });
+
+    await act(async () => { search.dispatchEvent(new FocusEvent("focusin", { bubbles: true })); });
+
+    expect(screen.queryByRole("listbox", { name: /search suggestions/i })).toBeInTheDocument();
+  });
+});
+
+describe("the search suggestions", () => {
+  it("suggests only roles the catalogue actually posts", () => {
+    // "Business Development Manager" outlived the role that justified it once
+    // already. A suggestion with no matching listing is a dead end that looks
+    // like a working search.
+    const titles = CATALOGUE_ROLES.map((role) => role.title.toLowerCase());
+    for (const role of JOB_SEARCH_SUGGESTIONS.filter((item) => item.group === "Roles")) {
+      expect(titles.some((title) => title.includes(role.label.toLowerCase()))).toBe(true);
+    }
+  });
+
+  it("suggests only skills some listing asks for", () => {
+    const requirements = new Set(CATALOGUE_ROLES.flatMap((role) => role.requirements).map((skill) => skill.toLowerCase()));
+    for (const skill of JOB_SEARCH_SUGGESTIONS.filter((item) => item.group === "Skills")) {
+      expect(requirements).toContain(skill.label.toLowerCase());
+    }
+  });
 });
 
 describe("the redux search field", () => {
@@ -115,11 +157,30 @@ describe("FilterCard", () => {
   it("names companies exactly as the search suggestions do", () => {
     // The company facet is matched against the employer name exactly, anchored
     // and case-insensitively, so a familiar short form silently returns nothing.
+    // Both sides derive from the shared roster now; this is what pins them there.
     renderRoute(<FilterCard />, { route: "/jobs" });
+    fireEvent.click(screen.getByRole("button", { name: /show all \d+ companies/i }));
     const employers = JOB_SEARCH_SUGGESTIONS.filter((item) => item.group === "Companies");
+    expect(employers.map((employer) => employer.label)).toEqual(CATALOGUE_COMPANY_NAMES);
     for (const employer of employers) {
       expect(screen.getByLabelText(employer.label)).toBeInTheDocument();
     }
+  });
+
+  it("collapses the company facet but keeps a checked employer visible", () => {
+    // The facet is driven by the URL, so a shared link filtered to an employer
+    // outside the opening slice must still show that box ticked — otherwise the
+    // board is filtered by something the rail appears not to have applied.
+    const hidden = CATALOGUE_COMPANY_NAMES.at(-1) ?? "";
+    // `route` is the URL, `path` the route pattern — a pattern carrying a query
+    // string matches nothing and the card never renders.
+    renderRoute(<FilterCard />, {
+      route: `/jobs?company=${encodeURIComponent(hidden)}`,
+      path: "/jobs",
+    });
+    expect(screen.getByLabelText(hidden)).toBeChecked();
+    // Still collapsed: an employer in the middle of the roster is not rendered.
+    expect(screen.queryByLabelText(CATALOGUE_COMPANY_NAMES[12])).not.toBeInTheDocument();
   });
 
   it("reflects the URL rather than holding filter state of its own", () => {

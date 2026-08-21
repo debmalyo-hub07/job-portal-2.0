@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams } from "react-router";
-import { JOB_DEPARTMENTS, JOB_TYPES } from "@jobportal/shared";
+import { CATALOGUE_COMPANY_NAMES, JOB_DEPARTMENTS, JOB_LOCATIONS, JOB_TYPES } from "@jobportal/shared";
 
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -8,11 +9,18 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { useFacetToggle } from "@/hooks/useJobSearch";
 import { cn } from "@/lib/utils";
 
-const LOCATIONS = ["Delhi NCR", "Mumbai", "Bengaluru", "Hyderabad", "Chennai", "Pune", "Kolkata", "Remote"];
+const LOCATIONS = [...JOB_LOCATIONS];
 // The backend matches this facet against the company name exactly (anchored,
 // case-insensitive), so every entry has to be a real employer name rather than
-// a familiar short form — "TCS" matched nothing at all.
-const COMPANIES = ["Amazon", "Flipkart", "Meta", "IBM", "Microsoft", "Tata Consultancy Services", "Cognizant", "Accenture", "Infosys"];
+// a familiar short form — "TCS" matched nothing at all. Derived from the shared
+// roster for the same reason: a hand-written name that drifts from the seeded
+// spelling does not error, it returns an empty board.
+const COMPANIES = CATALOGUE_COMPANY_NAMES;
+// Twenty-seven employers is a wall of checkboxes in a rail that also carries
+// location, type and department. The facet opens on a readable slice and always
+// keeps a checked employer visible, so a shared URL never hides the filter it
+// applied.
+const COMPANY_PREVIEW_COUNT = 8;
 
 const FACETS: { label: string; key: "location" | "jobType" | "department"; options: string[] }[] = [
   { label: "Location", key: "location", options: LOCATIONS },
@@ -60,6 +68,37 @@ function CeilingFacet({ title, param, options, current, onPick, idPrefix }: { ti
   );
 }
 
+/**
+ * The company facet, collapsed to a readable slice by default.
+ *
+ * Split out from `facetGroup` because it is the only facet with state of its
+ * own. Checked employers are always rendered even when collapsed: the facet is
+ * driven by the URL, so a shared link filtered to Zensar must show that box
+ * ticked rather than hiding it behind "Show all".
+ */
+function CompanyFacet({ searchParams, toggle, idPrefix }: { searchParams: URLSearchParams; toggle: (key: "company", value: string) => void; idPrefix: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const checked = COMPANIES.filter((name) => isChecked(searchParams, "company", name));
+  const visible = expanded ? COMPANIES : [...new Set([...COMPANIES.slice(0, COMPANY_PREVIEW_COUNT), ...checked])];
+
+  return (
+    <fieldset>
+      <legend className="mb-3 text-sm font-semibold text-ink">Company</legend>
+      <div className="grid gap-1.5">
+        {visible.map((option) => {
+          const id = `${idPrefix}-company-${option.replace(/\s+/g, "-").toLowerCase()}`;
+          return <Label key={option} htmlFor={id} className="flex min-h-9 cursor-pointer items-center gap-3 rounded-sharp px-2 py-1.5 font-normal text-ink-muted hover:bg-paper-sunken hover:text-ink"><input type="checkbox" id={id} checked={isChecked(searchParams, "company", option)} onChange={() => toggle("company", option)} className="size-4 rounded accent-[var(--signal-text)]" />{option}</Label>;
+        })}
+      </div>
+      {COMPANIES.length > COMPANY_PREVIEW_COUNT ? (
+        <Button type="button" variant="ghost" size="sm" aria-expanded={expanded} className="mt-1.5" onClick={() => setExpanded((current) => !current)}>
+          {expanded ? "Show fewer companies" : `Show all ${COMPANIES.length} companies`}
+        </Button>
+      ) : null}
+    </fieldset>
+  );
+}
+
 const FilterCard = ({ idPrefix = "filter", embedded = false, className }: { idPrefix?: string; embedded?: boolean; className?: string }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const toggle = useFacetToggle();
@@ -97,7 +136,7 @@ const FilterCard = ({ idPrefix = "filter", embedded = false, className }: { idPr
       {facetGroup("Location", "location", LOCATIONS)}
       {facetGroup("Job type", "jobType", [...JOB_TYPES])}
       {facetGroup("Department", "department", [...JOB_DEPARTMENTS])}
-      {facetGroup("Company", "company", COMPANIES)}
+      <CompanyFacet searchParams={searchParams} toggle={toggle} idPrefix={idPrefix} />
       <CeilingFacet title="Salary" param="salaryMax" options={SALARY_CEILINGS} current={searchParams.get("salaryMax")} onPick={setSingle} idPrefix={idPrefix} />
       <CeilingFacet title="Experience" param="experienceMax" options={EXPERIENCE_CEILINGS} current={searchParams.get("experienceMax")} onPick={setSingle} idPrefix={idPrefix} />
       <fieldset className="border-t border-line pt-5"><legend className="mb-3 text-sm font-semibold text-ink">Ways of working</legend><Label htmlFor={`${idPrefix}-remote`} className="flex min-h-9 cursor-pointer items-center gap-3 rounded-sharp px-2 py-1.5 font-normal text-ink-muted hover:bg-paper-sunken hover:text-ink"><input type="checkbox" id={`${idPrefix}-remote`} checked={searchParams.get("remote") === "true"} onChange={(event) => setSingle("remote", event.target.checked ? "true" : null)} className="size-4 rounded accent-[var(--signal-text)]" />Remote only</Label></fieldset>
