@@ -3,8 +3,9 @@ import { Link } from "react-router";
 
 import LatestJobCards from "./LatestJobCards";
 import { EmptyState } from "./layout/EmptyState";
+import { Skeleton } from "./ui/skeleton";
+import { useLandingJobs } from "@/hooks/useLandingJobs";
 import { Reveal } from "@/lib/motion";
-import { useAppSelector } from "@/redux/store";
 
 const CARD_LAYOUTS = [
   "lg:col-span-7",
@@ -16,8 +17,8 @@ const CARD_LAYOUTS = [
 ] as const;
 
 const LatestJobs = () => {
-  const { allJobs } = useAppSelector((state) => state.job);
-  const jobs = allJobs.slice(0, 6);
+  const { data, isPending } = useLandingJobs();
+  const jobs = data?.items.slice(0, 6) ?? [];
 
   return (
     <section aria-labelledby="latest-jobs-heading" className="relative border-b border-line bg-paper-sunken/45">
@@ -47,7 +48,19 @@ const LatestJobs = () => {
           </div>
         </Reveal>
 
-        {jobs.length === 0 ? (
+        {isPending ? (
+          // Not the empty state. `jobs` is empty on the first render of every
+          // visit, so branching on its length alone rendered "No openings right
+          // now" — a false claim about the marketplace — until the request
+          // landed. `isPending` is the only thing that tells the two apart.
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-12 lg:gap-5">
+            {CARD_LAYOUTS.map((layout, index) => (
+              <div key={index} className={`h-full ${layout}`}>
+                <Skeleton className="h-full min-h-80 rounded-surface" />
+              </div>
+            ))}
+          </div>
+        ) : jobs.length === 0 ? (
           <div className="mt-10">
             <EmptyState
               icon={Briefcase}

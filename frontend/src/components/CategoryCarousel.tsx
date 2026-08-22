@@ -1,11 +1,23 @@
 import { ArrowDown, ArrowUpRight, BadgeCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { CATALOGUE_COMPANIES } from "@jobportal/shared";
 
 import { jobBoardPath } from "@/hooks/useJobSearch";
+import { useLandingJobs } from "@/hooks/useLandingJobs";
+import { displayCount } from "@/lib/displayCount";
 import { Reveal } from "@/lib/motion";
 import "./landing-interactions.css";
 
+/**
+ * A hand-picked front row, not the roster.
+ *
+ * Deliberately nine of the twenty-seven catalogue employers rather than all of
+ * them: the marquee duplicates its list to loop seamlessly, so the full roster
+ * would scroll fifty-four rows and bury the recognisable names that make the
+ * strip worth showing. The counter beside the heading states the ratio, so this
+ * being a selection is on the page rather than implied.
+ */
 const EMPLOYERS = [
   { name: "Amazon", logo: "/images/companies/amazon.png", tone: "bg-signal-muted" },
   { name: "Flipkart", logo: "/images/companies/flipkart.png", tone: "bg-paper-sunken" },
@@ -75,6 +87,25 @@ const CategoryCarousel = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
   const activeCategory = CATEGORIES[activeIndex];
+  // Shares LatestJobs' query rather than issuing its own: the landing page
+  // already fetches this page of jobs, and the envelope's `total` was being
+  // discarded while the tile below printed a hardcoded number in its place.
+  const { data } = useLandingJobs();
+
+  /**
+   * Every figure is derived from what it claims to count.
+   *
+   * These were the literals "90", "9" and "10", accurate when the seed held
+   * nine employers and silently wrong from the moment the catalogue grew to
+   * twenty-seven. Disciplines counts CATEGORIES, not the thirteen-entry
+   * department taxonomy: the tile sits beneath "Explore by discipline" next to
+   * exactly these rows, and the taxonomy's thirteenth entry is "Other".
+   */
+  const STATS = [
+    { value: displayCount(data?.total), label: "open roles" },
+    { value: String(CATALOGUE_COMPANIES.length), label: "verified teams" },
+    { value: String(CATEGORIES.length), label: "disciplines" },
+  ];
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
@@ -151,8 +182,10 @@ const CategoryCarousel = () => {
 
             <div className="mt-10">
               <div className="mb-3 flex items-center justify-between text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-                <span>Trusted teams</span>
-                <span className="font-mono text-[0.62rem] normal-case tracking-normal">01 — 09</span>
+                <span>Featured teams</span>
+                <span className="font-mono text-[0.62rem] normal-case tracking-normal">
+                  {EMPLOYERS.length} of {CATALOGUE_COMPANIES.length}
+                </span>
               </div>
               <div className="employer-stream" aria-label="Featured employers">
                 <div className="employer-stream__track">
@@ -170,7 +203,7 @@ const CategoryCarousel = () => {
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 border-y border-line py-4">
-                {[{ value: "90", label: "open roles" }, { value: "9", label: "verified teams" }, { value: "10", label: "disciplines" }].map((item) => (
+                {STATS.map((item) => (
                   <div key={item.label} className="px-3 first:pl-0 last:pr-0 [&+&]:border-l [&+&]:border-line">
                     <strong className="block font-display text-2xl font-semibold text-ink">{item.value}</strong>
                     <span className="mt-1 block text-[0.68rem] font-semibold uppercase leading-4 text-ink-muted">{item.label}</span>

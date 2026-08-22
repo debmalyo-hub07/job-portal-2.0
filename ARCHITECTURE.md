@@ -431,6 +431,21 @@ can move behind a paginated endpoint without changing the page model.
 
 ### Client state
 
+Two stores with a strict boundary. React Query owns every server read; Redux
+owns session identity and client-only state; the URL owns every filter, facet
+and page. A server list held in a slice is the recurring bug this rule exists to
+prevent — `searchedQuery`, `searchJobByText`, `allAdminJobs` and `allJobs` were
+each removed for it, and two sources of truth for one question is how the app
+ended up with two job boards, one of which nothing linked to.
+
+Server reads carry more than their rows. `allJobs` kept only the `items` from
+the landing query and discarded the pagination envelope's `total`, so the
+landing page fetched the open-role count on every visit, threw it away, and
+printed a hardcoded number in its place — which went stale the moment the
+catalogue grew. An empty initial array also made "no openings" indistinguishable
+from "not loaded yet", so the empty state flashed on every load. React Query's
+`isPending` distinguishes them; a `length === 0` check cannot.
+
 Redux Toolkit with redux-persist. The auth subtree persists the per-portal user
 cache, but blacklists `activePortal`, loading, and every bootstrap flag. The root
 persistor blacklists `auth` so the nested persistor manages auth in isolation. The
@@ -442,6 +457,20 @@ Persistence is why tests must build their own store:
 no persistence, because a test that dispatched a signed-in user into the app's
 store would rehydrate it into every later test and make failures depend on file
 order.
+
+### Figures on marketing surfaces
+
+Every count the landing page prints is derived from what it claims to count:
+open roles from the API's `total`, verified teams from `CATALOGUE_COMPANIES`,
+disciplines from the list of rows rendered beside them. All three were once
+literals — accurate when written against a nine-employer seed, silently wrong
+after the catalogue reached twenty-seven, and asserted by nothing.
+
+`lib/displayCount.ts` renders an em dash rather than `0`, covering loading,
+failure and a genuinely empty board with one expression: "0 open roles" on a job
+marketplace's landing page is worse than declining to say. The employer strip
+names its own ratio (`9 of 27`) because it is a curated selection, not the
+roster — a positional counter implied it was the whole list.
 
 ## Configuration
 

@@ -1,12 +1,9 @@
 import HeroSection from "./HeroSection";
 import CategoryCarousel from "./CategoryCarousel";
 import LatestJobs from "./LatestJobs";
-import useGetAllJobs from "@/hooks/useGetAllJobs";
 import { MOTION_VARS } from "@/components/layout/motionTiers";
 
 const Home = () => {
-  useGetAllJobs();
-
   return (
     // Navbar and footer come from PublicLayout. data-density is set here so the
     // sections' --space-* tokens resolve; this page owns a full-bleed layout

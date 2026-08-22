@@ -304,18 +304,22 @@ describe("the landing page's latest openings", () => {
   it("asks for the latest jobs with no keyword", async () => {
     // The hook passed the redux `searchedQuery` as `keyword`, so after a search
     // the section showed filtered results under a "Latest openings" heading.
-    const get = vi.fn().mockResolvedValue({ data: { success: true, items: [] } });
+    const get = vi
+      .fn()
+      .mockResolvedValue({ data: { success: true, items: [], total: 0, page: 1, pages: 1 } });
     vi.doMock("@/lib/apiClient", () => ({ apiClient: { get } }));
     vi.resetModules();
 
-    const { default: useGetAllJobs } = await import("@/hooks/useGetAllJobs");
+    const { useLandingJobs } = await import("@/hooks/useLandingJobs");
     const { renderHook } = await import("@testing-library/react");
-    const { Provider } = await import("react-redux");
-    const { makeStore } = await import("./helpers/renderRoute");
-    const store = makeStore();
+    const { QueryClientProvider } = await import("@tanstack/react-query");
+    const { makeQueryClient } = await import("./helpers/renderRoute");
+    const client = makeQueryClient();
 
-    renderHook(() => useGetAllJobs(), {
-      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    renderHook(() => useLandingJobs(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
     });
 
     await waitFor(() => expect(get).toHaveBeenCalled());
