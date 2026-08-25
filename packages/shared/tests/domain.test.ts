@@ -7,6 +7,7 @@ import {
   objectIdSchema,
   profileUpdateBodySchema,
 } from "../src/domain.js";
+import { RECRUITER_SETTABLE } from "../src/applicationStatus.js";
 
 describe("domain schemas", () => {
   it("rejects a malformed object id", () => {
@@ -37,9 +38,17 @@ describe("domain schemas", () => {
     expect(jobListQuerySchema.safeParse({ keyword: "a".repeat(101) }).success).toBe(false);
   });
 
-  it("status accepts only accepted/rejected", () => {
-    expect(applicationStatusBodySchema.safeParse({ status: "pending" }).success).toBe(false);
-    expect(applicationStatusBodySchema.parse({ status: "accepted" }).status).toBe("accepted");
+  it("status accepts the recruiter-settable stages and nothing else", () => {
+    // Derived from RECRUITER_SETTABLE, so this asserts the schema and the state
+    // machine still name the same set.
+    for (const status of RECRUITER_SETTABLE) {
+      expect(applicationStatusBodySchema.parse({ status }).status).toBe(status);
+    }
+    // `applied` is the creation default, not a decision; `withdrawn` belongs to
+    // the candidate. Neither may arrive on a recruiter's request.
+    for (const status of ["applied", "withdrawn", "pending", "accepted"]) {
+      expect(applicationStatusBodySchema.safeParse({ status }).success).toBe(false);
+    }
   });
 });
 

@@ -29,6 +29,19 @@ export const getApplicants = async (req: Request, res: Response): Promise<void> 
 export const updateStatus = async (req: Request, res: Response): Promise<void> => {
   const applicationId = parseBody(objectIdSchema, req.params.id);
   const { status } = parseBody(applicationStatusBodySchema, req.body);
-  await applicationService.decideApplication(req.auth!.id, applicationId, status);
+  await applicationService.updateApplicationStatus(req.auth!.id, applicationId, status);
   res.status(200).json({ success: true, message: "Status updated successfully." });
+};
+
+/**
+ * The candidate withdrawing their own application.
+ *
+ * No body to validate: the target status is not the caller's choice. `withdrawn`
+ * is the only transition a seeker has, so naming it in the request would only
+ * create a value to disagree about.
+ */
+export const withdraw = async (req: Request, res: Response): Promise<void> => {
+  const applicationId = parseBody(objectIdSchema, req.params.id);
+  await applicationService.withdrawApplication(req.auth!.id, applicationId);
+  res.status(200).json({ success: true, message: "Application withdrawn." });
 };

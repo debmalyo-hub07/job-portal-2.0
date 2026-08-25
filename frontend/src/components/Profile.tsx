@@ -9,14 +9,12 @@ import { Skeleton } from "./ui/skeleton";
 import PageShell from "./layout/PageShell";
 import AppliedJobTable from "./AppliedJobTable";
 import UpdateProfileDialog from "./UpdateProfileDialog";
-import useGetAppliedJobs from "@/hooks/useGetAppliedJobs";
 import { apiClient } from "@/lib/apiClient";
 import { initialsOf } from "@/lib/initials";
 import { Reveal } from "@/lib/motion";
 import { useAppSelector } from "@/redux/store";
 
 const Profile = () => {
-  useGetAppliedJobs();
   const [open, setOpen] = useState(false);
   const { bootstrapped } = useAppSelector((state) => state.auth);
   /**

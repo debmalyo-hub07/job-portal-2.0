@@ -1,16 +1,28 @@
 import type { HydratedDocument } from "mongoose";
 import type {
   ApplicantDto,
+  ApplicationEventDto,
+  ApplicationStatus,
   AppliedJobDto,
   PaginatedResponse,
   PaginationQuery,
 } from "@jobportal/shared";
+import { notifiesSeeker, transitionRefusal } from "@jobportal/shared";
 import { Application, type ApplicationDocument } from "../models/application.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
-import { assertJobOwned, getOwnedJob, jobExists, toJobDto } from "./job.service.js";
+import { getOwnedJob, jobExists, toJobDto } from "./job.service.js";
 import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
+import { dispatch, sendRendered } from "../lib/mailer.js";
+import {
+  renderApplicationStatusEmail,
+  renderApplicationWithdrawnEmail,
+} from "../lib/emailTemplates.js";
+import { Seeker } from "../models/seeker.model.js";
+import { Recruiter } from "../models/recruiter.model.js";
+import { Job } from "../models/job.model.js";
+import { Company } from "../models/company.model.js";
 
 /** Mongo's duplicate-key error, whatever driver version raised it. */
 function isDuplicateKey(err: unknown): boolean {
@@ -22,7 +34,15 @@ export async function applyToJob(seekerId: string, jobId: string): Promise<void>
     throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
   }
   try {
-    await Application.create({ job: jobId, applicant: seekerId });
+    // The first history entry is written here rather than derived later: a
+    // timeline that starts at the first *decision* would show an application
+    // appearing out of nowhere already shortlisted.
+    await Application.create({
+      job: jobId,
+      applicant: seekerId,
+      status: "applied",
+      history: [{ status: "applied", at: new Date(), byPortal: "seeker" }],
+    });
   } catch (err) {
     // The unique {job, applicant} index is the dedupe. A findOne pre-read would
     // let two parallel applies both pass the check and both insert.
@@ -36,6 +56,19 @@ export async function applyToJob(seekerId: string, jobId: string): Promise<void>
 type PopulatedApplication = HydratedDocument<ApplicationDocument> & {
   createdAt?: Date;
 };
+
+/**
+ * Oldest first, so the client renders a timeline in reading order without
+ * re-sorting. Mongo preserves insertion order in an array and the service only
+ * ever pushes, so this is a projection rather than a sort.
+ */
+function toHistoryDtos(history: ApplicationDocument["history"]): ApplicationEventDto[] {
+  return (history ?? []).map((e) => ({
+    status: e.status as ApplicationStatus,
+    at: e.at.toISOString(),
+    byPortal: e.byPortal as ApplicationEventDto["byPortal"],
+  }));
+}
 
 export async function listAppliedJobs(
   seekerId: string,
@@ -55,6 +88,7 @@ export async function listAppliedJobs(
       id: String(a._id),
       status: a.status as AppliedJobDto["status"],
       appliedAt: a.createdAt?.toISOString() ?? "",
+      history: toHistoryDtos(a.history),
       // Null when the job was deleted after the application was filed.
       job:
         a.job && typeof a.job === "object" && "title" in a.job
@@ -127,24 +161,135 @@ export async function listApplicants(
   };
 }
 
-export async function decideApplication(
+const applicationNotFound = () =>
+  AppError.notFound("APPLICATION_NOT_FOUND", "Application not found");
+
+/**
+ * Turns a refusal from the shared state machine into the right HTTP answer.
+ *
+ * A terminal application and a repeated status are both conflicts — the caller
+ * asked for something that cannot happen given current state. A portal reaching
+ * for another portal's transition is a permission problem, not a state one, and
+ * must not be reported as a conflict or it reads as retryable.
+ */
+function refusalToError(refusal: NonNullable<ReturnType<typeof transitionRefusal>>): AppError {
+  switch (refusal) {
+    case "TERMINAL":
+      return AppError.conflict(
+        "APPLICATION_CLOSED",
+        "This application is closed and its status can no longer change",
+      );
+    case "SAME_STATUS":
+      return AppError.conflict("STATUS_UNCHANGED", "The application already has that status");
+    case "NOT_ALLOWED_FOR_PORTAL":
+      return AppError.forbidden("STATUS_NOT_ALLOWED", "That status cannot be set from this portal");
+  }
+}
+
+/**
+ * Applies a transition, records it, and notifies — in that order.
+ *
+ * The write is committed before any mail is dispatched. `dispatch` is
+ * fire-and-forget by design, so a provider outage must not be able to roll back
+ * or block a decision the recruiter already made.
+ */
+async function transition(
+  application: HydratedDocument<ApplicationDocument>,
+  to: ApplicationStatus,
+  actor: "recruiter" | "seeker",
+): Promise<ApplicationStatus> {
+  const from = application.status as ApplicationStatus;
+  const refusal = transitionRefusal(from, to, actor);
+  if (refusal) throw refusalToError(refusal);
+
+  const at = new Date();
+  application.status = to;
+  application.history.push({ status: to, at, byPortal: actor });
+  // Terminal stages close the application; the active ones leave it live, and a
+  // move back into an active stage from another active stage never sets this.
+  if (to === "rejected" || to === "withdrawn") application.decidedAt = at;
+  await application.save();
+  return from;
+}
+
+export async function updateApplicationStatus(
   recruiterId: string,
   applicationId: string,
-  status: "accepted" | "rejected",
+  status: ApplicationStatus,
 ): Promise<void> {
-  const notFound = () => AppError.notFound("APPLICATION_NOT_FOUND", "Application not found");
-
-  const application = await Application.findById(applicationId).select("job status");
-  if (!application) throw notFound();
+  const application = await Application.findById(applicationId).select(
+    "job status history decidedAt applicant",
+  );
+  if (!application) throw applicationNotFound();
 
   // assertJobOwned throws JOB_NOT_FOUND; normalized here so a foreign
   // application answers exactly as a missing one does.
+  let job;
   try {
-    await assertJobOwned(recruiterId, String(application.job));
+    job = await getOwnedJob(recruiterId, String(application.job));
   } catch {
-    throw notFound();
+    throw applicationNotFound();
   }
 
-  application.status = status;
-  await application.save();
+  const from = await transition(application, status, "recruiter");
+
+  // Only stages that carry news, and only when moving forward — a correction
+  // back down the pipeline tells the candidate nothing they want to read.
+  if (notifiesSeeker(from, status)) {
+    // Both reads are needed only on a notifying transition, so they stay inside
+    // the branch rather than costing a lookup on every status change.
+    const [seeker, company] = await Promise.all([
+      Seeker.findById(application.applicant).select("email"),
+      Company.findById(job.company).select("name"),
+    ]);
+    if (seeker?.email) {
+      dispatch(
+        sendRendered(
+          seeker.email,
+          renderApplicationStatusEmail(
+            status as "shortlisted" | "interview" | "offered" | "rejected",
+            job.title,
+            company?.name ?? null,
+          ),
+        ),
+      );
+    }
+  }
+}
+
+/**
+ * The candidate's exit.
+ *
+ * Ownership is the application's own `applicant`, not the job's recruiter: this
+ * is the one transition the job owner may not perform. A foreign application
+ * answers as a missing one, matching every other ownership check here.
+ */
+export async function withdrawApplication(
+  seekerId: string,
+  applicationId: string,
+): Promise<void> {
+  const application = await Application.findOne({
+    _id: applicationId,
+    applicant: seekerId,
+  }).select("job status history decidedAt applicant");
+  if (!application) throw applicationNotFound();
+
+  await transition(application, "withdrawn", "seeker");
+
+  // The recruiter is told, because an application that stopped being live would
+  // otherwise sit in their queue looking like it was waiting on them.
+  const job = await Job.findById(application.job).select("title created_by");
+  if (!job?.created_by) return;
+  const [recruiter, seeker] = await Promise.all([
+    Recruiter.findById(job.created_by).select("email"),
+    Seeker.findById(seekerId).select("fullName"),
+  ]);
+  if (recruiter?.email) {
+    dispatch(
+      sendRendered(
+        recruiter.email,
+        renderApplicationWithdrawnEmail(seeker?.fullName ?? "A candidate", job.title),
+      ),
+    );
+  }
 }

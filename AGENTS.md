@@ -115,6 +115,9 @@ Update only the canonical document affected by a durable change:
 - `docs/deployment-runbook.md`: Render, Vercel, Atlas, Brevo, and Cloudflare.
 - `docs/adr`: decisions whose reasoning must survive future refactors.
 - `CONTRIBUTING.md`: contributor workflow.
+- `frontend/src/data/updates.ts`: the public release notes. A user-visible
+  change publishes an entry in the same commit that ships it — the page
+  presents its newest entry as the current state of the product.
 
 Prefer correcting an existing section over adding a new chronological section.
 Do not create implementation-plan archives in the repository. Git history is

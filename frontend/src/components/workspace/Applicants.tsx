@@ -1,7 +1,8 @@
-import { Check, Clock, MoreHorizontal, Users, X } from "lucide-react";
+import { MoreHorizontal, Users } from "lucide-react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import type { ApplicantDto } from "@jobportal/shared";
+import { RECRUITER_SETTABLE, isTerminal } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
 import { FitBadge } from "@/components/FitBadge";
@@ -25,20 +26,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { statusMeta } from "@/lib/applicationStatus";
 import { useApplicantDecision, useApplicants } from "@/hooks/useRecruiterWorkspace";
-
-/**
- * Status as icon *and* label, never colour alone — the rule 2A set and
- * `AppliedJobTable` already follows.
- */
-const STATUS: Record<
-  ApplicantDto["status"],
-  { variant: "ok" | "danger" | "warn"; icon: typeof Check; label: string }
-> = {
-  accepted: { variant: "ok", icon: Check, label: "Accepted" },
-  rejected: { variant: "danger", icon: X, label: "Rejected" },
-  pending: { variant: "warn", icon: Clock, label: "Pending" },
-};
 
 /**
  * The applicants for one job.
@@ -59,10 +48,15 @@ export function Applicants() {
   const { data, isPending, isError, error, setPage } = useApplicants(params.id);
   const decide = useApplicantDecision(params.id);
 
-  const onDecide = async (applicationId: string, status: "accepted" | "rejected") => {
+  // The settable subset, not every ApplicationStatus — the menu is built from
+  // the same list, so this is the type making that agreement checkable.
+  const onDecide = async (
+    applicationId: string,
+    status: (typeof RECRUITER_SETTABLE)[number],
+  ) => {
     try {
       await decide.mutateAsync({ applicationId, status });
-      toast.success(status === "accepted" ? "Applicant accepted" : "Applicant rejected");
+      toast.success(`Moved to ${statusMeta(status).label}`);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not update status"));
     }
@@ -110,8 +104,11 @@ export function Applicants() {
           </TableHeader>
           <TableBody>
             {data.items.map((item) => {
-              const status = STATUS[item.status];
-              const StatusIcon = status.icon;
+              const status = statusMeta(item.status);
+              const StatusIcon = status.Icon;
+              // A closed application takes no further decision; the API answers
+              // one with 409, so the menu is not offered at all.
+              const closed = isTerminal(item.status);
               return (
                 <TableRow key={item.applicationId}>
                   <TableCell className="font-medium">{item.fullName}</TableCell>
@@ -152,31 +149,43 @@ export function Applicants() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Decide on ${item.fullName}`}
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onSelect={() => void onDecide(item.applicationId, "accepted")}
-                        >
-                          <Check className="size-4" />
-                          Accept
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => void onDecide(item.applicationId, "rejected")}
-                        >
-                          <X className="size-4" />
-                          Reject
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {closed ? (
+                      <span className="text-sm text-ink-muted">&mdash;</span>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Change status for ${item.fullName}`}
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {/*
+                            Built from RECRUITER_SETTABLE, so the menu cannot
+                            offer a move the API would refuse — and a stage added
+                            to the pipeline appears here without an edit.
+                            The current status is omitted: setting it again is a
+                            409 STATUS_UNCHANGED by design.
+                          */}
+                          {RECRUITER_SETTABLE.filter((next) => next !== item.status).map((next) => {
+                            const meta = statusMeta(next);
+                            const NextIcon = meta.Icon;
+                            return (
+                              <DropdownMenuItem
+                                key={next}
+                                onSelect={() => void onDecide(item.applicationId, next)}
+                              >
+                                <NextIcon className="size-4" />
+                                {meta.label}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               );

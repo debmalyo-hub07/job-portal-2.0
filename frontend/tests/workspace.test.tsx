@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { computeSeekerFit, type Portal } from "@jobportal/shared";
+import userEvent from "@testing-library/user-event";
+import { computeSeekerFit, type ApplicationStatus, type Portal } from "@jobportal/shared";
 import type { RouteObject } from "react-router";
 
 import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
@@ -295,7 +296,7 @@ describe("Applicants", () => {
     },
   );
 
-  const withOneApplicant = (status: "pending" | "accepted" | "rejected" = "pending") =>
+  const withOneApplicant = (status: ApplicationStatus = "applied") =>
     vi.spyOn(apiClient, "get").mockResolvedValue({
       data: {
         success: true,
@@ -336,20 +337,55 @@ describe("Applicants", () => {
     });
     // The inherited accept/reject were `<div onClick>` — no role, no tabIndex,
     // no focus ring. They worked for a mouse and did not exist for a keyboard.
-    const trigger = await screen.findByRole("button", { name: "Decide on Ada Lovelace" });
+    const trigger = await screen.findByRole("button", {
+      name: "Change status for Ada Lovelace",
+    });
     expect(trigger).toBeInTheDocument();
     expect(trigger.tagName).toBe("BUTTON");
   });
 
+  it("offers every recruiter-settable stage and never the current one", async () => {
+    withOneApplicant("shortlisted");
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // userEvent, not fireEvent: Radix opens the menu on pointerdown, which
+    // fireEvent.click does not dispatch, so the menu never opens in jsdom.
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Change status for Ada Lovelace" }),
+    );
+    // Built from RECRUITER_SETTABLE, so the control cannot offer a transition the
+    // API would refuse.
+    expect(await screen.findByRole("menuitem", { name: /Interview/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Not selected/ })).toBeInTheDocument();
+    // Re-setting the current status is a 409 STATUS_UNCHANGED, so it is absent.
+    expect(screen.queryByRole("menuitem", { name: /^Shortlisted$/ })).toBeNull();
+  });
+
+  it("offers no decision menu once the application is closed", async () => {
+    withOneApplicant("withdrawn");
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // A terminal application takes no further decision; the API answers one with
+    // 409, so a control that cannot succeed is not rendered.
+    expect(await screen.findByText("Withdrawn")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Change status for Ada Lovelace" }),
+    ).toBeNull();
+  });
+
   it("states the status in text, not colour alone", async () => {
-    withOneApplicant("accepted");
+    withOneApplicant("offered");
     renderRoute(<Applicants />, {
       route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
       path: "/hire/jobs/:id/applicants",
     });
     // 2A's rule: semantic state is icon *and* label. A green pill alone tells a
     // colourblind user nothing.
-    expect(await screen.findByText("Accepted")).toBeInTheDocument();
+    expect(await screen.findByText("Offered")).toBeInTheDocument();
   });
 
   it("shows the recruiter-side fit score and its strongest explanation", async () => {

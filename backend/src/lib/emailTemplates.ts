@@ -107,3 +107,76 @@ export function renderRecruiterDeniedEmail(reason: string): Rendered {
     text: `We could not approve your account\n\nAn admin reviewed your recruiter account and could not approve it for now.\n\nReason: ${reason}\n\nIf you believe this is a mistake, reply to this email with more detail about your company.`,
   };
 }
+
+/**
+ * Sent to a candidate when their application reaches a stage worth hearing about.
+ *
+ * The stage is spelled out in plain language rather than echoing the enum: a
+ * candidate reading "interview" as a bare word cannot tell whether one is being
+ * offered or has already happened. `notifiesSeeker` decides *whether* this goes
+ * out; this only decides how it reads.
+ */
+const STATUS_COPY: Record<
+  "shortlisted" | "interview" | "offered" | "rejected",
+  { subject: (role: string) => string; heading: string; body: string }
+> = {
+  shortlisted: {
+    subject: (role) => `You have been shortlisted for ${role}`,
+    heading: "You have been shortlisted",
+    body: "The hiring team has shortlisted your application and is reviewing it in more detail. No action is needed from you right now.",
+  },
+  interview: {
+    subject: (role) => `Interview stage for ${role}`,
+    heading: "Your application has moved to interview",
+    body: "The hiring team wants to interview you. They will be in touch with times and details directly.",
+  },
+  offered: {
+    subject: (role) => `An offer for ${role}`,
+    heading: "You have an offer",
+    body: "The hiring team has made you an offer for this role. They will follow up with the details.",
+  },
+  rejected: {
+    subject: (role) => `Update on your application for ${role}`,
+    heading: "This application will not move forward",
+    body: "The hiring team has decided not to move forward with your application for this role. This decision applies to this role only — you are welcome to apply for others.",
+  },
+};
+
+export function renderApplicationStatusEmail(
+  status: "shortlisted" | "interview" | "offered" | "rejected",
+  role: string,
+  company: string | null,
+): Rendered {
+  const copy = STATUS_COPY[status];
+  const at = company ? `${role} at ${company}` : role;
+  return {
+    subject: copy.subject(at),
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">${escapeHtml(copy.heading)}</h1><p>${escapeHtml(copy.body)}</p><p style="padding:1rem;background:#f5f5f4;border-radius:.5rem"><strong>Role:</strong> ${escapeHtml(at)}</p>`,
+    ),
+    text: `${copy.heading}
+
+${copy.body}
+
+Role: ${at}`,
+  };
+}
+
+/**
+ * Sent to the recruiter when a candidate withdraws.
+ *
+ * The recruiter is the one who needs this: an application that silently stopped
+ * being live would otherwise sit in their pipeline as a candidate still waiting
+ * on them.
+ */
+export function renderApplicationWithdrawnEmail(candidate: string, role: string): Rendered {
+  return {
+    subject: `A candidate withdrew from ${role}`,
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">A candidate withdrew</h1><p>${escapeHtml(candidate)} has withdrawn their application for <strong>${escapeHtml(role)}</strong>. No action is needed — the application is closed and will no longer appear as awaiting your decision.</p>`,
+    ),
+    text: `A candidate withdrew
+
+${candidate} has withdrawn their application for ${role}. No action is needed - the application is closed.`,
+  };
+}

@@ -23,7 +23,7 @@ vi.mock("../src/utils/cloudinary.js", () => ({
 import { buildApp } from "../src/app.js";
 import { Application } from "../src/models/application.model.js";
 import { Seeker } from "../src/models/seeker.model.js";
-import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
+import { asSession, installCaptureMailer, outbox, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
 
@@ -126,7 +126,14 @@ describe("application routes", () => {
       .use(asSession("seeker", seeker));
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ total: 1, page: 1, pages: 1 });
-    expect(res.body.items[0]).toMatchObject({ status: "pending" });
+    // `applied`, not `pending`: the creation default is the pipeline's first
+    // stage now that the model stores the full seven.
+    expect(res.body.items[0]).toMatchObject({ status: "applied" });
+    // A fresh application already carries one history entry, so the timeline
+    // starts where the candidate actually entered it.
+    expect(res.body.items[0].history).toEqual([
+      { status: "applied", at: expect.any(String), byPortal: "seeker" },
+    ]);
     expect(res.body.items[0].job.title).toBe("Dev");
     expect(res.body.items[0]._id).toBeUndefined();
     expect(res.body.items[0].applicant).toBeUndefined();
@@ -152,7 +159,7 @@ describe("application routes", () => {
       expect(applicant).toMatchObject({
         fullName: "Signed Up",
         email: "s@example.com",
-        status: "pending",
+        status: "applied",
       });
       // An exact allowlist, so any future widening of the DTO fails here rather
       // than silently shipping more of a seeker's record to a recruiter.
@@ -260,7 +267,7 @@ describe("application routes", () => {
       const upd = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
         .use(asSession("recruiter", rival))
-        .send({ status: "accepted" });
+        .send({ status: "shortlisted" });
       expect(upd.status).toBe(404);
       // Same code and message a missing application would produce: a foreign
       // application must not be distinguishable from one that does not exist.
@@ -275,22 +282,152 @@ describe("application routes", () => {
       expect(bad.status).toBe(400);
       expect(bad.body.code).toBe("VALIDATION_ERROR");
 
-      const pending = await request(app)
-        .post(`/api/v1/application/status/${applicationId}/update`)
-        .use(asSession("recruiter", recruiter))
-        .send({ status: "pending" });
-      expect(pending.status).toBe(400);
+      // `applied` is the creation default, not a decision, so a recruiter naming
+      // it is refused at the schema — as is `withdrawn`, which is the
+      // candidate's transition alone.
+      for (const status of ["applied", "withdrawn"]) {
+        const res = await request(app)
+          .post(`/api/v1/application/status/${applicationId}/update`)
+          .use(asSession("recruiter", recruiter))
+          .send({ status });
+        expect(res.status).toBe(400);
+      }
 
       const ok = await request(app)
         .post(`/api/v1/application/status/${applicationId}/update`)
         .use(asSession("recruiter", recruiter))
-        .send({ status: "accepted" });
+        .send({ status: "shortlisted" });
       expect(ok.status).toBe(200);
 
       const list = await request(app)
         .get(`/api/v1/application/${jobId}/applicants`)
         .use(asSession("recruiter", recruiter));
-      expect(list.body.items[0].status).toBe("accepted");
+      expect(list.body.items[0].status).toBe("shortlisted");
+    });
+
+    /**
+     * The pipeline end to end: enforcement, the history it records, the mail it
+     * sends, and the candidate's own exit.
+     */
+    describe("status pipeline", () => {
+      const setStatus = (status: string, session = recruiter) =>
+        request(app)
+          .post(`/api/v1/application/status/${applicationId}/update`)
+          .use(asSession("recruiter", session))
+          .send({ status });
+
+      const withdrawAs = (session: typeof seeker, id = applicationId) =>
+        request(app)
+          .post(`/api/v1/application/${id}/withdraw`)
+          .use(asSession("seeker", session));
+
+      const mailTo = (to: string) =>
+        vi.waitFor(() => {
+          const mail = [...outbox].reverse().find((m) => m.to === to);
+          if (!mail) throw new Error(`no mail to ${to} yet`);
+          return mail;
+        });
+
+      it("records every transition in order, oldest first", async () => {
+        expect((await setStatus("reviewed")).status).toBe(200);
+        expect((await setStatus("shortlisted")).status).toBe(200);
+
+        const list = await request(app)
+          .get("/api/v1/application/get")
+          .use(asSession("seeker", seeker));
+        expect(list.body.items[0].status).toBe("shortlisted");
+        expect(list.body.items[0].history.map((e: { status: string }) => e.status)).toEqual([
+          "applied",
+          "reviewed",
+          "shortlisted",
+        ]);
+        expect(list.body.items[0].history.map((e: { byPortal: string }) => e.byPortal)).toEqual([
+          "seeker",
+          "recruiter",
+          "recruiter",
+        ]);
+      });
+
+      it("allows a backward correction among active stages", async () => {
+        expect((await setStatus("interview")).status).toBe(200);
+        // The mis-click fix. A strict forward-only machine would make this
+        // permanent and hand the mistake to support.
+        expect((await setStatus("shortlisted")).status).toBe(200);
+      });
+
+      it("409s a repeated status instead of silently re-applying it", async () => {
+        expect((await setStatus("shortlisted")).status).toBe(200);
+        const again = await setStatus("shortlisted");
+        expect(again.status).toBe(409);
+        expect(again.body.code).toBe("STATUS_UNCHANGED");
+      });
+
+      it("locks the application once rejected", async () => {
+        expect((await setStatus("rejected")).status).toBe(200);
+        const reopen = await setStatus("shortlisted");
+        expect(reopen.status).toBe(409);
+        expect(reopen.body.code).toBe("APPLICATION_CLOSED");
+      });
+
+      it("emails the candidate on a forward stage but not on `reviewed`", async () => {
+        outbox.length = 0;
+        expect((await setStatus("reviewed")).status).toBe(200);
+        expect((await setStatus("shortlisted")).status).toBe(200);
+
+        const mail = await mailTo("s@example.com");
+        expect(mail.subject).toContain("shortlisted");
+        // Exactly one — `reviewed` is deliberately silent, so two sends here
+        // would mean the policy had drifted.
+        expect(outbox.filter((m) => m.to === "s@example.com")).toHaveLength(1);
+      });
+
+      it("does not email a backward correction", async () => {
+        expect((await setStatus("interview")).status).toBe(200);
+        outbox.length = 0;
+        expect((await setStatus("shortlisted")).status).toBe(200);
+        // Give a dispatched send the same chance to land as the positive case.
+        await new Promise((r) => setTimeout(r, 150));
+        expect(outbox.filter((m) => m.to === "s@example.com")).toHaveLength(0);
+      });
+
+      it("lets the candidate withdraw, closes the application and tells the recruiter", async () => {
+        outbox.length = 0;
+        const res = await withdrawAs(seeker);
+        expect(res.status).toBe(200);
+
+        const list = await request(app)
+          .get("/api/v1/application/get")
+          .use(asSession("seeker", seeker));
+        expect(list.body.items[0].status).toBe("withdrawn");
+
+        const mail = await mailTo("r@example.com");
+        expect(mail.subject).toContain("withdrew");
+      });
+
+      it("refuses a withdrawal the recruiter may not perform, and a foreign one", async () => {
+        // `withdrawn` is not in the recruiter's settable set, so the schema stops
+        // it before the service sees it.
+        expect((await setStatus("withdrawn")).status).toBe(400);
+
+        // Another seeker's application answers as missing, not as forbidden —
+        // the same rule every other ownership check here follows.
+        const stranger = await signedUpOn("seeker", "stranger@example.com");
+        expect((await withdrawAs(stranger)).status).toBe(404);
+      });
+
+      it("cannot withdraw twice", async () => {
+        expect((await withdrawAs(seeker)).status).toBe(200);
+        const again = await withdrawAs(seeker);
+        expect(again.status).toBe(409);
+        expect(again.body.code).toBe("APPLICATION_CLOSED");
+      });
+
+      it("refuses a recruiter's decision after the candidate withdrew", async () => {
+        expect((await withdrawAs(seeker)).status).toBe(200);
+        const override = await setStatus("shortlisted");
+        expect(override.status).toBe(409);
+        expect(override.body.code).toBe("APPLICATION_CLOSED");
+      });
     });
 
     it("anonymous and seeker cannot reach recruiter application routes", async () => {
@@ -307,7 +444,7 @@ describe("application routes", () => {
           await request(app)
             .post(`/api/v1/application/status/${applicationId}/update`)
             .use(asSession("seeker", seeker))
-            .send({ status: "accepted" })
+            .send({ status: "shortlisted" })
         ).status,
       ).toBe(401);
     });

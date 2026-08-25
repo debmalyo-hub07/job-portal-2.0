@@ -3,6 +3,7 @@ import type {
   JobCreateBody,
   JobDto,
   JobListQuery,
+  JobPosterDto,
   OwnedJobsQuery,
   PaginatedResponse,
   PaginationQuery,
@@ -10,6 +11,7 @@ import type {
 import { Job, type JobDocument } from "../models/job.model.js";
 import { Company } from "../models/company.model.js";
 import type { CompanyDocument } from "../models/company.model.js";
+import type { RecruiterDocument } from "../models/recruiter.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
 import { escapeRegex } from "../lib/escapeRegex.js";
@@ -19,10 +21,47 @@ import { scoreJobForSeeker } from "./matching.pipeline.js";
 
 const notFound = () => AppError.notFound("JOB_NOT_FOUND", "Job not found");
 
-// After populate("company") the field is a document, not an ObjectId.
-type PopulatedJob = Omit<HydratedDocument<JobDocument>, "company"> & {
+// After populate("company") the field is a document, not an ObjectId. Same for
+// `created_by` once populated — but that one stays deliberately loose, because a
+// path that forgot to populate hands back a bare ObjectId and `toJobDto` has to
+// be able to tell the difference.
+type PopulatedJob = Omit<HydratedDocument<JobDocument>, "company" | "created_by"> & {
   company: HydratedDocument<CompanyDocument> | null;
+  created_by: unknown;
 };
+
+/**
+ * The recruiter fields a job's poster block may draw on — and only those.
+ *
+ * Projected at every populate rather than trimmed afterwards, per the note on
+ * `authFields`: the recruiter document holds a password hash, lockout counters
+ * and a token cutoff, none of which has any business travelling to a job page.
+ */
+const POSTER_FIELDS = "fullName designation email phone";
+
+/**
+ * Reads the poster block off a populated `created_by`.
+ *
+ * Returns `null` for an absent owner — the seeded catalogue's jobs are
+ * deliberately owner-less — and also for an *unpopulated* reference, which is a
+ * caller bug rather than a missing recruiter. Both render as "no poster", so the
+ * shape check is what keeps the bug from looking like data.
+ */
+function toJobPosterDto(createdBy: unknown, includeContact: boolean): JobPosterDto | null {
+  if (!createdBy || typeof createdBy !== "object" || !("fullName" in createdBy)) return null;
+  const r = createdBy as Pick<RecruiterDocument, "fullName" | "designation" | "email" | "phone">;
+  const poster: JobPosterDto = {
+    fullName: r.fullName,
+    designation: r.designation ?? null,
+  };
+  // Assigned only for a caller entitled to them, so the keys are absent rather
+  // than present-and-null on a public response.
+  if (includeContact) {
+    poster.email = r.email;
+    poster.phone = r.phone ?? null;
+  }
+  return poster;
+}
 
 /**
  * The viewing seeker, or `null` for everyone else.
@@ -60,6 +99,9 @@ export function toJobDto(doc: PopulatedJob, viewer: FitViewer = null): JobDto {
     remote: doc.remote ?? false,
     company: doc.company ? toCompanyDto(doc.company) : null,
     createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? "",
+    // `viewer` is non-null only for an authenticated seeker, so it doubles as
+    // the contact-visibility gate — the same signal that decides `fit`.
+    postedBy: toJobPosterDto(doc.created_by, viewer !== null),
   };
   // Assigned only when there is a seeker to score, so the key is absent rather
   // than present-and-null for a caller the score does not describe.
@@ -86,7 +128,10 @@ export async function createJob(ownerId: string, body: JobCreateBody): Promise<J
     company: body.companyId,
     created_by: ownerId,
   });
-  const populated = (await job.populate("company")) as unknown as PopulatedJob;
+  const populated = (await job.populate([
+    { path: "company" },
+    { path: "created_by", select: POSTER_FIELDS },
+  ])) as unknown as PopulatedJob;
   return toJobDto(populated);
 }
 
@@ -103,7 +148,10 @@ async function paginate(
       .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company"),
+      .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company")
+      // One extra lookup per page, not per row — the poster block would
+      // otherwise be a read per job.
+      .populate("created_by", POSTER_FIELDS),
   ]);
   return {
     // Newest first, unscored: sorting by fit here would rank this page only.
@@ -178,9 +226,9 @@ export async function listPublicJobs(
 }
 
 export async function getPublicJob(jobId: string, viewerId?: string): Promise<JobDto> {
-  const job = await Job.findById(jobId).populate<{
-    company: HydratedDocument<CompanyDocument> | null;
-  }>("company");
+  const job = await Job.findById(jobId)
+    .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company")
+    .populate("created_by", POSTER_FIELDS);
   if (!job) throw notFound();
   return toJobDto(job as unknown as PopulatedJob, await resolveFitViewer(viewerId));
 }

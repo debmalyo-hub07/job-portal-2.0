@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
 import { Job } from "../src/models/job.model.js";
+import { Recruiter } from "../src/models/recruiter.model.js";
 import { asSession, installCaptureMailer, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
@@ -325,5 +326,67 @@ describe("job routes", () => {
       expect(res.status).toBe(201);
       expect(res.body.job.jobType).toBe(type);
     }
+  });
+  /**
+   * `postedBy` — the poster block on a public job page.
+   *
+   * Contact details are gated on an authenticated seeker because the job routes
+   * are `optionalAuthenticate`: without the gate a crawler harvests every
+   * recruiter's address and number off the board.
+   */
+  describe("postedBy", () => {
+    async function postJob() {
+      const res = await request(app)
+        .post("/api/v1/job/post")
+        .use(asSession("recruiter", owner))
+        .send(jobBody(owner.companyId));
+      return res.body.job.id as string;
+    }
+
+    it("names the poster publicly but withholds contact from an anonymous visitor", async () => {
+      await Recruiter.updateOne({ _id: owner.id }, { $set: { designation: "Talent Lead" } });
+      const id = await postJob();
+
+      const res = await request(app).get(`/api/v1/job/get/${id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.job.postedBy.designation).toBe("Talent Lead");
+      // The address must not travel to a caller without a session.
+      expect(res.body.job.postedBy.email).toBeUndefined();
+      expect(res.body.job.postedBy.phone).toBeUndefined();
+      // The raw reference stays withheld regardless.
+      expect(res.body.job.created_by).toBeUndefined();
+    });
+
+    it("releases contact details to an authenticated seeker", async () => {
+      await Recruiter.updateOne({ _id: owner.id }, { $set: { phone: "+91 99999 00000" } });
+      const id = await postJob();
+      const seeker = await signedUpOn("seeker", "candidate@example.com");
+
+      const res = await request(app)
+        .get(`/api/v1/job/get/${id}`)
+        .use(asSession("seeker", seeker));
+      expect(res.status).toBe(200);
+      expect(res.body.job.postedBy.email).toBe("owner@example.com");
+      expect(res.body.job.postedBy.phone).toBe("+91 99999 00000");
+    });
+
+    it("is null when the posting recruiter no longer exists", async () => {
+      const id = await postJob();
+      // The 2026-08 account cleanup left the seeded catalogue owner-less on
+      // purpose; such a job must render with no poster rather than 500.
+      await Recruiter.deleteOne({ _id: owner.id });
+
+      const res = await request(app).get(`/api/v1/job/get/${id}`);
+      expect(res.status).toBe(200);
+      expect(res.body.job.postedBy).toBeNull();
+    });
+
+    it("carries the poster on the public list, not just the detail page", async () => {
+      await postJob();
+      const res = await request(app).get("/api/v1/job/get");
+      expect(res.status).toBe(200);
+      expect(res.body.items[0].postedBy.fullName).toBeTruthy();
+      expect(res.body.items[0].postedBy.email).toBeUndefined();
+    });
   });
 });

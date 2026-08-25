@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { ApplicantDto, CompanyDto, JobDto, PaginatedResponse } from "@jobportal/shared";
+import { RECRUITER_SETTABLE } from "@jobportal/shared";
 
 import { apiClient } from "@/lib/apiClient";
 
@@ -201,7 +202,10 @@ export function useApplicantDecision(jobId: string | undefined) {
   return useMutation({
     mutationFn: async (decision: {
       applicationId: string;
-      status: "accepted" | "rejected";
+      // The recruiter-settable subset, not every ApplicationStatus: `applied` is
+      // the creation default and `withdrawn` is the candidate's alone, and the
+      // API's schema refuses both.
+      status: (typeof RECRUITER_SETTABLE)[number];
     }) => {
       await apiClient.post(`/application/status/${decision.applicationId}/update`, {
         status: decision.status,

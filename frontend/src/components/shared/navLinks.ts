@@ -56,10 +56,13 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
     // advertised two boards where the second was strictly the weaker one.
     case "seeker":
       if (surface === "session") {
+        // No "Profile" entry. The account popover the navbar already renders
+        // carries "View profile" for a seeker session, and it is present at
+        // every breakpoint — so a primary link duplicated the only path to the
+        // page while spending a slot in a five-item bar.
         return [
           { to: "/", label: "Home" },
           { to: "/jobs", label: "Jobs" },
-          { to: "/profile", label: "Profile" },
           { to: "/help", label: "Help" },
           { to: "/updates", label: "Updates" },
         ];

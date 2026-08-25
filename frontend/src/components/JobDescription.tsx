@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, MapPin } from "lucide-react";
+import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
@@ -8,11 +8,13 @@ import CompanyAvatar from "./shared/CompanyAvatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import { FitBreakdown } from "./FitBadge";
 import PageShell from "./layout/PageShell";
 import { Reveal } from "@/lib/motion";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { initialsOf } from "@/lib/initials";
 import { setSingleJob } from "@/redux/jobSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { userForPortal } from "@/redux/authSlice";
@@ -189,6 +191,68 @@ const JobDescription = () => {
               <div><dt className="text-xs text-ink-muted">Posted</dt><dd className="mt-1 text-sm font-medium text-ink">{posted}</dd></div>
             </div>
           </dl>
+
+          {/*
+            Posted by. `postedBy` is null when the owning recruiter no longer
+            exists — the seeded catalogue's listings are owner-less by design —
+            so the whole block is absent rather than rendering an empty person.
+
+            `email` arrives only for an authenticated seeker: the API withholds
+            contact details from a public response, so its absence is the signal
+            to explain the gate rather than a field that failed to load.
+          */}
+          {singleJob.postedBy ? (
+            <section aria-labelledby="posted-by-heading" className="mt-6 border-t border-line pt-5">
+              <h2 id="posted-by-heading" className="text-xs text-ink-muted">
+                Posted by
+              </h2>
+              <div className="mt-3 flex items-center gap-3">
+                <Avatar className="size-9">
+                  <AvatarFallback>{initialsOf(singleJob.postedBy.fullName)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">
+                    {singleJob.postedBy.fullName}
+                  </p>
+                  {singleJob.postedBy.designation ? (
+                    <p className="mt-0.5 truncate text-xs text-ink-muted">
+                      {singleJob.postedBy.designation}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              {singleJob.postedBy.email ? (
+                <ul className="mt-4 grid gap-2">
+                  <li className="flex items-center gap-2">
+                    <Mail aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                    <a
+                      href={`mailto:${singleJob.postedBy.email}`}
+                      className="truncate text-sm text-signal-text hover:underline"
+                    >
+                      {singleJob.postedBy.email}
+                    </a>
+                  </li>
+                  {singleJob.postedBy.phone ? (
+                    <li className="flex items-center gap-2">
+                      <Phone aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+                      <a
+                        href={`tel:${singleJob.postedBy.phone}`}
+                        className="text-sm text-signal-text hover:underline"
+                      >
+                        {singleJob.postedBy.phone}
+                      </a>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-ink-muted">
+                  <UserRound aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span>Sign in as a candidate to see contact details.</span>
+                </p>
+              )}
+            </section>
+          ) : null}
         </aside>
       </article>
     </PageShell>

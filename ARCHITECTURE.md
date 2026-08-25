@@ -207,15 +207,33 @@ in hand. A resource that is missing and one that belongs to someone else answer
 identically — 404, same code, same message — because a 403 confirms existence.
 Applications reach their owner transitively: application → job → `created_by`.
 
+An application moves through five active stages — `applied`, `reviewed`,
+`shortlisted`, `interview`, `offered` — and ends on one of two terminal ones,
+`rejected` or `withdrawn`. The rules live in `packages/shared/src/applicationStatus.ts`
+as pure functions, so the API enforces and the recruiter's status menu is built
+from the same list and cannot offer a move the server would refuse. A recruiter
+may move freely among active stages, including backwards, because a mis-clicked
+stage must be correctable; nothing transitions out of a terminal stage, and a
+repeated status is a 409 rather than a silent no-op, so a double-submit cannot
+append a second history entry or send a second email. Each transition appends to
+an append-only `history` array, which is what the candidate's timeline renders.
+
 There is deliberately no `requireRole` step. With three account collections the
 collection *is* the role: a token issued from the seeker portal cannot address a
 recruiter route, so a separate role field would be redundant state able to drift
 out of sync with the collection describing it. See
 `docs/adr/0006-three-account-collections.md`.
 
-`requireOwnership` resolves per resource — company edits check `ownerId`, job
-edits check `postedBy`, application status changes check that the application's
-job belongs to the requester.
+`requireOwnership` resolves per resource — company edits check `userId`, job
+reads check `created_by`, and a recruiter's application status change checks that
+the application's job belongs to the requester. A candidate withdrawing resolves
+the application by its own `applicant` instead: it is the one transition the job
+owner may not perform, so routing it through job ownership would authorise the
+wrong party.
+
+Not to be confused with the `postedBy` field on `JobDto`, which is the poster
+block a job page renders. That is a projection of `created_by` for display, never
+an authorisation input.
 
 ## Web architecture
 
@@ -423,9 +441,12 @@ plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 
 Public release notes live at `/updates`. `src/data/updates.ts` is the canonical
 registry: entries have a stable id, ISO date, category, user-facing summary and
-detail list, and are kept newest first. The page reads that contract directly
-and exposes category filters in the URL, so publishing is currently a reviewed
-content change rather than a database operation. The shape is intentionally
+detail list, and are kept newest first — asserted by test rather than sorted at
+render, so an entry appended to the end of the array fails CI instead of
+publishing invisibly below a list the page labels "Newest first". The page reads
+that contract directly and exposes category filters in the URL, so publishing is
+a reviewed content change rather than a database operation, and an entry ships in
+the same commit as the change it describes. The shape is intentionally
 API-ready; when volume or multiple publishers justify a service, the registry
 can move behind a paginated endpoint without changing the page model.
 

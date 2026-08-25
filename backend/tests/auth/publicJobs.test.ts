@@ -82,6 +82,7 @@ describe("the public job board", () => {
       "jobType",
       "location",
       "position",
+      "postedBy",
       "remote",
       "requirements",
       "salary",
@@ -92,16 +93,27 @@ describe("the public job board", () => {
     // seeker's own profile, so an anonymous visitor must not receive it at all
     // rather than receive a zero. Asserting the two key sets separately is what
     // makes that difference a test rather than a coincidence.
+    //
+    // `postedBy` is present for every caller, but its CONTENTS are gated the
+    // same way: the recruiter's name and title identify who is hiring, while
+    // their address and phone number would be a harvestable contact list on a
+    // page any crawler can reach. Asserting the nested key set per case is what
+    // keeps that gate from silently opening.
     const cases = [
-      { cookies: [] as string[], keys: base },
-      { cookies: [`jp_seeker_at=${seeker.access}`], keys: [...base, "fit"].sort() },
+      { cookies: [] as string[], keys: base, posterKeys: ["designation", "fullName"] },
+      {
+        cookies: [`jp_seeker_at=${seeker.access}`],
+        keys: [...base, "fit"].sort(),
+        posterKeys: ["designation", "email", "fullName", "phone"],
+      },
     ];
 
-    for (const { cookies, keys } of cases) {
+    for (const { cookies, keys, posterKeys } of cases) {
       const res = await request(app).get(`/api/v1/job/get/${job._id}`).set("Cookie", cookies);
       expect(res.status).toBe(200);
       expect(res.body.job.applications).toBeUndefined();
       expect(Object.keys(res.body.job).sort()).toEqual(keys);
+      expect(Object.keys(res.body.job.postedBy).sort()).toEqual(posterKeys);
       // Neither the applicant's id nor the application's should appear anywhere.
       expect(JSON.stringify(res.body)).not.toContain(seeker.id);
       expect(JSON.stringify(res.body)).not.toContain(String(application._id));

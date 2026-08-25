@@ -555,7 +555,8 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | 2B-3 | Recruiter workspace: companies, jobs, applicants, remote + jobType fixes | Complete |
 | 2B-4 | Navigation and informational surfaces: about, contact, help, legal | Complete |
 | Auth fixes | `/hire` landing restored as a public page, admin door controls, password reveal on every form, Google mark + pending state | Complete |
-| 3 | Saved jobs, application status timeline | Planned |
+| 3 | Application status pipeline: seven stages, candidate timeline, withdraw, status emails | Complete |
+| 3 | Saved jobs | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 
 Recruiter approval is now end to end. Sign in at `/admin/login` with an account

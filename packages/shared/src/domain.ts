@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { jobDepartmentSchema, jobTypeSchema } from "./enums.js";
+import { jobDepartmentSchema, jobTypeSchema, type ApplicationStatus } from "./enums.js";
+import { RECRUITER_SETTABLE } from "./applicationStatus.js";
+import type { Portal } from "./auth.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
@@ -86,9 +88,16 @@ export const ownedJobsQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(100).default(""),
 });
 
-/** `pending` is creation-default only; a recruiter can only decide, not undo. */
+/**
+ * What a recruiter may set on an application.
+ *
+ * Derived from `RECRUITER_SETTABLE`, so the schema cannot drift from the state
+ * machine that enforces the rest of the rules. `applied` is the creation default
+ * and `withdrawn` belongs to the candidate, so neither is accepted here — and a
+ * request naming one fails validation rather than reaching the service.
+ */
 export const applicationStatusBodySchema = z.object({
-  status: z.enum(["accepted", "rejected"]),
+  status: z.enum(RECRUITER_SETTABLE),
 }).strict();
 
 export type CompanyCreateBody = z.infer<typeof companyCreateBodySchema>;
@@ -106,6 +115,29 @@ export type CompanyDto = {
   location: string | null;
   logoUrl: string | null;
   createdAt: string;
+};
+
+/**
+ * The recruiter who posted a job.
+ *
+ * Populated from `created_by`, never denormalised onto the job at creation: a
+ * recruiter who corrects their phone number must not leave every listing they
+ * ever posted carrying the old one.
+ */
+export type JobPosterDto = {
+  fullName: string;
+  designation: string | null;
+  /**
+   * Contact details, for an authenticated seeker only.
+   *
+   * The job routes are `optionalAuthenticate`, so anything unconditional here is
+   * published to every crawler that reaches the board — and a recruiter's
+   * address and number are the harvesting target job boards gate behind a
+   * session. Absent rather than null for a caller not entitled to them, the
+   * same distinction `fit` draws.
+   */
+  email?: string;
+  phone?: string | null;
 };
 
 export type JobDto = {
@@ -139,19 +171,42 @@ export type JobDto = {
    * aggregation, and is a separate change.
    */
   fit?: ScoreBreakdown;
+  /**
+   * The posting recruiter, or `null` when that account no longer exists.
+   *
+   * NOT optional: every path that builds a `JobDto` must populate `created_by`,
+   * because an unpopulated reference is indistinguishable from a deleted owner
+   * and would silently drop the poster from a job that has one. `toJobDto`
+   * checks the populated shape rather than truthiness for that reason.
+   */
+  postedBy: JobPosterDto | null;
+};
+
+/**
+ * One transition in an application's life.
+ *
+ * `byPortal` reuses `Portal` rather than a fresh enum: a status only ever changes
+ * because a recruiter decided or a candidate withdrew.
+ */
+export type ApplicationEventDto = {
+  status: ApplicationStatus;
+  at: string;
+  byPortal: Portal;
 };
 
 export type AppliedJobDto = {
   id: string; // application id
-  status: "pending" | "accepted" | "rejected";
+  status: ApplicationStatus;
   appliedAt: string;
   job: JobDto | null;
+  /** Oldest first, so the client renders a timeline without re-sorting. */
+  history: ApplicationEventDto[];
 };
 
 /** Everything a recruiter may see about an applicant. Nothing else leaves. */
 export type ApplicantDto = {
   applicationId: string;
-  status: "pending" | "accepted" | "rejected";
+  status: ApplicationStatus;
   appliedAt: string;
   fullName: string;
   email: string;

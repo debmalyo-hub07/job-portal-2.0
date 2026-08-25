@@ -253,6 +253,17 @@ authenticated owner id, applications reach recruiter ownership through their
 job, and admin routes require an admin-signed session. `sanitizeFilter` is
 enabled globally and request inputs are schema-validated before queries run.
 
+A recruiter's own contact details are a narrower case than the rest of this PII,
+because the surface carrying them is public. `/job/get` and `/job/get/:id` are
+`optionalAuthenticate`, so anything a `JobDto` carries unconditionally is served
+to crawlers. The `postedBy` block therefore splits: the recruiter's name and
+designation identify who is hiring and are public, while their email and phone
+are attached only when the request resolves an authenticated seeker — the same
+signal that gates `fit`. The keys are absent rather than null for a caller not
+entitled to them, and `tests/auth/publicJobs.test.ts` asserts both key sets so a
+future widening of the DTO fails there rather than silently publishing a
+harvestable recruiter contact list.
+
 Passwords are Argon2id hashes. OTPs and refresh tokens are stored only as keyed
 hashes. Resume objects use Cloudinary's authenticated delivery mode and short-
 lived signed URLs. Email, phone, names, and application content remain readable

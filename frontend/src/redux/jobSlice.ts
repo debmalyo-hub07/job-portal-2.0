@@ -23,12 +23,10 @@ import type { AppliedJobDto, JobDto } from "@jobportal/shared";
  */
 type JobState = {
   singleJob: JobDto | null;
-  allAppliedJobs: AppliedJobDto[];
 };
 
 const initialState: JobState = {
   singleJob: null,
-  allAppliedJobs: [],
 };
 
 const jobSlice = createSlice({
@@ -38,11 +36,8 @@ const jobSlice = createSlice({
     setSingleJob: (state, action: PayloadAction<JobDto | null>) => {
       state.singleJob = action.payload;
     },
-    setAllAppliedJobs: (state, action: PayloadAction<AppliedJobDto[]>) => {
-      state.allAppliedJobs = action.payload;
-    },
   },
 });
 
-export const { setSingleJob, setAllAppliedJobs } = jobSlice.actions;
+export const { setSingleJob } = jobSlice.actions;
 export default jobSlice.reducer;
