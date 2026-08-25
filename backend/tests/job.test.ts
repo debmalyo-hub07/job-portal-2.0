@@ -1,4 +1,5 @@
 import request from "supertest";
+import mongoose from "mongoose";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Company } from "../src/models/company.model.js";
@@ -387,6 +388,309 @@ describe("job routes", () => {
       expect(res.status).toBe(200);
       expect(res.body.items[0].postedBy.fullName).toBeTruthy();
       expect(res.body.items[0].postedBy.email).toBeUndefined();
+    });
+  });
+
+  /**
+   * The job lifecycle: correct a posting, close a filled role, delete a mistake.
+   *
+   * Before this the router said so in its own comment — "There are no job update
+   * or delete routes to gate" — so a mistyped salary was permanent and a filled
+   * role went on collecting applications forever.
+   */
+  describe("lifecycle", () => {
+    async function postJob(title = "Lifecycle Dev") {
+      const res = await request(app)
+        .post("/api/v1/job/post")
+        .use(asSession("recruiter", owner))
+        .send(jobBody(owner.companyId, title));
+      expect(res.status).toBe(201);
+      return res.body.job.id as string;
+    }
+
+    const close = (id: string, session = owner, status = "closed") =>
+      request(app)
+        .post(`/api/v1/job/status/${id}/update`)
+        .use(asSession("recruiter", session))
+        .send({ status });
+
+    it("posts a job as open", async () => {
+      const id = await postJob();
+      const res = await request(app).get(`/api/v1/job/get/${id}`);
+      expect(res.body.job.status).toBe("open");
+    });
+
+    /**
+     * The production-safety guarantee, and the reason the board filter is
+     * `$ne: "closed"` rather than `status: "open"`.
+     *
+     * Mongo does not match a missing field against an equality, so the equality
+     * form would have hidden every one of the 198 rows written before this field
+     * existed — the entire public board, on deploy, silently. Inserted through
+     * the raw collection because Mongoose applies the schema default on every
+     * ordinary create and cannot produce this document.
+     */
+    it("lists a legacy job that has no status field at all", async () => {
+      const id = await postJob("Legacy Row");
+      await Job.collection.updateOne(
+        { _id: new mongoose.Types.ObjectId(id) },
+        { $unset: { status: "" } },
+      );
+      // The document really has no such field — if this assertion is wrong, the
+      // ones below prove nothing.
+      const raw = await Job.collection.findOne({ _id: new mongoose.Types.ObjectId(id) });
+      expect(raw && "status" in raw).toBe(false);
+
+      const res = await request(app).get("/api/v1/job/get");
+      expect(res.status).toBe(200);
+      expect(res.body.items.map((j: { title: string }) => j.title)).toContain("Legacy Row");
+      // And it reads as open through the DTO, so the Apply control still renders.
+      expect(res.body.items.find((j: { title: string }) => j.title === "Legacy Row").status).toBe(
+        "open",
+      );
+    });
+
+    it("updates the fields a recruiter may correct", async () => {
+      const id = await postJob();
+      const res = await request(app)
+        .put(`/api/v1/job/update/${id}`)
+        .use(asSession("recruiter", owner))
+        .send({ title: "Senior TypeScript Dev", salary: 24, requirements: "ts, rust" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.job.title).toBe("Senior TypeScript Dev");
+      expect(res.body.job.salary).toBe(24);
+      expect(res.body.job.requirements).toEqual(["ts", "rust"]);
+      // Untouched fields survive a partial update.
+      expect(res.body.job.location).toBe("Remote");
+    });
+
+    it("maps the request's experience field onto the stored experienceLevel", async () => {
+      // The two names differ, exactly as they do on create. A mapping that was
+      // missed here would accept the field and store nothing.
+      const id = await postJob();
+      const res = await request(app)
+        .put(`/api/v1/job/update/${id}`)
+        .use(asSession("recruiter", owner))
+        .send({ experience: 7 });
+      expect(res.status).toBe(200);
+      expect(res.body.job.experienceLevel).toBe(7);
+    });
+
+    it("refuses to move a posting to another company", async () => {
+      const id = await postJob();
+      const res = await request(app)
+        .put(`/api/v1/job/update/${id}`)
+        .use(asSession("recruiter", owner))
+        .send({ companyId: rival.companyId });
+      // 400 from the strict schema, not a silent strip: a 200 with no change
+      // would look like the posting had moved until the page reloaded.
+      expect(res.status).toBe(400);
+    });
+
+    it("404s every write against a job the caller does not own", async () => {
+      const id = await postJob();
+
+      const update = await request(app)
+        .put(`/api/v1/job/update/${id}`)
+        .use(asSession("recruiter", rival))
+        .send({ title: "Hijacked" });
+      expect(update.status).toBe(404);
+      expect(update.body.code).toBe("JOB_NOT_FOUND");
+
+      expect((await close(id, rival)).status).toBe(404);
+
+      const removed = await request(app)
+        .delete(`/api/v1/job/delete/${id}`)
+        .use(asSession("recruiter", rival));
+      expect(removed.status).toBe(404);
+
+      // And the job is untouched by any of it.
+      const after = await request(app).get(`/api/v1/job/get/${id}`);
+      expect(after.body.job.title).toBe("Lifecycle Dev");
+      expect(after.body.job.status).toBe("open");
+    });
+
+    it("takes a closed role off the board but keeps its page reachable", async () => {
+      const id = await postJob("Closing Soon");
+      expect((await close(id)).status).toBe(200);
+
+      const board = await request(app).get("/api/v1/job/get");
+      expect(board.body.items.map((j: { title: string }) => j.title)).not.toContain("Closing Soon");
+
+      // Still resolvable by id: a candidate who applied has this link in their
+      // applied-jobs list, and 404ing it would break their own record.
+      const detail = await request(app).get(`/api/v1/job/get/${id}`);
+      expect(detail.status).toBe(200);
+      expect(detail.body.job.status).toBe("closed");
+    });
+
+    it("keeps a closed role on the recruiter's own list", async () => {
+      const id = await postJob("Mine Even When Closed");
+      await close(id);
+      const res = await request(app)
+        .get("/api/v1/job/getadminjobs")
+        .use(asSession("recruiter", owner));
+      expect(res.body.items.map((j: { title: string }) => j.title)).toContain(
+        "Mine Even When Closed",
+      );
+    });
+
+    it("reopens a closed role", async () => {
+      const id = await postJob("Reopened");
+      await close(id);
+      expect((await close(id, owner, "open")).status).toBe(200);
+
+      const board = await request(app).get("/api/v1/job/get");
+      expect(board.body.items.map((j: { title: string }) => j.title)).toContain("Reopened");
+    });
+
+    it("409s a status that is already set", async () => {
+      // Not a successful no-op: that is how a double-submit hides.
+      const id = await postJob();
+      const res = await close(id, owner, "open");
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe("STATUS_UNCHANGED");
+    });
+
+    it("400s a status outside the lifecycle enum", async () => {
+      const id = await postJob();
+      expect((await close(id, owner, "draft")).status).toBe(400);
+    });
+
+    it("refuses an application to a closed role", async () => {
+      const id = await postJob("No Longer Hiring");
+      await close(id);
+      const seeker = await signedUpOn("seeker", "late@example.com");
+
+      const res = await request(app)
+        .post(`/api/v1/application/apply/${id}`)
+        .use(asSession("seeker", seeker));
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe("JOB_CLOSED");
+    });
+
+    /**
+     * Closing must not freeze the pipeline.
+     *
+     * You close a role *because* you hired someone, and you still have to reject
+     * everyone else. A guard on the applicant list would strand every remaining
+     * candidate at whatever stage they had reached.
+     */
+    it("still lets the recruiter decide on applicants after closing", async () => {
+      const id = await postJob("Filled");
+      const seeker = await signedUpOn("seeker", "midpipeline@example.com");
+      await request(app)
+        .post(`/api/v1/application/apply/${id}`)
+        .use(asSession("seeker", seeker));
+      await close(id);
+
+      const applicants = await request(app)
+        .get(`/api/v1/application/${id}/applicants`)
+        .use(asSession("recruiter", owner));
+      expect(applicants.status).toBe(200);
+      const applicationId = applicants.body.items[0].applicationId as string;
+
+      const decided = await request(app)
+        .post(`/api/v1/application/status/${applicationId}/update`)
+        .use(asSession("recruiter", owner))
+        .send({ status: "rejected" });
+      expect(decided.status).toBe(200);
+    });
+
+    it("deletes a posting nobody applied to", async () => {
+      const id = await postJob("Posted By Mistake");
+      const res = await request(app)
+        .delete(`/api/v1/job/delete/${id}`)
+        .use(asSession("recruiter", owner));
+      expect(res.status).toBe(200);
+      expect((await request(app).get(`/api/v1/job/get/${id}`)).status).toBe(404);
+    });
+
+    it("refuses to delete a posting people applied to", async () => {
+      const id = await postJob("Has History");
+      const seeker = await signedUpOn("seeker", "applicant@example.com");
+      await request(app)
+        .post(`/api/v1/application/apply/${id}`)
+        .use(asSession("seeker", seeker));
+
+      const res = await request(app)
+        .delete(`/api/v1/job/delete/${id}`)
+        .use(asSession("recruiter", owner));
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe("JOB_HAS_APPLICATIONS");
+      // The candidate's record survives the refusal.
+      expect((await request(app).get(`/api/v1/job/get/${id}`)).status).toBe(200);
+    });
+
+    it("refuses to delete a posting whose only applicant was rejected", async () => {
+      // `active` is 0 here and `total` is 1. Gating delete on the active count
+      // would erase a rejected candidate's record of having applied.
+      const id = await postJob("Rejected Everyone");
+      const seeker = await signedUpOn("seeker", "rejected@example.com");
+      await request(app)
+        .post(`/api/v1/application/apply/${id}`)
+        .use(asSession("seeker", seeker));
+      const applicants = await request(app)
+        .get(`/api/v1/application/${id}/applicants`)
+        .use(asSession("recruiter", owner));
+      await request(app)
+        .post(`/api/v1/application/status/${applicants.body.items[0].applicationId}/update`)
+        .use(asSession("recruiter", owner))
+        .send({ status: "rejected" });
+
+      const res = await request(app)
+        .delete(`/api/v1/job/delete/${id}`)
+        .use(asSession("recruiter", owner));
+      expect(res.status).toBe(409);
+    });
+
+    /**
+     * Applicant counts, owner-only.
+     *
+     * The recruiter's list needs them to decide whether Delete is offered; the
+     * public board must never carry them, because how many people applied to a
+     * rival's role is competitive information.
+     */
+    it("counts applicants for the owner and never for the public", async () => {
+      const id = await postJob("Counted");
+      const first = await signedUpOn("seeker", "count1@example.com");
+      const second = await signedUpOn("seeker", "count2@example.com");
+      for (const seeker of [first, second]) {
+        await request(app)
+          .post(`/api/v1/application/apply/${id}`)
+          .use(asSession("seeker", seeker));
+      }
+      const applicants = await request(app)
+        .get(`/api/v1/application/${id}/applicants`)
+        .use(asSession("recruiter", owner));
+      await request(app)
+        .post(`/api/v1/application/status/${applicants.body.items[0].applicationId}/update`)
+        .use(asSession("recruiter", owner))
+        .send({ status: "rejected" });
+
+      const owned = await request(app)
+        .get("/api/v1/job/getadminjobs")
+        .use(asSession("recruiter", owner));
+      const row = owned.body.items.find((j: { title: string }) => j.title === "Counted");
+      // Two applied, one rejected — so one is still awaiting a decision.
+      expect(row.applications).toEqual({ total: 2, active: 1 });
+
+      const publicList = await request(app).get("/api/v1/job/get");
+      expect(
+        publicList.body.items.find((j: { title: string }) => j.title === "Counted").applications,
+      ).toBeUndefined();
+    });
+
+    it("reports zero rather than nothing for an owned job with no applicants", async () => {
+      // Absent would be indistinguishable from a public response, and the
+      // workspace reads `total` to decide whether Delete is available.
+      await postJob("Nobody Yet");
+      const res = await request(app)
+        .get("/api/v1/job/getadminjobs")
+        .use(asSession("recruiter", owner));
+      const row = res.body.items.find((j: { title: string }) => j.title === "Nobody Yet");
+      expect(row.applications).toEqual({ total: 0, active: 0 });
     });
   });
 });

@@ -11,6 +11,7 @@ import CompanyCreate from "@/components/workspace/CompanyCreate";
 import CompanyEdit from "@/components/workspace/CompanyEdit";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import JobCreate from "@/components/workspace/JobCreate";
+import JobEdit from "@/components/workspace/JobEdit";
 import Applicants from "@/components/workspace/Applicants";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
 import RequireApproved from "@/components/routing/RequireApproved";
@@ -154,6 +155,9 @@ export const appRoutes: RouteObject[] = [
       { path: "/hire/companies/:id", element: workspace(<CompanyEdit />) },
       { path: "/hire/jobs", element: workspace(<WorkspaceJobs />) },
       { path: "/hire/jobs/create", element: workspace(<JobCreate />) },
+      // After /create, so the static segment wins the match — same ordering the
+      // companies routes above rely on.
+      { path: "/hire/jobs/:id", element: workspace(<JobEdit />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
       // The admin console.
       //

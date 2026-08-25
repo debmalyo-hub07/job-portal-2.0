@@ -86,6 +86,7 @@ describe("the public job board", () => {
       "remote",
       "requirements",
       "salary",
+      "status",
       "title",
     ];
 
@@ -111,6 +112,10 @@ describe("the public job board", () => {
     for (const { cookies, keys, posterKeys } of cases) {
       const res = await request(app).get(`/api/v1/job/get/${job._id}`).set("Cookie", cookies);
       expect(res.status).toBe(200);
+      // `applications` is the count block, set only on the recruiter's own list:
+      // how many people applied to a rival's role is competitive information.
+      // The exact-key-set assertion below is what keeps it off a public response;
+      // this line names it so the reason survives a reader who adds a field.
       expect(res.body.job.applications).toBeUndefined();
       expect(Object.keys(res.body.job).sort()).toEqual(keys);
       expect(Object.keys(res.body.job.postedBy).sort()).toEqual(posterKeys);

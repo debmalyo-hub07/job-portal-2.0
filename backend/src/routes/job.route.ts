@@ -1,16 +1,42 @@
 import express from "express";
 import { authenticate, optionalAuthenticate } from "../middleware/authenticate.js";
 import { requireApproved } from "../middleware/requireApproved.js";
-import { postJob, getAllJobs, getJobById, getAdminJobs } from "../controllers/job.controller.js";
+import {
+  postJob,
+  getAllJobs,
+  getJobById,
+  getAdminJobs,
+  updateJob,
+  updateJobStatus,
+  deleteJob,
+} from "../controllers/job.controller.js";
 import { csrfProtection } from "../middleware/csrf.js";
 
 const router = express.Router();
 
 // Posting is the whole point of a recruiter account, so it is the gate that
-// matters most. There are no job update or delete routes to gate.
+// matters most. Every write below carries the same chain, and each names its
+// portal individually rather than mounting the middleware once on the router —
+// more typing, and it is what stops a route added later from being public by
+// omission.
 router
   .route("/post")
   .post(authenticate("recruiter"), requireApproved, csrfProtection(), postJob);
+// Partial update on PUT, matching /company/update/:id — the client already
+// speaks that shape. Ownership is resolved in the service, which answers 404 for
+// a foreign job so probing cannot distinguish it from a missing one.
+router
+  .route("/update/:id")
+  .put(authenticate("recruiter"), requireApproved, csrfProtection(), updateJob);
+// Close a filled role, or reopen one. Mirrors /application/status/:id/update.
+router
+  .route("/status/:id/update")
+  .post(authenticate("recruiter"), requireApproved, csrfProtection(), updateJobStatus);
+// Only ever succeeds for a posting nobody applied to; the service refuses the
+// rest with 409 rather than erasing what a candidate applied to.
+router
+  .route("/delete/:id")
+  .delete(authenticate("recruiter"), requireApproved, csrfProtection(), deleteJob);
 // Public: the job board and a job's detail page are the product's front door.
 // The inherited code required a session on both, so an anonymous visitor got a
 // 401 and the home page rendered "No Job Available". `optionalAuthenticate`

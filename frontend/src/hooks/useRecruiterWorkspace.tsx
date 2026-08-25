@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import type { ApplicantDto, CompanyDto, JobDto, PaginatedResponse } from "@jobportal/shared";
+import type {
+  ApplicantDto,
+  CompanyDto,
+  JobDto,
+  JobStatus,
+  PaginatedResponse,
+} from "@jobportal/shared";
 import { RECRUITER_SETTABLE } from "@jobportal/shared";
 
 import { apiClient } from "@/lib/apiClient";
@@ -145,6 +151,27 @@ export function useApplicants(jobId: string | undefined) {
   return { ...query, page, setPage };
 }
 
+/**
+ * One posted job, for the edit form.
+ *
+ * Reads the public detail route rather than a new owner-scoped one: the DTO
+ * already carries every field the form edits, and a second read path would be a
+ * second place for the shape to drift. Ownership is enforced where it matters —
+ * on the write, which answers 404 for a job the caller does not own.
+ */
+export function useJob(id: string | undefined) {
+  return useQuery({
+    queryKey: [...WORKSPACE_KEY, "job", id],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean; job: JobDto }>(`/job/get/${id}`, {
+        signal,
+      });
+      return res.data.job;
+    },
+    enabled: Boolean(id),
+  });
+}
+
 export function useJobCreate() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -154,6 +181,62 @@ export function useJobCreate() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "jobs"] });
+    },
+  });
+}
+
+export function useJobUpdate(id: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) => {
+      const res = await apiClient.put<{ success: boolean; job: JobDto }>(
+        `/job/update/${id}`,
+        body,
+      );
+      return res.data.job;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "jobs"] });
+      void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "job", id] });
+    },
+  });
+}
+
+/**
+ * Close a filled role, or reopen one.
+ *
+ * Invalidates the seeker-facing job queries too, because this is the one
+ * workspace mutation whose effect is visible outside the workspace: a closed
+ * role leaves the public board, and a cached board would go on offering it.
+ */
+export function useJobStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (change: { jobId: string; status: JobStatus }) => {
+      const res = await apiClient.post<{ success: boolean; job: JobDto }>(
+        `/job/status/${change.jobId}/update`,
+        { status: change.status },
+      );
+      return res.data.job;
+    },
+    onSuccess: (_job, change) => {
+      void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "jobs"] });
+      void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "job", change.jobId] });
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
+    },
+  });
+}
+
+/** Only ever succeeds for a posting nobody applied to; the API refuses the rest. */
+export function useJobDelete() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      await apiClient.delete(`/job/delete/${jobId}`);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...WORKSPACE_KEY, "jobs"] });
+      void queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }

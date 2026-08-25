@@ -3,7 +3,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { computeSeekerFit, type ApplicationStatus, type Portal } from "@jobportal/shared";
+import {
+  computeSeekerFit,
+  type ApplicationStatus,
+  type JobDto,
+  type Portal,
+} from "@jobportal/shared";
 import type { RouteObject } from "react-router";
 
 import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
@@ -15,6 +20,7 @@ import HireShell from "@/components/workspace/HireShell";
 import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import JobCreate from "@/components/workspace/JobCreate";
+import JobEdit from "@/components/workspace/JobEdit";
 import CompanyEdit from "@/components/workspace/CompanyEdit";
 import CompanyCreate from "@/components/workspace/CompanyCreate";
 import Applicants from "@/components/workspace/Applicants";
@@ -501,5 +507,289 @@ describe("workspace routes", () => {
   it("links only to paths the route table mounts", () => {
     const paths = mountedPaths();
     for (const link of navLinksFor("recruiter", "session")) expect(paths).toContain(link.to);
+  });
+});
+
+describe("the job lifecycle in the workspace", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const COMPANY = {
+    id: "64b0c8f2a9d3e45f6a7b8c9d",
+    name: "Acme Inc.",
+    description: null,
+    website: null,
+    location: "Pune",
+    logoUrl: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  function jobRow(overrides: Partial<JobDto> = {}): JobDto {
+    return {
+      id: "64b0c8f2a9d3e45f6a7b8c9e",
+      title: "TypeScript Dev",
+      description: "Build the portal",
+      requirements: ["ts", "node"],
+      salary: 18,
+      experienceLevel: 3,
+      location: "Remote",
+      jobType: "Full-time",
+      department: "Engineering",
+      position: "2",
+      remote: true,
+      status: "open",
+      company: COMPANY,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      postedBy: null,
+      applications: { total: 0, active: 0 },
+      ...overrides,
+    };
+  }
+
+  /** The owned-jobs list, resolved so the table renders rather than the alert. */
+  const withJobs = (...items: JobDto[]) =>
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, items, total: items.length, page: 1, pages: 1 },
+    } as never);
+
+  /**
+   * Opens a row's action menu.
+   *
+   * `userEvent`, not `fireEvent.click`: Radix opens on pointerdown, which the
+   * synthetic click never dispatches, so the menu simply never appears.
+   */
+  async function openRowMenu(title: string) {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: `Actions for ${title}` }));
+    return user;
+  }
+
+  it("shows an open role's status and offers Close", async () => {
+    withJobs(jobRow());
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    await openRowMenu("TypeScript Dev");
+
+    expect(await screen.findByRole("menuitem", { name: /close role/i })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /reopen role/i })).not.toBeInTheDocument();
+  });
+
+  it("offers Reopen on a closed role instead of Close", async () => {
+    // A closed role stays in this list. A recruiter who could no longer see one
+    // would have no way to reopen it, so closing would be indistinguishable from
+    // deleting — which is exactly what this menu must not imply.
+    withJobs(jobRow({ status: "closed" }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    await openRowMenu("TypeScript Dev");
+
+    expect(await screen.findByRole("menuitem", { name: /reopen role/i })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /^close role/i })).not.toBeInTheDocument();
+  });
+
+  it("renders a status badge with a label, never colour alone", async () => {
+    withJobs(jobRow({ status: "closed" }));
+    const { container } = renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    // WCAG 1.4.1: the badge carries the word "Closed" and an icon. A recruiter
+    // who cannot distinguish the tint still reads the state.
+    expect(await screen.findByText("Closed")).toBeInTheDocument();
+    expect(container.querySelector("[data-slot='badge'] svg")).not.toBeNull();
+  });
+
+  it("disables Delete and says why when candidates have applied", async () => {
+    withJobs(jobRow({ applications: { total: 4, active: 2 } }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    await openRowMenu("TypeScript Dev");
+
+    // Disabled rather than absent: a recruiter hunting for Delete has to learn
+    // that applicants are what prevents it, not that the control never existed.
+    const remove = await screen.findByRole("menuitem", { name: /cannot delete .* applied/i });
+    expect(remove).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("enables Delete for a posting nobody applied to", async () => {
+    withJobs(jobRow({ applications: { total: 0, active: 0 } }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    await openRowMenu("TypeScript Dev");
+
+    const remove = await screen.findByRole("menuitem", { name: /^delete TypeScript Dev$/i });
+    expect(remove).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("surfaces the candidates left waiting on a closed role", async () => {
+    withJobs(jobRow({ status: "closed", applications: { total: 5, active: 3 } }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    // The limbo has to be visible. Closing does not reject anyone, so without
+    // this the three of them wait on a decision for a role that has left the
+    // board and nothing on screen says so.
+    expect(await screen.findByText(/3 awaiting a decision/i)).toBeInTheDocument();
+  });
+
+  it("says so in the close dialog rather than only in the table", async () => {
+    withJobs(jobRow({ applications: { total: 5, active: 3 } }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    const user = await openRowMenu("TypeScript Dev");
+    await user.click(await screen.findByRole("menuitem", { name: /close role/i }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    // The consequence, stated before the click that causes it — and stated in
+    // the description, so a screen reader announces it with the title.
+    expect(dialog).toHaveTextContent(/leaves the job board/i);
+    expect(dialog).toHaveTextContent(/closing does not reject anyone/i);
+  });
+
+  it("asks before deleting, and names what will be deleted", async () => {
+    withJobs(jobRow({ title: "Posted By Mistake" }));
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    const user = await openRowMenu("Posted By Mistake");
+    await user.click(await screen.findByRole("menuitem", { name: /^delete Posted By Mistake$/i }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Posted By Mistake");
+    expect(dialog).toHaveTextContent(/cannot be undone/i);
+    // Cancel is reachable and does not perform the action.
+    expect(within(dialog).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  });
+
+  it("posts the opposite status when a close is confirmed", async () => {
+    withJobs(jobRow());
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { success: true, job: jobRow({ status: "closed" }) } } as never);
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+
+    const user = await openRowMenu("TypeScript Dev");
+    await user.click(await screen.findByRole("menuitem", { name: /close role/i }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: /close role/i }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/job/status/64b0c8f2a9d3e45f6a7b8c9e/update", {
+        status: "closed",
+      }),
+    );
+  });
+
+  it("does nothing when the close dialog is cancelled", async () => {
+    withJobs(jobRow());
+    const post = vi.spyOn(apiClient, "post");
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+
+    const user = await openRowMenu("TypeScript Dev");
+    await user.click(await screen.findByRole("menuitem", { name: /close role/i }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("routes Edit job to the job's own page, not the company's", async () => {
+    // The only edit this menu offered was "Edit company" — a recruiter looking
+    // for the job's own fields was sent to the employer record instead.
+    withJobs(jobRow());
+    renderRoute(<WorkspaceJobs />, { route: "/hire/jobs" });
+    await openRowMenu("TypeScript Dev");
+    expect(await screen.findByRole("menuitem", { name: /edit job/i })).toBeInTheDocument();
+  });
+});
+
+describe("JobEdit", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const JOB: JobDto = {
+    id: "64b0c8f2a9d3e45f6a7b8c9e",
+    title: "Senior Platform Engineer",
+    description: "Own the deploy pipeline",
+    requirements: ["ts", "terraform"],
+    salary: 32,
+    experienceLevel: 6,
+    location: "Bengaluru",
+    jobType: "Full-time",
+    department: "Engineering",
+    position: "1",
+    remote: false,
+    status: "open",
+    company: {
+      id: "64b0c8f2a9d3e45f6a7b8c9d",
+      name: "Acme Inc.",
+      description: null,
+      website: null,
+      location: "Pune",
+      logoUrl: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+    createdAt: "2026-08-01T00:00:00.000Z",
+    postedBy: null,
+  };
+
+  const mountAt = () =>
+    renderRoute(<JobEdit />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9e",
+      // Explicit: renderRoute defaults `path` to `route`, so a parameterised URL
+      // passed as a route pattern matches nothing and renders no page.
+      path: "/hire/jobs/:id",
+    });
+
+  /** Both the job read and the companies read go through apiClient.get. */
+  const withJob = (job: JobDto = JOB) =>
+    vi.spyOn(apiClient, "get").mockImplementation(((url: string) =>
+      url.startsWith("/job/get")
+        ? Promise.resolve({ data: { success: true, job } })
+        : Promise.resolve({ data: { success: true, companies: [job.company] } })) as never);
+
+  it("reports a failed load in an alert rather than an empty form", async () => {
+    mountAt();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("prefills every field from the fetched job", async () => {
+    withJob();
+    mountAt();
+
+    expect(await screen.findByLabelText(/^Title/)).toHaveValue("Senior Platform Engineer");
+    expect(screen.getByLabelText(/^Salary/)).toHaveValue(32);
+    expect(screen.getByLabelText(/^Experience/)).toHaveValue(6);
+    expect(screen.getByLabelText(/^Location/)).toHaveValue("Bengaluru");
+    expect(screen.getByLabelText("Department")).toHaveValue("Engineering");
+    // The array comes back as the comma-string the form and the API both speak,
+    // so an edit round trip cannot quietly reshape the field.
+    expect(screen.getByLabelText(/^Requirements/)).toHaveValue("ts, terraform");
+    expect(screen.getByLabelText("This role is remote")).not.toBeChecked();
+  });
+
+  it("locks the employer and explains why", async () => {
+    withJob();
+    mountAt();
+    const picker = await screen.findByLabelText(/^Company/);
+    // Moving a posting between employers would rewrite who each existing
+    // applicant applied to. Disabled and explained, not hidden — a missing
+    // control reads as an oversight.
+    expect(picker).toBeDisabled();
+    expect(screen.getByText(/employer cannot change/i)).toBeInTheDocument();
+  });
+
+  it("never sends companyId, which the strict schema would reject", async () => {
+    withJob();
+    const put = vi
+      .spyOn(apiClient, "put")
+      .mockResolvedValue({ data: { success: true, job: JOB } } as never);
+    mountAt();
+
+    const title = await screen.findByLabelText(/^Title/);
+    fireEvent.change(title, { target: { value: "Staff Platform Engineer" } });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => expect(put).toHaveBeenCalled());
+    const [url, body] = put.mock.calls[0] as [string, Record<string, unknown>];
+    expect(url).toBe("/job/update/64b0c8f2a9d3e45f6a7b8c9e");
+    expect(body.title).toBe("Staff Platform Engineer");
+    expect(body).not.toHaveProperty("companyId");
+    // The boolean is sent as the string form the schema's enum expects.
+    expect(body.remote).toBe("false");
+  });
+
+  it("tells the recruiter when the role they are editing is off the board", async () => {
+    withJob({ ...JOB, status: "closed" });
+    mountAt();
+    // A closed role stays editable, so the badge is the only thing that says the
+    // posting being corrected is not currently visible to candidates.
+    expect(await screen.findByText("Closed")).toBeInTheDocument();
   });
 });

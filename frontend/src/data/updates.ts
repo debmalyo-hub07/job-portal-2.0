@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "job-lifecycle",
+    date: "2026-08-25",
+    kind: "Feature",
+    title: "Recruiters can correct, close and remove a posting",
+    summary:
+      "A role can be edited after it goes up, closed once it is filled, and deleted if it was posted by mistake — without disturbing anyone who already applied.",
+    details: [
+      "A filled role leaves the job board and stops accepting applications, while the candidates already in the pipeline stay exactly where they are.",
+      "Closing is reversible, and the workspace shows how many candidates are still waiting on a decision.",
+      "A posting people have applied to can be closed but never deleted, so no candidate loses the record of having applied.",
+    ],
+  },
+  {
     id: "application-pipeline",
     date: "2026-08-25",
     kind: "Feature",

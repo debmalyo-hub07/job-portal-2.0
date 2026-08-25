@@ -4,6 +4,8 @@ import {
   companyCreateBodySchema,
   jobCreateBodySchema,
   jobListQuerySchema,
+  jobStatusBodySchema,
+  jobUpdateBodySchema,
   objectIdSchema,
   profileUpdateBodySchema,
 } from "../src/domain.js";
@@ -49,6 +51,96 @@ describe("domain schemas", () => {
     for (const status of ["applied", "withdrawn", "pending", "accepted"]) {
       expect(applicationStatusBodySchema.safeParse({ status }).success).toBe(false);
     }
+  });
+
+  it("job status accepts both lifecycle values and nothing else", () => {
+    expect(jobStatusBodySchema.parse({ status: "open" }).status).toBe("open");
+    expect(jobStatusBodySchema.parse({ status: "closed" }).status).toBe("closed");
+    // "draft" and "archived" are the two a reader would assume exist. Neither
+    // does, and accepting one would store a value no filter reads.
+    for (const status of ["draft", "archived", "filled", ""]) {
+      expect(jobStatusBodySchema.safeParse({ status }).success).toBe(false);
+    }
+  });
+});
+
+/**
+ * The job edit contract.
+ *
+ * Per-field rather than one round trip of a full object, for the reason spelled
+ * out on `profileUpdateBodySchema` below: the defect this guards against is a
+ * *missing* key, and an object literal asserting nine keys still passes when a
+ * tenth is dropped from the schema. An unwritable field on an edit form is
+ * silent — the control renders, the value posts, and the API drops it.
+ */
+describe("jobUpdateBodySchema", () => {
+  const EDITABLE = [
+    "title",
+    "description",
+    "requirements",
+    "salary",
+    "experience",
+    "location",
+    "jobType",
+    "department",
+    "position",
+    "remote",
+  ];
+
+  it.each(EDITABLE)("carries %s, which the edit form renders", (field) => {
+    expect(Object.keys(jobUpdateBodySchema.shape)).toContain(field);
+  });
+
+  it("covers every field a job is created with, except the company", () => {
+    // Derived from the create schema rather than listed twice: a field added to
+    // job creation and forgotten here would otherwise be uneditable forever,
+    // and nothing would say so.
+    const creatable = Object.keys(jobCreateBodySchema.shape).filter((k) => k !== "companyId");
+    expect(Object.keys(jobUpdateBodySchema.shape).sort()).toEqual(creatable.sort());
+  });
+
+  /**
+   * The employer is not editable, and `.strict()` is what enforces it.
+   *
+   * Without the strict flag an unknown key is stripped, so a client sending
+   * `companyId` would get a 200 and no change — the posting would look moved
+   * until the page reloaded. A 400 says what actually happened.
+   */
+  it("refuses companyId rather than ignoring it", () => {
+    expect(Object.keys(jobUpdateBodySchema.shape)).not.toContain("companyId");
+    const result = jobUpdateBodySchema.safeParse({
+      title: "Still fine",
+      companyId: "64b0c8f2a9d3e45f6a7b8c9d",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a single field on its own", () => {
+    // A form posts only what changed, so every field has to be independently
+    // sufficient. An accidental `.required()` anywhere breaks every partial edit.
+    expect(jobUpdateBodySchema.parse({ salary: "18" })).toEqual({ salary: 18 });
+    expect(jobUpdateBodySchema.parse({})).toEqual({});
+  });
+
+  it("normalises the same way the create schema does", () => {
+    const parsed = jobUpdateBodySchema.parse({
+      requirements: "ts, node ,",
+      salary: "12",
+      experience: "3",
+      remote: "on",
+    });
+    // Comma-string in, array out — matching `jobCreateBodySchema`, so an edit
+    // round trip through the form cannot quietly reshape the field.
+    expect(parsed.requirements).toEqual(["ts", "node"]);
+    expect(parsed.salary).toBe(12);
+    expect(parsed.experience).toBe(3);
+    expect(parsed.remote).toBe(true);
+  });
+
+  it("bounds the numbers exactly as creation does", () => {
+    expect(jobUpdateBodySchema.safeParse({ salary: "0" }).success).toBe(false);
+    expect(jobUpdateBodySchema.safeParse({ experience: "51" }).success).toBe(false);
+    expect(jobUpdateBodySchema.safeParse({ jobType: "Freelance" }).success).toBe(false);
   });
 });
 

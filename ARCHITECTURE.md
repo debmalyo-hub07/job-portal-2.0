@@ -218,6 +218,30 @@ repeated status is a 409 rather than a silent no-op, so a double-submit cannot
 append a second history entry or send a second email. Each transition appends to
 an append-only `history` array, which is what the candidate's timeline renders.
 
+A **job** has a lifecycle of its own: `open`, or `closed` once the role is filled.
+Closing removes the posting from the public board and refuses new applications
+with a 409, and is reversible — the same mis-click argument that allows backward
+application transitions. It deliberately does *not* touch the applicants already
+in the pipeline: a role is closed because someone was hired, and the remaining
+candidates still need decisions, so the recruiter's applicant list keeps working
+on a closed job and the workspace shows how many are still awaiting one. A closed
+job also stays resolvable at `GET /job/get/:id`, because a candidate who applied
+holds that link in their own applied-jobs list.
+
+The board filter is `status: { $ne: "closed" }` and never `status: "open"`. Mongo
+does not match a missing field against an equality, so the equality form would
+hide every row written before the field existed — the whole seeded catalogue, on
+deploy, silently. `toJobDto` reads `doc.status ?? "open"` for the same reason,
+mirroring `department ?? "Other"`. Both are wrapped in `mongoose.trusted`, since
+the global `sanitizeFilter` reads a bare `$ne` as a literal value. The field is
+kept out of the compound index: `$ne` cannot serve as an index prefix and its
+selectivity is near zero.
+
+Deleting a job is refused once any application exists (409
+`JOB_HAS_APPLICATIONS`), gated on the total rather than the active count — a
+rejected candidate's record matters as much as a live one's. Closing is the answer
+for a role with history; delete exists for a posting made by mistake.
+
 There is deliberately no `requireRole` step. With three account collections the
 collection *is* the role: a token issued from the seeker portal cannot address a
 recruiter route, so a separate role field would be redundant state able to drift

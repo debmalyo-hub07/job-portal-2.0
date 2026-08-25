@@ -4,12 +4,18 @@ import type {
   JobDto,
   JobListQuery,
   JobPosterDto,
+  JobStatus,
+  JobUpdateBody,
   OwnedJobsQuery,
   PaginatedResponse,
   PaginationQuery,
 } from "@jobportal/shared";
+import { TERMINAL_STATUSES } from "@jobportal/shared";
 import { Job, type JobDocument } from "../models/job.model.js";
 import { Company } from "../models/company.model.js";
+// The model, not the application service: a job owning a count of its own
+// applications must not make the two services import each other.
+import { Application } from "../models/application.model.js";
 import type { CompanyDocument } from "../models/company.model.js";
 import type { RecruiterDocument } from "../models/recruiter.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
@@ -97,6 +103,10 @@ export function toJobDto(doc: PopulatedJob, viewer: FitViewer = null): JobDto {
     department: doc.department ?? "Other",
     position: doc.position,
     remote: doc.remote ?? false,
+    // A row written before the field existed reads as open, the same reading the
+    // board's `$ne` filter gives it. `department` above does this for the same
+    // reason.
+    status: (doc.status as JobStatus | undefined) ?? "open",
     company: doc.company ? toCompanyDto(doc.company) : null,
     createdAt: (doc as { createdAt?: Date }).createdAt?.toISOString() ?? "",
     // `viewer` is non-null only for an authenticated seeker, so it doubles as
@@ -135,10 +145,52 @@ export async function createJob(ownerId: string, body: JobCreateBody): Promise<J
   return toJobDto(populated);
 }
 
+/**
+ * How many candidates applied to each of these jobs, and how many are still live.
+ *
+ * One aggregation for the whole page, never a count per row — the same rule the
+ * `created_by` populate below follows. Returned as a Map so a job with no
+ * applications is simply absent rather than needing a zero row.
+ */
+async function countApplicationsByJob(
+  jobIds: unknown[],
+): Promise<Map<string, { total: number; active: number }>> {
+  if (jobIds.length === 0) return new Map();
+  const rows = await Application.aggregate<{
+    _id: unknown;
+    total: number;
+    active: number;
+  }>([
+    { $match: { job: { $in: jobIds } } },
+    {
+      $group: {
+        _id: "$job",
+        total: { $sum: 1 },
+        // "Active" is the complement of the terminal set rather than a list of
+        // active stages, so a stage added to the pipeline counts as active
+        // without this query being touched — and a legacy row with no status at
+        // all counts too, which a positive list would silently drop.
+        active: {
+          $sum: {
+            $cond: [{ $in: [{ $ifNull: ["$status", "applied"] }, TERMINAL_STATUSES] }, 0, 1],
+          },
+        },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), { total: r.total, active: r.active }]));
+}
+
 async function paginate(
   filter: Record<string, unknown>,
   { page, limit }: PaginationQuery,
   viewer: FitViewer = null,
+  /**
+   * Attach per-job application counts. Owner-only: a count on a public job is
+   * competitive information, so this defaults off and `listPublicJobs` never
+   * turns it on.
+   */
+  withCounts = false,
 ): Promise<PaginatedResponse<JobDto>> {
   const [total, jobs] = await Promise.all([
     Job.countDocuments(filter),
@@ -153,9 +205,17 @@ async function paginate(
       // otherwise be a read per job.
       .populate("created_by", POSTER_FIELDS),
   ]);
+  const counts = withCounts ? await countApplicationsByJob(jobs.map((j) => j._id)) : null;
   return {
     // Newest first, unscored: sorting by fit here would rank this page only.
-    items: jobs.map((j) => toJobDto(j as unknown as PopulatedJob, viewer)),
+    items: jobs.map((j) => {
+      const dto = toJobDto(j as unknown as PopulatedJob, viewer);
+      // Present-and-zero rather than absent for a job nobody applied to: the
+      // workspace reads `total` to decide whether Delete is available, and an
+      // absent key there would be indistinguishable from a public response.
+      if (counts) dto.applications = counts.get(String(j._id)) ?? { total: 0, active: 0 };
+      return dto;
+    }),
     total,
     page,
     pages: Math.ceil(total / limit),
@@ -170,7 +230,15 @@ export async function listPublicJobs(
   // facets. Each clause is an additive equality/range the compound index
   // `{location, jobType, experienceLevel, salary}` covers; the keyword regex
   // (title/description substring) stays the exception that 4A.4 preserved.
-  const filter: Record<string, unknown> = {};
+  //
+  // `$ne` and not `{ status: "open" }`. Mongo does not match a missing field
+  // against an equality, so the equality form would hide every job written
+  // before the field existed — 198 rows in production, i.e. the entire board.
+  // `mongoose.trusted` is required because the global `sanitizeFilter` reads a
+  // bare `$ne` object as a literal value to compare against.
+  const filter: Record<string, unknown> = {
+    status: mongoose.trusted({ $ne: "closed" }),
+  };
 
   const split = (s: string) => s.split(",").map((v) => v.trim()).filter(Boolean);
   const locations = split(query.location);
@@ -250,7 +318,10 @@ export async function listOwnedJobs(
     filter.$or = [{ title: re }, { description: re }];
   }
 
-  return paginate(filter, query);
+  // No status filter: a recruiter must keep seeing the roles they closed, or
+  // closing one would look like deleting it. Counts are on, because this list
+  // is where Close and Delete are offered and both depend on them.
+  return paginate(filter, query, null, true);
 }
 
 /** The owned job document, for services that need more than an existence check. */
@@ -263,12 +334,103 @@ export async function getOwnedJob(
   return job;
 }
 
-/** Missing and foreign are indistinguishable by design: both 404. */
-export async function assertJobOwned(ownerId: string, jobId: string): Promise<void> {
-  const job = await Job.findOne({ _id: jobId, created_by: ownerId }).select("_id");
+/**
+ * The job is real and still accepting applications.
+ *
+ * Replaces `jobExists`, whose single caller was `applyToJob` — an existence
+ * check alone cannot tell a live role from a filled one, so a closed job kept
+ * taking applications.
+ */
+export async function assertJobOpen(jobId: string): Promise<void> {
+  const job = await Job.findById(jobId).select("status");
   if (!job) throw notFound();
+  if (job.status === "closed") {
+    throw AppError.conflict("JOB_CLOSED", "This role is no longer accepting applications");
+  }
 }
 
-export async function jobExists(jobId: string): Promise<boolean> {
-  return (await Job.exists({ _id: jobId })) !== null;
+/**
+ * Correct a posted job.
+ *
+ * Only the fields present in the body are written, so a form that posts what it
+ * renders cannot blank what it does not. `experience` is the request's name for
+ * `experienceLevel`, exactly as in `createJob`; the company is absent from the
+ * schema entirely and so cannot arrive here.
+ */
+export async function updateJob(
+  ownerId: string,
+  jobId: string,
+  body: JobUpdateBody,
+): Promise<JobDto> {
+  const job = await getOwnedJob(ownerId, jobId);
+
+  if (body.title !== undefined) job.title = body.title;
+  if (body.description !== undefined) job.description = body.description;
+  if (body.requirements !== undefined) job.requirements = body.requirements;
+  if (body.salary !== undefined) job.salary = body.salary;
+  if (body.experience !== undefined) job.experienceLevel = body.experience;
+  if (body.location !== undefined) job.location = body.location;
+  if (body.jobType !== undefined) job.jobType = body.jobType;
+  if (body.department !== undefined) job.department = body.department;
+  if (body.position !== undefined) job.position = body.position;
+  if (body.remote !== undefined) job.remote = body.remote;
+
+  await job.save();
+  const populated = (await job.populate([
+    { path: "company" },
+    { path: "created_by", select: POSTER_FIELDS },
+  ])) as unknown as PopulatedJob;
+  return toJobDto(populated);
+}
+
+/**
+ * Close a filled role, or reopen one closed by mistake.
+ *
+ * Reopening is allowed for the same reason the application pipeline allows
+ * backward moves: without it, closing the wrong role means retyping it.
+ *
+ * A repeated status is a conflict rather than a successful no-op. The status a
+ * legacy row does not have reads as "open", so `?? "open"` is what makes
+ * "reopen an already-open job" refuse rather than silently succeed.
+ */
+export async function setJobStatus(
+  ownerId: string,
+  jobId: string,
+  status: JobStatus,
+): Promise<JobDto> {
+  const job = await getOwnedJob(ownerId, jobId);
+  if ((job.status ?? "open") === status) {
+    throw AppError.conflict("STATUS_UNCHANGED", `This role is already ${status}`);
+  }
+  job.status = status;
+  await job.save();
+  const populated = (await job.populate([
+    { path: "company" },
+    { path: "created_by", select: POSTER_FIELDS },
+  ])) as unknown as PopulatedJob;
+  return toJobDto(populated);
+}
+
+/**
+ * Delete a posting nobody applied to.
+ *
+ * Refused once an application exists, because the row a candidate sees in their
+ * own applied-jobs list resolves through this job — deleting it would leave them
+ * with an application to something the platform will not name. `AppliedJobDto.job`
+ * is nullable and would degrade rather than crash, which is precisely what makes
+ * the erasure quiet.
+ *
+ * The check is a count rather than a cascade: closing is the answer for a role
+ * with history, and it keeps every applicant's record intact.
+ */
+export async function deleteJob(ownerId: string, jobId: string): Promise<void> {
+  const job = await getOwnedJob(ownerId, jobId);
+  const applications = await Application.countDocuments({ job: job._id });
+  if (applications > 0) {
+    throw AppError.conflict(
+      "JOB_HAS_APPLICATIONS",
+      "Candidates have applied to this role, so it can be closed but not deleted",
+    );
+  }
+  await job.deleteOne();
 }

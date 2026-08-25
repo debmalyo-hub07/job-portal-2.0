@@ -11,7 +11,7 @@ import { notifiesSeeker, transitionRefusal } from "@jobportal/shared";
 import { Application, type ApplicationDocument } from "../models/application.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
-import { getOwnedJob, jobExists, toJobDto } from "./job.service.js";
+import { assertJobOpen, getOwnedJob, toJobDto } from "./job.service.js";
 import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
@@ -30,9 +30,10 @@ function isDuplicateKey(err: unknown): boolean {
 }
 
 export async function applyToJob(seekerId: string, jobId: string): Promise<void> {
-  if (!(await jobExists(jobId))) {
-    throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
-  }
+  // Existence *and* still open. A closed role that kept accepting applications
+  // was the other half of the missing lifecycle: the recruiter had filled the
+  // job and candidates went on applying to it.
+  await assertJobOpen(jobId);
   try {
     // The first history entry is written here rather than derived later: a
     // timeline that starts at the first *decision* would show an application
@@ -222,8 +223,12 @@ export async function updateApplicationStatus(
   );
   if (!application) throw applicationNotFound();
 
-  // assertJobOwned throws JOB_NOT_FOUND; normalized here so a foreign
+  // getOwnedJob throws JOB_NOT_FOUND; normalized here so a foreign
   // application answers exactly as a missing one does.
+  //
+  // Deliberately no open/closed check: you close a role because you hired
+  // someone, and you still have to reject everyone else. Closing changes what
+  // the board does, not what the applicant list can do.
   let job;
   try {
     job = await getOwnedJob(recruiterId, String(application.job));

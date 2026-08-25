@@ -1,4 +1,5 @@
 import { Schema, type InferSchemaType, type Model } from "mongoose";
+import { JOB_STATUSES } from "@jobportal/shared";
 import { defineModel } from "./defineModel.js";
 
 const jobSchema = new Schema(
@@ -48,6 +49,18 @@ const jobSchema = new Schema(
     remote: {
       type: Boolean,
       default: false,
+    },
+    // A posting is open, or the role is filled and it has left the board.
+    //
+    // Rows written before this field existed have no field at all, and every
+    // read treats that as open. That is why the board filters with
+    // `$ne: "closed"` and never with equality on "open": Mongo does not match a
+    // missing field against an equality, so the latter would hide every job
+    // posted before this shipped — 198 of them in production.
+    status: {
+      type: String,
+      enum: JOB_STATUSES,
+      default: "open",
     },
     company: {
       type: Schema.Types.ObjectId,

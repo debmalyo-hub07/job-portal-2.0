@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import {
   jobCreateBodySchema,
   jobListQuerySchema,
+  jobStatusBodySchema,
+  jobUpdateBodySchema,
   objectIdSchema,
   ownedJobsQuerySchema,
 } from "@jobportal/shared";
@@ -46,4 +48,26 @@ export const getAdminJobs = async (req: Request, res: Response): Promise<void> =
   const query = parseBody(ownedJobsQuerySchema, req.query);
   const result = await jobService.listOwnedJobs(req.auth!.id, query);
   res.status(200).json({ success: true, ...result });
+};
+
+export const updateJob = async (req: Request, res: Response): Promise<void> => {
+  const id = parseBody(objectIdSchema, req.params.id);
+  const body = parseBody(jobUpdateBodySchema, req.body);
+  const job = await jobService.updateJob(req.auth!.id, id, body);
+  res.status(200).json({ success: true, job });
+};
+
+export const updateJobStatus = async (req: Request, res: Response): Promise<void> => {
+  const id = parseBody(objectIdSchema, req.params.id);
+  const { status } = parseBody(jobStatusBodySchema, req.body);
+  const job = await jobService.setJobStatus(req.auth!.id, id, status);
+  res.status(200).json({ success: true, job });
+};
+
+export const deleteJob = async (req: Request, res: Response): Promise<void> => {
+  const id = parseBody(objectIdSchema, req.params.id);
+  await jobService.deleteJob(req.auth!.id, id);
+  // 200 with a body rather than 204: the client toasts on success, and an empty
+  // response is indistinguishable from a request that never arrived.
+  res.status(200).json({ success: true });
 };

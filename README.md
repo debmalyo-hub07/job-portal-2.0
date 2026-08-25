@@ -556,6 +556,7 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | 2B-4 | Navigation and informational surfaces: about, contact, help, legal | Complete |
 | Auth fixes | `/hire` landing restored as a public page, admin door controls, password reveal on every form, Google mark + pending state | Complete |
 | 3 | Application status pipeline: seven stages, candidate timeline, withdraw, status emails | Complete |
+| 3 | Job lifecycle: edit a posting, close a filled role, delete an unapplied one | Complete |
 | 3 | Saved jobs | Planned |
 | 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
 

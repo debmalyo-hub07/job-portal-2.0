@@ -31,6 +31,21 @@ export const JOB_DEPARTMENTS = [
   "Legal & Compliance",
   "Other",
 ] as const;
+/**
+ * A posting is open, or the role is filled and it has left the board.
+ *
+ * Two values, deliberately: "draft" would be a third state nothing can reach,
+ * since a job is public the moment it is posted, and inventing it would put an
+ * unreachable branch in every filter that reads this field.
+ *
+ * The absence of this field is not a third state either — it means "written
+ * before the field existed", and the board reads it as open. Anything that
+ * filters on it must therefore exclude `closed` rather than select `open`:
+ * Mongo does not match a missing field against an equality, so
+ * `{ status: "open" }` would hide every row posted before this shipped. The
+ * board filter in `job.service.ts` is `$ne` for exactly that reason.
+ */
+export const JOB_STATUSES = ["open", "closed"] as const;
 export const APPLICATION_STATUSES = [
   "applied",
   "reviewed",
@@ -52,9 +67,11 @@ export const PORTALS: readonly Portal[] = Object.freeze([...portalSchema.options
 export const jobTypeSchema = z.enum(JOB_TYPES);
 export const workModeSchema = z.enum(WORK_MODES);
 export const jobDepartmentSchema = z.enum(JOB_DEPARTMENTS);
+export const jobStatusSchema = z.enum(JOB_STATUSES);
 export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
 
 export type JobType = z.infer<typeof jobTypeSchema>;
 export type WorkMode = z.infer<typeof workModeSchema>;
 export type JobDepartment = z.infer<typeof jobDepartmentSchema>;
+export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;

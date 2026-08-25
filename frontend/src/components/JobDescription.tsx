@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, CircleSlash, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
@@ -104,6 +104,9 @@ const JobDescription = () => {
   const posted = singleJob.createdAt
     ? dateFormatter.format(new Date(singleJob.createdAt))
     : "Recently";
+  // `?? "open"` for the same reason the API filters on `$ne "closed"`: a job row
+  // written before the field existed carries no status, and it is open.
+  const closed = (singleJob.status ?? "open") === "closed";
 
   return (
     <PageShell width="wide" motion="standard" className="pt-8">
@@ -163,15 +166,38 @@ const JobDescription = () => {
         </div>
 
         <aside className="rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)] lg:sticky lg:top-24">
-          <Button
-            onClick={isApplied ? undefined : applyJobHandler}
-            disabled={isApplied}
-            variant={isApplied ? "secondary" : "signal"}
-            size="lg"
-            className="w-full"
-          >
-            {isApplied ? "Application sent" : "Apply for this role"}
-          </Button>
+          {/*
+            A closed role is still reachable by URL — a candidate who applied has
+            this link in their applied-jobs list, so 404ing it would break their
+            own record. What changes is the control: the API answers 409
+            JOB_CLOSED, and a live Apply button that can only fail is worse than
+            no button. The applied state still wins, because "you applied to this"
+            is the more useful thing to know about a role that has since closed.
+          */}
+          {closed && !isApplied ? (
+            <div className="rounded-surface border border-line-strong bg-paper-sunken p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <CircleSlash aria-hidden="true" className="size-4 shrink-0" />
+                This role is closed
+              </p>
+              <p className="mt-2 text-sm leading-6 text-ink-muted">
+                The team has stopped accepting applications. Browse open roles instead.
+              </p>
+              <Button asChild variant="outline" className="mt-4 w-full">
+                <Link to="/jobs">See open roles</Link>
+              </Button>
+            </div>
+          ) : (
+            <Button
+              onClick={isApplied ? undefined : applyJobHandler}
+              disabled={isApplied}
+              variant={isApplied ? "secondary" : "signal"}
+              size="lg"
+              className="w-full"
+            >
+              {isApplied ? "Application sent" : "Apply for this role"}
+            </Button>
+          )}
 
           <dl className="mt-6 divide-y divide-line border-t border-line">
             <div className="flex gap-3 py-4">

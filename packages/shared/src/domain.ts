@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { jobDepartmentSchema, jobTypeSchema, type ApplicationStatus } from "./enums.js";
+import { jobDepartmentSchema, jobTypeSchema, type ApplicationStatus, type JobStatus, JOB_STATUSES } from "./enums.js";
 import { RECRUITER_SETTABLE } from "./applicationStatus.js";
 import type { Portal } from "./auth.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
@@ -89,6 +89,46 @@ export const ownedJobsQuerySchema = paginationQuerySchema.extend({
 });
 
 /**
+ * What a recruiter may update on a posted job.
+ *
+ * Every field is optional — the endpoint is PATCH-style, and a caller sends
+ * only the changed fields. `companyId` is intentionally absent: changing the
+ * company rewrites who each existing applicant applied to and swaps the logo
+ * on their record. Sending it is a 400 from `.strict()`, not a silent no-op.
+ */
+export const jobUpdateBodySchema = z
+  .object({
+    title: z.string().trim().min(2).max(120).optional(),
+    description: z.string().trim().min(2).max(5000).optional(),
+    requirements: z
+      .string()
+      .max(2000)
+      .transform((s) => s.split(",").map((t) => t.trim()).filter(Boolean))
+      .optional(),
+    salary: z.coerce.number().positive().optional(),
+    experience: z.coerce.number().int().min(0).max(50).optional(),
+    location: z.string().trim().min(2).max(120).optional(),
+    jobType: jobTypeSchema.optional(),
+    department: jobDepartmentSchema.optional(),
+    position: z.string().trim().min(1).max(120).optional(),
+    remote: z
+      .enum(["true", "false", "1", "0", "on"])
+      .transform((v) => v === "true" || v === "1" || v === "on")
+      .optional(),
+  })
+  .strict();
+
+/**
+ * What a recruiter may set as a job lifecycle status.
+ *
+ * Mirroring `applicationStatusBodySchema`: derived from the shared enum, so the
+ * schema cannot drift from the list of values the model accepts.
+ */
+export const jobStatusBodySchema = z.object({
+  status: z.enum(JOB_STATUSES),
+}).strict();
+
+/**
  * What a recruiter may set on an application.
  *
  * Derived from `RECRUITER_SETTABLE`, so the schema cannot drift from the state
@@ -106,6 +146,8 @@ export type JobCreateBody = z.infer<typeof jobCreateBodySchema>;
 export type JobListQuery = z.infer<typeof jobListQuerySchema>;
 export type OwnedJobsQuery = z.infer<typeof ownedJobsQuerySchema>;
 export type ApplicationStatusBody = z.infer<typeof applicationStatusBodySchema>;
+export type JobUpdateBody = z.infer<typeof jobUpdateBodySchema>;
+export type JobStatusBody = z.infer<typeof jobStatusBodySchema>;
 
 export type CompanyDto = {
   id: string;
@@ -155,6 +197,34 @@ export type JobDto = {
   remote: boolean;
   company: CompanyDto | null;
   createdAt: string;
+  /**
+   * Whether the role is still accepting applications.
+   *
+   * NOT optional: every path that builds a JobDto must set this field, for the
+   * same reason `postedBy` is not optional. A missing field is
+   * indistinguishable from a legacy row. The board filter is `$ne "closed"`
+   * rather than equality on "open", so a row written before this field existed
+   * still appears — and this field is what lets the seeker know whether to
+   * show the Apply control at all.
+   *
+   * Legacy rows have no stored status; they read as "open" at `toJobDto` via
+   * `doc.status ?? "open"`, matching the board's filter behaviour.
+   */
+  status: JobStatus;
+  /**
+   * How many candidates have applied and how many are still mid-pipeline.
+   *
+   * Optional: set only on the recruiter's own list, exactly as `fit` is set
+   * only for a seeker. An applicant count on a public job is competitive
+   * information — one of the things `publicJobs.test.ts` guards against.
+   *
+   * Two numbers, not one, because `total > 0` gates the Delete action while
+   * `active` (the non-terminal count) is the limbo figure the workspace shows
+   * on a closed role. A job with five rejected applicants has zero active and
+   * still must not be deleted.
+   */
+  applications?: { total: number; active: number };
+
   /**
    * Phase 5: how this job scores against the *viewing seeker's* profile.
    *
