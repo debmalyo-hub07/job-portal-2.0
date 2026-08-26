@@ -18,6 +18,11 @@ export interface SessionUser {
   emailVerified: boolean;
   avatarUrl: string | null;
   status: AccountStatus;
+  /**
+   * Whether the account has cleared the identity gate. Derived server-side from
+   * `dob`; the client must not recompute it, or there are two sources of truth.
+   */
+  profileComplete: boolean;
 }
 
 export interface AuthResponse {

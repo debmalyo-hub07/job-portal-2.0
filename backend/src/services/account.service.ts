@@ -24,6 +24,27 @@ export function accountModel(portal: Portal): Model<AccountDocument> {
 }
 
 /**
+ * Derived, never stored. A persisted boolean drifts the moment anything writes
+ * `dob` by another path — and there are two such paths (the completion endpoint
+ * and the profile update).
+ *
+ * Admin is ungated by decision: nothing in the platform reads an admin's DOB,
+ * and the one account that can unblock every other account must not depend on a
+ * new middleware being correct.
+ */
+export function isProfileComplete(
+  portal: Portal,
+  account: { dob?: Date | null },
+): boolean {
+  if (portal === "admin") return true;
+  // `undefined` as well as null, and deliberately fail-closed on it. Mongoose
+  // types a `default: null` Date as possibly-undefined, and a query that
+  // projected `dob` away would hand us undefined at runtime — which must read
+  // as "not proven complete", never as "complete". `!= null` covers both.
+  return account.dob != null;
+}
+
+/**
  * `withSecret` is the only way to read `passwordHash`, which the schema marks
  * `select: false`. Exactly three call sites need it — login, password reset, and
  * Google identity resolution — and each is a credential comparison. A fourth is

@@ -12,6 +12,7 @@ import {
   accountModel,
   findAccountByEmail,
   findAccountById,
+  isProfileComplete,
   type AccountDocument,
 } from "./account.service.js";
 import { revokeAllForSubject } from "./session.service.js";
@@ -581,5 +582,6 @@ export function toSessionUser(portal: Portal, account: AccountDoc): SessionUser 
     // Without this the client has a session it cannot explain — an empty
     // workspace and no reason for it.
     status: account.status as AccountStatus,
+    profileComplete: isProfileComplete(portal, account),
   };
 }

@@ -1,4 +1,5 @@
 import { Schema } from "mongoose";
+import { GENDERS } from "@jobportal/shared";
 
 /**
  * NOTE ON QUERY PROJECTION — READ BEFORE QUERYING THESE COLLECTIONS.
@@ -29,6 +30,21 @@ export const authFields = {
   googleId: { type: String, default: null },
   fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
   phone: { type: String, default: null },
+  /**
+   * A calendar date stored at UTC midnight. Required of seekers and recruiters
+   * by the gate, NOT by this schema — `seed:admin` and `seed:catalog` create
+   * accounts with no DOB, and a schema-level `required` breaks both.
+   *
+   * Never format this without `timeZone: "UTC"`. A local formatter shifts it a
+   * day in any negative-offset zone, which is a different birthday.
+   */
+  dob: { type: Date, default: null },
+  /**
+   * `null` means never asked; "prefer-not-to-say" means asked and declined.
+   * Mongoose 8 accepts null against a String enum that does not list it
+   * (verified), so no null entry is needed here.
+   */
+  gender: { type: String, enum: [...GENDERS], default: null },
   avatarUrl: { type: String, default: null },
   status: { type: String, enum: ["pending", "active", "suspended"], default: "active" },
   failedLoginCount: { type: Number, default: 0 },
