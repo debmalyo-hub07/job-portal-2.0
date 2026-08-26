@@ -15,7 +15,7 @@ import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
-import { homePathFor, returnPathFor } from "@/lib/portalHome";
+import { loginDestination } from "@/lib/portalHome";
 import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { TurnstileChallenge } from "./TurnstileChallenge";
@@ -57,7 +57,7 @@ const Login = ({ portal }: { portal: Portal }) => {
       setPortalHint(portal);
       setCsrfToken(portal, res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
-      navigate(returnPathFor(portal, location.state) ?? homePathFor(portal), { replace: true });
+      navigate(loginDestination(res.data.user, location.state), { replace: true });
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.

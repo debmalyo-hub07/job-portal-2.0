@@ -5,7 +5,7 @@ import type { AuthResponse } from "@jobportal/shared";
 import { AuthLayout } from "./AuthLayout";
 import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { setPortalHint } from "@/lib/portal";
-import { homePathFor } from "@/lib/portalHome";
+import { landingAfterAuth } from "@/lib/portalHome";
 import { setUser } from "@/redux/authSlice";
 import { usePortalParam } from "@/hooks/usePortalParam";
 import { useAppDispatch } from "@/redux/store";
@@ -31,7 +31,12 @@ const AuthComplete = () => {
         //
         // Portal-aware destination: sign-in still enters the working surface,
         // while the public landing page remains available from its Home link.
-        navigate(homePathFor(portal), { replace: true });
+        //
+        // `landingAfterAuth`, not `homePathFor`: a Google registration reaches
+        // this component with a brand-new account and no date of birth. Sending
+        // it to the board would let it past the identity step entirely, and the
+        // first thing it heard about the gate would be a 403 on an application.
+        navigate(landingAfterAuth(res.data.user), { replace: true });
       })
       .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));
   }, [portal, dispatch, navigate]);
