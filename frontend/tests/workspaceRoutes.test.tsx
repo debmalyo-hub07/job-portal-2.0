@@ -3,11 +3,12 @@ import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation, useRoutes } from "react-router";
 
 import { appRoutes } from "@/routes/appRoutes";
 import { portalForPath } from "@/lib/portalRoutes";
-import { makeStore } from "./helpers/renderRoute";
+import { makeQueryClient, makeStore } from "./helpers/renderRoute";
 import { setUser } from "@/redux/authSlice";
 
 /**
@@ -128,8 +129,11 @@ function recruiterStore() {
       email: "recruiter@example.test",
       emailVerified: true,
       avatarUrl: null,
-      // The account is authenticated, so the destination guard accepts it;
-      // pending status stops at RequireApproved before data-fetching hooks mount.
+      // The account is authenticated, so the destination guard accepts it, and
+      // pending status stops at RequireApproved rather than rendering a whole
+      // workspace page this test has no data for. RequireApproved does its own
+      // reading now — it polls /me so an approval clears the gate without a
+      // reload — so the render below supplies a QueryClient.
       status: "pending",
     }),
   );
@@ -139,10 +143,15 @@ function recruiterStore() {
 function renderTableAt(entry: string, store = makeStore()) {
   const view = render(
     <Provider store={store}>
-      <MemoryRouter initialEntries={[entry]}>
-        <RouteTable />
-        <Probe />
-      </MemoryRouter>
+      {/* The app mounts one of these at its root, so every guard and page below
+          can read server state. This test used to render without it, which held
+          only while no guard fetched anything. */}
+      <QueryClientProvider client={makeQueryClient()}>
+        <MemoryRouter initialEntries={[entry]}>
+          <RouteTable />
+          <Probe />
+        </MemoryRouter>
+      </QueryClientProvider>
     </Provider>,
   );
   const loc = () => view.getByTestId("loc");

@@ -7,15 +7,16 @@ import { FormField } from "@/components/layout/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FIELD_SURFACE } from "@/lib/fieldSurface";
 
 /**
  * Token-styled field surface for the controls with no primitive of their own —
- * `<textarea>` and `<select>`. `Input` already carries these classes; repeating
- * them inline on each element is how the two drift.
+ * `<textarea>` and `<select>`. Aliased rather than re-declared: this file used to
+ * carry its own copy of the class string under a comment saying that repeating it
+ * "is how the two drift", and `CompanyEdit` held a second one. Both are now one
+ * import — see `lib/fieldSurface.ts`.
  */
-const FIELD =
-  "w-full rounded-surface border border-line-strong bg-paper px-3 py-2 text-sm text-ink " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-ring";
+const FIELD = FIELD_SURFACE;
 
 const EMPTY: JobFormValues = {
   title: "",

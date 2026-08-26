@@ -17,6 +17,11 @@ const ROUTES = [
   ["hire-login", "/hire/login"],
   ["hire-signup", "/hire/signup"],
   ["admin-login", "/admin/login"],
+  // The invited admin's landing screen. Anonymous like every other route here,
+  // and worth a frame of its own: it is the same form /reset-password renders
+  // with different copy, so a variant that silently fell back to reset wording
+  // would look correct in the route table and wrong on the page.
+  ["admin-set-password", "/admin/set-password?email=newadmin%40example.test"],
   ["verify-email", "/verify-email?portal=seeker&email=demo%40example.test"],
   ["forgot-password", "/forgot-password?portal=seeker"],
   ["about", "/about"],

@@ -129,6 +129,14 @@ strict input validation, and a timing-safe comparison against
 never in Vercel or a `VITE_*` variable; the presented field is redacted from
 logs.
 
+The setup email links to `/admin/set-password` and carries the invited address so
+the form can prefill it. It carries **no code**. A link that authenticated on
+click would be a bearer credential for the highest-privilege portal travelling
+through mail scanners, referrer headers, forwarded threads and browser history —
+none of which a typed six-digit code is exposed to. The link is navigation; the
+credential is still the code, still short-lived, still rate-limited, and still
+subject to the per-account OTP failure budget.
+
 ### Fixed in the portal session isolation pass
 
 - Access, refresh, and CSRF cookies are all named per portal. Signing into or

@@ -43,6 +43,14 @@ export const getOverview = async (_req: Request, res: Response): Promise<void> =
   res.status(200).json({ success: true, ...(await adminConsoleService.getOverview()) });
 };
 
+export const getInsights = async (_req: Request, res: Response): Promise<void> => {
+  res.status(200).json({ success: true, ...(await adminConsoleService.getInsights()) });
+};
+
+export const getActivity = async (_req: Request, res: Response): Promise<void> => {
+  res.status(200).json({ success: true, ...(await adminConsoleService.getActivity()) });
+};
+
 export const listJobs = async (req: Request, res: Response): Promise<void> => {
   const query = parseBody(adminListQuerySchema, req.query);
   res.status(200).json({ success: true, ...(await adminConsoleService.listAllJobs(query)) });

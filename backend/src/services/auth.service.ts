@@ -442,6 +442,20 @@ export async function forgotPassword(portal: Portal, email: string): Promise<voi
 }
 
 /**
+ * Where an invited admin goes to redeem the setup code.
+ *
+ * Built here rather than in `emailTemplates.ts` so that module needs no `env()`
+ * — its templates are pure functions of their arguments, and a config read at
+ * import time there would run before the test setup has an environment.
+ *
+ * The address rides in the query string so the form can prefill it; the code
+ * never does. See `renderPasswordSetupEmail`.
+ */
+function adminSetupUrl(email: string): string {
+  return `${env().WEB_BASE_URL}/admin/set-password?email=${encodeURIComponent(email)}`;
+}
+
+/**
  * Mails a `reset_password` code to an account that has no password yet.
  *
  * The seed:admin script's entry point into the OTP machinery. A thin wrapper
@@ -459,7 +473,10 @@ export async function issuePasswordSetupCode(
   account: AccountDoc,
 ): Promise<void> {
   await issueOtp(portal, account, "reset_password", (code) =>
-    sendRendered(account.email, renderPasswordSetupEmail(code, env().OTP_TTL_MINUTES)),
+    sendRendered(
+      account.email,
+      renderPasswordSetupEmail(code, env().OTP_TTL_MINUTES, adminSetupUrl(account.email)),
+    ),
   );
 }
 

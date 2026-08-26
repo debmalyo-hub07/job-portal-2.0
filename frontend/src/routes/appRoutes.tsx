@@ -26,6 +26,7 @@ import AuthComplete from "@/components/auth/AuthComplete";
 import LinkPending from "@/components/auth/LinkPending";
 import ConfirmGoogleLink from "@/components/auth/ConfirmGoogleLink";
 import AuthError from "@/components/auth/AuthError";
+import GuestRoute from "@/components/routing/GuestRoute";
 import { buildAuthRoutes } from "@/routes/authRoutes";
 import {
   AdminHomeRedirect,
@@ -129,6 +130,26 @@ export const appRoutes: RouteObject[] = [
       ...buildAuthRoutes("recruiter", "/hire"),
       // No signup on admin: the API's admin router mounts no /register either.
       ...buildAuthRoutes("admin", "/admin", { withSignup: false }),
+      // Where an invited admin lands from the setup email.
+      //
+      // The same form as /reset-password, mounted with the portal as a route
+      // literal and first-run copy: an admin created by another admin has
+      // `passwordHash: null` and a reset_password code in their inbox, but has
+      // never had a password to "reset". Before this route the email named a
+      // screen that did not exist, so the code could only be redeemed by
+      // knowing to type /reset-password?portal=admin by hand.
+      //
+      // Under /admin rather than portal-neutral so `portalForPath` resolves the
+      // console's signal colour with no ?portal= to carry, and behind GuestRoute
+      // because an admin who already has a session has already been through it.
+      {
+        path: "/admin/set-password",
+        element: (
+          <GuestRoute portal="admin">
+            <ResetPassword portal="admin" variant="setup" />
+          </GuestRoute>
+        ),
+      },
       // The admin console has no marketing page, but `/admin` is still typed and
       // bookmarked, and it owns the whole console prefix. Resolves by session:
       // dashboard for an admin, the sign-in for anyone else.

@@ -77,6 +77,53 @@ describe("portal", () => {
   });
 });
 
+/**
+ * The ink ramp has three grades and they are not interchangeable: `ink` is body
+ * copy, `ink-muted` is *secondary copy*, and `ink-faint` is the 3:1 caption and
+ * placeholder grade — index.css says so at the declaration, and
+ * check-colour-contrast.mjs holds it to 3:1 rather than 4.5:1 precisely because
+ * it is never prose.
+ *
+ * Every placeholder in the app used `ink-muted` anyway, so a hint sat at the
+ * same weight as a real value: "you@example.com" in an empty email field read as
+ * a filled-in address, and "123456" in an OTP field read as an entered code. It
+ * is not a contrast failure — it is over-contrast, which no ratio floor can
+ * catch, and `ink-faint` went unused by the entire application as a result.
+ */
+describe("placeholders", () => {
+  it("use the faint grade, never the secondary-copy grade", () => {
+    // Matches the Tailwind pseudo-variant and Radix's data attribute alike:
+    // `placeholder:text-*` on inputs and textareas, `data-[placeholder]:text-*`
+    // on the select trigger.
+    const MUTED_PLACEHOLDER = /placeholder(\]|):text-ink-muted/;
+
+    const offenders = FILES.filter((file) =>
+      MUTED_PLACEHOLDER.test(readFileSync(file, "utf8")),
+    ).map((f) => relative(SRC, f).replace(/\\/g, "/"));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("are styled by the one shared field surface, not per file", () => {
+    // <textarea> and <select> have no primitive of their own, so they carry a
+    // class string. Two byte-identical copies of it lived in JobForm and
+    // CompanyEdit — under a comment in JobForm warning that repeating it "is how
+    // the two drift" — and neither styled a placeholder at all, so those fields
+    // fell back to the browser's default grey in both themes. One exported
+    // constant is what makes the rule stateable in a single place.
+    expect(readFileSync(join(SRC, "lib/fieldSurface.ts"), "utf8")).toMatch(
+      /export const FIELD_SURFACE[\s\S]{0,400}?placeholder:text-ink-faint/,
+    );
+
+    // The two consumers must read that constant, not carry their own copy. A
+    // literal class string assigned to FIELD is the shape both copies had.
+    const redeclared = ["components/workspace/JobForm.tsx", "components/workspace/CompanyEdit.tsx"]
+      .filter((rel) => !/const FIELD = FIELD_SURFACE;/.test(readFileSync(join(SRC, rel), "utf8")));
+
+    expect(redeclared).toEqual([]);
+  });
+});
+
 describe("headings", () => {
   it("never puts more than one h1 in a page component", () => {
     // JobDescription.tsx shipped with seven <h1>s: every metadata label was a

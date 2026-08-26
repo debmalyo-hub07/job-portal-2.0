@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type {
+  AdminActivityDto,
   AdminCompanyDto,
+  AdminInsightsDto,
   AdminJobDto,
   AdminOverviewDto,
   PaginatedResponse,
@@ -18,6 +20,19 @@ import { apiClient } from "@/lib/apiClient";
  * dispatches into. The approval mutations invalidate both the queue and the
  * overview, because approving a recruiter changes the dashboard's counters and
  * a stale "3 pending" beside an empty queue reads as a bug.
+ *
+ * Every read here carries a `refetchInterval` equal to its own `staleTime`.
+ * These screens exist to describe what is happening right now, and without an
+ * interval every number on them is as old as the last navigation — an admin
+ * watches a queue that emptied ten minutes ago and the only remedy is the
+ * browser's reload button. Matching the interval to the stale window rather than
+ * picking one number for all of them is deliberate: the queue moves on every
+ * approval, the insights aggregations move on any write anywhere, and asking
+ * again sooner than the data can change is load bought for nothing.
+ *
+ * `refetchIntervalInBackground` is left at its default of false throughout, so a
+ * forgotten tab stops asking. The manual refresh control on the dashboard stays
+ * — an admin who has just acted should not have to wait out a tick.
  */
 
 /** Every console query hangs off this root so one call can clear the console. */
@@ -34,6 +49,48 @@ export function useAdminOverview() {
       return res.data;
     },
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
+/**
+ * The dashboard's aggregations.
+ *
+ * Split from `useAdminOverview` rather than folded into it, because the two go
+ * stale at different rates: the counters move on every approval, these move on
+ * any write anywhere in the platform. One query would impose the shorter policy
+ * on both and re-run eleven aggregations to refresh three counts.
+ *
+ * `keepPreviousData` holds the last render through a refetch. A skeleton flash on
+ * an already-populated dashboard is a layout jump for no new information.
+ */
+export function useAdminInsights() {
+  return useQuery({
+    queryKey: [...ADMIN_KEY, "insights"],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean } & AdminInsightsDto>("/admin/insights", {
+        signal,
+      });
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+}
+
+export function useAdminActivity() {
+  return useQuery({
+    queryKey: [...ADMIN_KEY, "activity"],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean } & AdminActivityDto>("/admin/activity", {
+        signal,
+      });
+      return res.data.items;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
   });
 }
 
@@ -48,6 +105,7 @@ export function usePendingRecruiters() {
       return res.data.items;
     },
     staleTime: 15 * 1000,
+    refetchInterval: 15 * 1000,
   });
 }
 
@@ -74,6 +132,9 @@ export function useRecruiterDecision() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "recruiters", "pending"] });
       void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "overview"] });
+      // The triage band reads pendingRecruiters from insights, so approving
+      // without this leaves "3 awaiting approval" above an empty queue.
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "insights"] });
     },
   });
 }

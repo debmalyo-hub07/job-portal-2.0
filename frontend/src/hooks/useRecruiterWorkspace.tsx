@@ -22,6 +22,16 @@ import { apiClient } from "@/lib/apiClient";
  * Nothing here is optimistic. A hiring decision that appears to succeed and
  * silently did not is worth an extra round trip to avoid — and the absence of a
  * refetch after the decision POST is exactly the bug this replaces.
+ *
+ * The list reads carry a `refetchInterval` matching their `staleTime`, for the
+ * same reason the console's do: a recruiter watching an applicant list is
+ * watching for something a candidate does, and a list that only updates on
+ * navigation makes them reload to find out. The single-record reads
+ * (`useCompany`, `useJob`) deliberately do not poll — they back edit forms, where
+ * a background write would fight whatever the recruiter is typing.
+ *
+ * `refetchIntervalInBackground` stays at its default of false, so a tab left open
+ * in another window stops asking.
  */
 
 /** Every workspace query hangs off this root so one call can clear it. */
@@ -81,6 +91,9 @@ export function useOwnedJobs() {
     },
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
+    // Applicant counts on these rows move while the recruiter is looking at
+    // them; see the note above the file's read hooks.
+    refetchInterval: 30 * 1000,
   });
   return { ...query, keyword, page, setKeyword, setPage };
 }
@@ -105,6 +118,7 @@ export function useOwnedCompanies() {
       return res.data.companies;
     },
     staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
   });
 
   const needle = keyword.trim().toLowerCase();
@@ -147,6 +161,10 @@ export function useApplicants(jobId: string | undefined) {
     },
     enabled: Boolean(jobId),
     placeholderData: keepPreviousData,
+    // The one workspace list a candidate can change without the recruiter doing
+    // anything: a new application appears here and nowhere else in the UI.
+    // `staleTime` is the client default of 30s, so the interval matches it.
+    refetchInterval: 30 * 1000,
   });
   return { ...query, page, setPage };
 }

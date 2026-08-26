@@ -8,6 +8,7 @@ import {
   cookieValue,
   installCaptureMailer,
   lastCodeFor,
+  outbox,
   signedUpOn,
 } from "./auth/helpers.js";
 
@@ -59,6 +60,27 @@ describe("admin provisioning", () => {
     expect(created?.emailVerifiedAt).toBeInstanceOf(Date);
     expect(created?.passwordHash).toBeNull();
     expect(await lastCodeFor(body.email)).toMatch(/^\d{6}$/);
+  });
+
+  /**
+   * The stranding bug. Before Phase 1 the invite mailed a code and named a
+   * "password setup screen" that did not exist, so the only way to redeem it
+   * was to know to type /reset-password?portal=admin by hand.
+   */
+  it("mails the new admin a link to the setup screen, with the address prefilled", async () => {
+    const root = await signedInAdmin();
+    await request(app)
+      .post("/api/v1/admin/admins")
+      .set("Cookie", [`jp_admin_at=${root.access}`, `jp_admin_csrf=${root.csrf}`])
+      .set("X-CSRF-Token", root.csrf)
+      .send(body)
+      .expect(201);
+
+    await lastCodeFor(body.email);
+    const mail = [...outbox].reverse().find((m) => m.to === body.email)!;
+    const expected = `${process.env.WEB_BASE_URL}/admin/set-password?email=${encodeURIComponent(body.email)}`;
+    expect(mail.text).toContain(expected);
+    expect(mail.html).toContain(expected);
   });
 
   it("requires an admin session", async () => {

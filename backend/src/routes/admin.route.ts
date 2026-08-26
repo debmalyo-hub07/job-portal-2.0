@@ -7,6 +7,8 @@ import {
   listPendingRecruiters,
   approveRecruiter,
   denyRecruiter,
+  getActivity,
+  getInsights,
   getOverview,
   listJobs,
   listCompanies,
@@ -28,6 +30,11 @@ const router = express.Router();
  * missing its gate visible on the line that adds it.
  */
 router.route("/overview").get(authenticate("admin"), getOverview);
+// The dashboard's aggregations, split from /overview by how fast they go stale:
+// the counters move on every approval, the activity feed on every write anywhere.
+// One endpoint would force the slowest cache policy on all three.
+router.route("/insights").get(authenticate("admin"), getInsights);
+router.route("/activity").get(authenticate("admin"), getActivity);
 router
   .route("/admins")
   .post(

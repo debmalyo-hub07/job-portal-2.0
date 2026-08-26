@@ -266,8 +266,8 @@ an authorisation input.
 The client applies the same rule the API does. `portalForPath`
 (`src/lib/portalRoutes.ts`) maps a pathname to a `Portal`, matching on a segment
 boundary so `/hired` and `/administrator` stay seeker paths. `PortalScope` calls
-it with `useLocation().pathname` and sets `data-portal` — never reading a body,
-query or cookie.
+it with `useLocation()` and sets `data-portal` — never reading a body or a
+cookie.
 
 Auth pages take `portal` as a **prop from the route**, supplied by
 `buildAuthRoutes(portal, prefix)`:
@@ -287,10 +287,32 @@ posted to and the accent colour the URL resolved could disagree.
 Admin has no signup **route**, not merely a hidden link — the API's admin router
 mounts no `/register`, so a typed URL must not reach a form that cannot post.
 
+`/admin/set-password` is the one admin auth path outside that table. An admin
+created by another admin is stored with `passwordHash: null` and mailed a
+`reset_password` code, so the screen is the same form `/reset-password` renders —
+mounted with the portal as a route literal and a `setup` copy variant, because
+someone who has never had a password is not choosing a *new* one and cannot have
+"remembered it". It sits under `/admin` rather than among the portal-neutral
+paths so `portalForPath` resolves the console's colour from the path, leaving the
+invite link nothing to carry but the address. The link is navigation only: the
+code is never in the URL, so a forwarded or scanned email authenticates nobody.
+
 The seven shared OAuth/OTP surfaces are the one exception. They read `?portal=`
-because the Google callback redirects to portal-neutral paths — but even there
-`PortalScope` ignores the param, so the query changes the form's target endpoint
-and never the resolved portal.
+because the Google callback redirects to portal-neutral paths, and there the
+param *is* the portal — so `portalForPath` consults it, through the same
+`portalFromSearch` parser `usePortalParam` uses. The exception is an exact-match
+allowlist (`PORTAL_NEUTRAL_PATHS`), not a prefix rule: `/hire/companies?portal=seeker`
+stays recruiter and `/login?portal=admin` stays seeker, so a hand-edited query
+cannot repaint a portal that owns its path.
+
+`PortalScope` ignored the param for a phase, which is not a smaller version of
+the same design — it is a different portal on the same page. Those seven pages
+already resolved their copy, their API endpoint and their wordmark suffix from
+the param, so a recruiter verifying their email read "Hire without the noise" in
+seeker's teal, and the console's own recovery screen did the same. Every token
+resolved to a legal value, just the wrong portal's, so no contrast check and no
+broken flow ever pointed at it. Nothing here authorizes anything: the portal that
+gates a request is still the server-owned mount the API is called on.
 
 `localStorage["jp.portal"]` is a **hint, not a credential**. It is a reload and
 new-tab fallback for the last active portal; once a tab resolves a route,
@@ -516,6 +538,66 @@ failure and a genuinely empty board with one expression: "0 open roles" on a job
 marketplace's landing page is worse than declining to say. The employer strip
 names its own ratio (`9 of 27`) because it is a curated selection, not the
 roster — a positional counter implied it was the whole list.
+
+### Figures on the admin console
+
+The same rule, applied where the reader is an operator rather than a visitor, and
+enforced in the DTO instead of at the component: `AdminInsightsDto` types every
+unmeasurable figure as `number | null`. `applicationsPerJob` is `null` when there
+are no open roles to divide by, and the card renders an em dash and a sentence.
+Zero applications per role is a finding about demand; "nothing to divide by" is a
+fact about the catalogue, and a dashboard that draws them identically is lying
+about one of them.
+
+The counterpart rule is that a named *stage* at zero is information, so
+`pipeline.byStatus` always carries all seven keys of `APPLICATION_STATUSES`,
+zeros included — seeded from the shared enum rather than from the rows the
+aggregation returned. A ranked slice is the opposite case: `composition` omits
+entries at zero, because a ranking lists what exists. The two behave differently
+on purpose.
+
+The dashboard reads three endpoints rather than one, split by how fast each goes
+stale — `/admin/overview` (counters), `/admin/insights` (aggregations, triage and
+the eight-week jobs series), `/admin/activity` (a merged feed). One endpoint
+would impose the shortest cache policy on all three and re-run eleven
+aggregations to refresh a count.
+
+That split is also what the polling rests on. Every live console and workspace
+read carries a `refetchInterval` equal to its own `staleTime` — 15s for the
+approval queue, 30s for counters, activity, owned jobs and applicants, 60s for
+the insights aggregations — so nothing is asked for again before it can have
+changed. `refetchIntervalInBackground` stays at its default of false throughout,
+so a tab in another window stops asking; the dashboard keeps its manual refresh
+control and its server-stamped "as of", because an admin who has just acted
+should not have to wait out a tick. Single-record reads (`useCompany`, `useJob`)
+deliberately do not poll: they back edit forms, where a background write would
+fight what the recruiter is typing.
+
+Account **status** is the one live value that does not live in react-query.
+`useAuthBootstrap` writes the session into Redux once, at startup, and every
+route guard reads it from there — correct for identity, wrong for a recruiter's
+`pending`, which an admin flips from another session entirely. `RequireApproved`
+therefore polls `/recruiter/auth/me` through `useSessionRefresh`, gated on
+`status === "pending"` and stopping the moment it is not, since an approved
+recruiter cannot revert. It is deliberately not folded into `useAuthBootstrap`:
+that hook's `bootstrapped` flag gates every protected route, and re-entering its
+effect is how protected pages ended up permanently empty once already. Poll
+failures are silent — the apiClient interceptor already refreshes on 401 and
+clears a genuinely dead session, and a transient blip must not sign anyone out.
+
+Two invariants the API upholds so no client has to reconstruct them:
+`jobsPostedSeries` is dense and ascending with gaps zero-filled, because a chart
+that silently closes a gap draws a trend the data does not contain; and open jobs
+are counted with `status: { $ne: "closed" }`, never equality on `"open"`, since
+every one of production's 198 postings predates the field and equality matches
+none of them.
+
+Data marks use `--signal-text`, not `--signal`. Measured against `--paper-raised`,
+`--signal` is 5.28:1 in the admin portal and **1.66:1** in the recruiter one —
+gold on bone effectively disappears — while `--signal-text` clears 4.5:1 on every
+surface in all three portals and is already gated there. The distinction matters
+because a recruiter analytics surface is planned and these components are
+portal-agnostic.
 
 ## Configuration
 

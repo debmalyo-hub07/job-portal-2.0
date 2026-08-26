@@ -235,7 +235,7 @@ Return to Render → Environment and replace the placeholders:
 
 | Variable | Set to |
 |---|---|
-| `WEB_BASE_URL` | `https://<project>.vercel.app` — where auth redirects land |
+| `WEB_BASE_URL` | `https://<project>.vercel.app` — where auth redirects land, and the origin of the admin set-password link in an invite email |
 | `CLIENT_URLS` | `https://<project>.vercel.app` — the CORS allowlist |
 
 Save and redeploy. Until this is right, sign-in redirects go to the wrong host
@@ -327,8 +327,10 @@ npm run seed:admin --workspace @jobportal/api -- \
 
 No password is accepted as an argument — it would land in shell history and
 process listings. The account is created pre-verified with `passwordHash: null`
-and a set-password code is **emailed**, which is why Brevo has to work first. If
-the mail never arrives, use forgot-password on the admin login to reissue.
+and a set-password code is **emailed**, which is why Brevo has to work first. The
+email links to `WEB_BASE_URL` + `/admin/set-password`, so that variable must be
+correct before the first invite goes out, or the code arrives pointing at nothing.
+If the mail never arrives, use forgot-password on the admin login to reissue.
 Re-running is safe: it refuses when an admin exists unless `--force`.
 
 Later admins are invited from the signed-in admin dashboard. Keep

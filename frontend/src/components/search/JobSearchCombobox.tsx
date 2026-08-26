@@ -71,7 +71,7 @@ export function JobSearchCombobox({ value, onChange, onSubmit, id, label, tone =
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
             placeholder="Role, company, skill, or location"
-            className={cn("h-12 w-full appearance-none border-0 bg-transparent pr-11 pl-10 text-base outline-none", tone === "hero" ? "text-media-surface-ink placeholder:text-media-surface-ink/55" : "text-ink placeholder:text-ink-muted")}
+            className={cn("h-12 w-full appearance-none border-0 bg-transparent pr-11 pl-10 text-base outline-none", tone === "hero" ? "text-media-surface-ink placeholder:text-media-surface-ink/55" : "text-ink placeholder:text-ink-faint")}
           />
           {value ? (
             <button type="button" aria-label="Clear search" onClick={() => { onChange(""); setOpen(true); }} className={cn("absolute top-1/2 right-3 z-10 -translate-y-1/2 rounded-sharp p-1 transition-colors", tone === "hero" ? "text-media-surface-ink/60 hover:bg-media-surface-ink/10 hover:text-media-surface-ink" : "text-ink-muted hover:bg-paper-sunken hover:text-ink")}>

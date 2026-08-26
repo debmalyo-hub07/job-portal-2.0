@@ -84,8 +84,8 @@ npm run seed:admin --workspace @jobportal/api -- \
 
 No password is accepted as an argument — a CLI argument lands in shell history,
 process listings and CI logs. The account is created without one and a
-set-password code is mailed, the same path forgot-password uses; redeem it and
-sign in at `/admin/login`. The script refuses if an admin already exists, so a
+set-password code is mailed, the same path forgot-password uses; redeem it at
+`/admin/set-password` and sign in at `/admin/login`. The script refuses if an admin already exists, so a
 stray re-run during deployment cannot quietly mint a second authority (`--force`
 overrides).
 
@@ -96,6 +96,12 @@ API environment and must never be added to a `VITE_*` variable or browser
 bundle. The invite is rate-limited, the request field is redacted from logs,
 and the new admin receives a short-lived password setup code rather than a
 password chosen by the inviter.
+
+The invite email links to `/admin/set-password` with the address prefilled. The
+code is deliberately **not** in that link: a URL that authenticated on click
+would be a magic link into the highest-privilege portal, and links leak through
+mail scanners, referrer headers and browser history in a way a typed code does
+not. The link opens the form; the code is still entered by hand.
 
 On a database that predates Phase 3A, run
 `npm run migrate:phase3a --workspace @jobportal/api` once as well: it
@@ -335,6 +341,7 @@ mirroring the API's `buildAuthRouter(portal)`:
 | `/hire/companies`, `/hire/jobs`, applicants | recruiter | The workspace. Gated on admin approval |
 | `/admin` | admin | Protected session door: dashboard with an admin session, otherwise admin sign-in |
 | `/admin/login` | admin | Internal console login. No signup route - admins are seeded, then invited by an admin |
+| `/admin/set-password` | admin | Where a seeded or invited admin redeems their setup code. Reached from the emailed link |
 | `/verify-email`, `/forgot-password`, `/reset-password`, OAuth landings | either | Portal-neutral, carried in `?portal=` because the Google callback redirects here |
 
 The workspace lived under `/admin/*` before Phase 3A. Those URLs redirect to
@@ -430,7 +437,7 @@ portals, plus the token bands and interaction ramps. It is DEV-only via
 | `npm run lint:colour --workspace @jobportal/web` | Fail on any colour outside the token system |
 | `npm run test:visual --workspace @jobportal/web` | Playwright screenshots + portal assertions, needs a dev server |
 | `npm run migrate:phase1c --workspace @jobportal/api` | Drop the legacy `users` collection. Run once per existing database |
-| `npm run seed:admin --workspace @jobportal/api` | Create the first admin: `-- --email <address> --name "<name>"`. Mails a set-password code; refuses if an admin exists |
+| `npm run seed:admin --workspace @jobportal/api` | Create the first admin: `-- --email <address> --name "<name>"`. Mails a set-password code redeemable at `/admin/set-password`; refuses if an admin exists |
 | `npm run seed:catalog --workspace @jobportal/api` | Populate an empty marketplace with labelled demo companies/jobs. Requires `-- --confirm-database <name>`; idempotent and refuses a non-demo catalog by default |
 | `npm run migrate:phase3a --workspace @jobportal/api` | Grandfather existing recruiters to `active`. Run once per existing database |
 

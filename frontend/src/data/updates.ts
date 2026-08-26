@@ -30,6 +30,50 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "live-console-and-admin-setup",
+    date: "2026-08-26",
+    kind: "Improvement",
+    title: "The console and workspace keep themselves current, and a new admin can finish signing up",
+    summary:
+      "Moderation and hiring screens now update on their own instead of waiting for a reload, a recruiter waiting on approval sees it clear the moment it happens, and an invited admin finally has somewhere to set their password.",
+    details: [
+      "The admin dashboard, the approval queue, and a recruiter's own jobs and applicant lists all refresh in the background, each at a rate matched to how fast that particular figure can change.",
+      "A recruiter left on the awaiting-approval screen no longer has to reload to discover they have been approved — the screen clears itself once it is.",
+      "Screens stop asking for updates while their tab is in the background, so a window left open overnight costs nothing.",
+      "An admin invited by another admin now receives a link to a password setup screen alongside their code. Previously the email named a screen that did not exist, and the code could only be redeemed by knowing an unlisted address.",
+      "That setup screen is written for someone who has never had a password here, rather than reusing the wording of a password reset.",
+      "The setup link carries no code of its own. It opens the form; the code is still typed, so a forwarded or scanned email cannot sign anyone in.",
+    ],
+  },
+  {
+    id: "admin-console-dashboard",
+    date: "2026-08-25",
+    kind: "Improvement",
+    title: "The admin console leads with the work that is waiting",
+    summary:
+      "The dashboard now opens with what needs a decision, then shows how the marketplace is actually doing — posting activity over eight weeks, where candidates sit in the pipeline, and what the open catalogue is made of.",
+    details: [
+      "Anything awaiting a decision sits at the top and links straight to the screen that resolves it, and says so plainly when there is nothing waiting.",
+      "New charts cover postings per day, applications by stage, and how open roles break down by department, employment type and remote share.",
+      "A recent-activity feed shows the newest registrations, postings and applications across every portal.",
+      "Where a figure cannot honestly be measured the console declines to give one instead of printing a zero.",
+      "Every chart's numbers are also readable as text or a table, so nothing is reachable only by hovering.",
+    ],
+  },
+  {
+    id: "portal-consistent-auth-screens",
+    date: "2026-08-25",
+    kind: "Fix",
+    title: "Verification and recovery screens now match the portal you came from",
+    summary:
+      "The email-verification, password-reset and sign-in-recovery screens carry their own portal's colour instead of the job-seeker one, and an empty field's example text no longer reads as something you typed.",
+    details: [
+      "An employer verifying their email or recovering a password now sees the hiring portal's colour throughout, and the admin console its own — previously every one of these screens borrowed the job-seeker palette.",
+      "Placeholder text sits a step back from real input, so an empty field is distinguishable from a filled one at a glance.",
+      "Text placeholders on the longer workspace forms were unstyled and inherited the browser's own grey; they now match every other field.",
+    ],
+  },
+  {
     id: "job-lifecycle",
     date: "2026-08-25",
     kind: "Feature",

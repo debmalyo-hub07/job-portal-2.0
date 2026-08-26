@@ -19,6 +19,13 @@
      carries the chrome (navbar, rails, table heads) without being an accent. */
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  /* The chrome band behind the workbench nav. Retuned once: at the original
+     L 0.835 / C 0.034 it was the loudest field on the console, and the dark
+     value carried nearly double the light chroma, so the admin sidebar read as a
+     solid purple block rather than as chrome. It is bounded on BOTH sides —
+     check-colour-contrast.mjs holds it to at least 1.2:1 against paper so the
+     band stays perceptible, and light mode measured 1.13:1 when first lightened.
+     0.874 is the value with headroom above that floor. */
   --color-container: var(--container);
   --color-container-ink: var(--container-ink);
   /* --shade is the scrim and shadow colour: the darkest ink of the *light*
@@ -432,7 +439,7 @@
   --signal-pressed: oklch(0.469 0.078 200);
   --signal-text: oklch(0.442 0.074 200);
   --signal-fg: oklch(0.99 0.004 200);
-  --container: oklch(0.835 0.034 200);
+  --container: oklch(0.874 0.016 200);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */
@@ -446,7 +453,7 @@
   --signal-pressed: oklch(0.723 0.146 80);
   --signal-text: oklch(0.458 0.093 80);
   --signal-fg: var(--ink);
-  --container: oklch(0.845 0.034 80);
+  --container: oklch(0.874 0.017 80);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */
@@ -460,7 +467,7 @@
   --signal-pressed: oklch(0.465 0.218 320);
   --signal-text: oklch(0.484 0.227 320);
   --signal-fg: oklch(0.99 0.004 320);
-  --container: oklch(0.85 0.034 320);
+  --container: oklch(0.874 0.016 320);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */
@@ -490,7 +497,7 @@
   --signal-pressed: oklch(0.664 0.11 200);
   --signal-text: oklch(0.8 0.132 200);
   --signal-fg: var(--paper);
-  --container: oklch(0.335 0.057 200);
+  --container: oklch(0.268 0.024 200);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */
@@ -505,7 +512,7 @@
   --signal-pressed: oklch(0.715 0.144 80);
   --signal-text: oklch(0.845 0.146 80);
   --signal-fg: var(--paper);
-  --container: oklch(0.335 0.058 80);
+  --container: oklch(0.270 0.025 80);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */
@@ -520,7 +527,7 @@
   --signal-pressed: oklch(0.653 0.218 320);
   --signal-text: oklch(0.8 0.16 320);
   --signal-fg: var(--paper);
-  --container: oklch(0.34 0.058 320);
+  --container: oklch(0.272 0.024 320);
   /* Derived in portal scope so var(--signal) resolves to *this* portal.
      --signal-ring and --signal-edge alias --signal-text because a focus ring
      and the boundary of a filled control are both UI, and answer to 3:1. */

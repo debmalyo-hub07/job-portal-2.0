@@ -4,10 +4,9 @@ import { useLocation } from "react-router";
 import { portalForPath } from "@/lib/portalRoutes";
 
 /**
- * Sets data-portal from the route only — Portal is a route literal, never
- * derived from request state, a body, a query or a cookie. The signal tokens
- * re-resolve off this attribute; no component branches on the portal to pick a
- * colour.
+ * Sets data-portal from the route — never from a body, a cookie or session
+ * state. The signal tokens re-resolve off this attribute; no component branches
+ * on the portal to pick a colour.
  *
  * The attribute is written in two places, and both are needed.
  *
@@ -25,10 +24,16 @@ import { portalForPath } from "@/lib/portalRoutes";
  *
  * The route→portal mapping lives in `lib/portalRoutes.ts` so the router and the
  * tests can import it without pulling in a component.
+ *
+ * `search` is passed alongside `pathname` for the seven portal-neutral auth
+ * paths, which name no portal and carry it in `?portal=` — see `portalForPath`.
+ * Without it those pages resolved `seeker` and painted teal over recruiter and
+ * admin copy. The param is consulted on those seven paths only, so a
+ * hand-edited `?portal=` cannot repaint the workspace or the console.
  */
 export function PortalScope({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
-  const portal = portalForPath(pathname);
+  const { pathname, search } = useLocation();
+  const portal = portalForPath(pathname, search);
 
   useEffect(() => {
     document.documentElement.dataset.portal = portal;

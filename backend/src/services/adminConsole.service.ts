@@ -1,9 +1,15 @@
 import mongoose from "mongoose";
+import { APPLICATION_STATUSES } from "@jobportal/shared";
 import type {
+  AdminActivityDto,
+  AdminActivityItem,
   AdminCompanyDto,
+  AdminInsightsDto,
   AdminJobDto,
   AdminListQuery,
   AdminOverviewDto,
+  AdminRankedSlice,
+  ApplicationStatus,
   PaginatedResponse,
 } from "@jobportal/shared";
 
@@ -160,4 +166,232 @@ export async function listAllCompanies(
     page,
     pages: Math.ceil(total / limit),
   };
+}
+
+/**
+ * Open means "not closed", never `status: "open"`.
+ *
+ * Mongo does not match a missing field against an equality, and every one of
+ * production's 198 jobs predates the field — so equality would report zero
+ * capacity on the live platform. `job.service.ts` filters the public board the
+ * same way and for the same reason.
+ */
+const OPEN_JOBS = { status: { $ne: "closed" } } as const;
+
+/** Eight weeks. Long enough to show a trend, short enough to stay one screen. */
+const SERIES_DAYS = 56;
+
+/** Midnight UTC, `daysBack` days ago. The series is keyed on UTC dates. */
+function utcMidnight(daysBack: number): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - daysBack);
+  return d;
+}
+
+const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+/**
+ * A ranked slice, biggest first, with the empties dropped.
+ *
+ * `$group` already omits values nothing carries, so this is a sort and a rename.
+ * Kept as a helper because department and type must rank identically — two
+ * inline sorts is how one of them ends up ascending. Ties break on the label so
+ * the order is stable between requests rather than Mongo's arrival order.
+ */
+function ranked(rows: Array<{ _id: unknown; n: number }>): AdminRankedSlice[] {
+  return rows
+    .filter((row): row is { _id: string; n: number } => typeof row._id === "string" && row._id.length > 0)
+    .map((row) => ({ label: row._id, count: row.n }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/**
+ * The dashboard's aggregations.
+ *
+ * Every query runs concurrently, like `getOverview`: they are independent, and
+ * in series the screen costs their sum for no benefit.
+ *
+ * The two shape guarantees this function upholds are both about what the client
+ * must NOT have to reconstruct — see `AdminInsightsDto`. Zero-filling the series
+ * and seeding every pipeline stage happen here rather than in the component,
+ * because a second consumer would have to remember to do both.
+ */
+export async function getInsights(): Promise<AdminInsightsDto> {
+  const seriesFrom = utcMidnight(SERIES_DAYS - 1);
+
+  const [
+    statusRows,
+    total,
+    decided,
+    openJobs,
+    coverageRows,
+    pendingRecruiters,
+    companiesMissingBranding,
+    seriesRows,
+    departmentRows,
+    typeRows,
+    remoteOpenJobs,
+  ] = await Promise.all([
+    Application.aggregate<{ _id: string; n: number }>([
+      { $group: { _id: "$status", n: { $sum: 1 } } },
+    ]),
+    Application.countDocuments({}),
+    Application.countDocuments({ decidedAt: { $ne: null } }),
+    Job.countDocuments(OPEN_JOBS),
+    // Demand and coverage in one pass, both scoped to open jobs. As two separate
+    // queries they could disagree with each other under a concurrent write.
+    Application.aggregate<{ _id: null; jobs: number; applications: number }>([
+      { $lookup: { from: "jobs", localField: "job", foreignField: "_id", as: "posting" } },
+      { $unwind: "$posting" },
+      { $match: { "posting.status": { $ne: "closed" } } },
+      { $group: { _id: "$job", n: { $sum: 1 } } },
+      { $group: { _id: null, jobs: { $sum: 1 }, applications: { $sum: "$n" } } },
+    ]),
+    Recruiter.countDocuments({ status: "pending" }),
+    // Missing EITHER — see the DTO for why OR rather than AND. Each field is
+    // tested for absent, null and empty: all three mean the same thing to an
+    // admin reading the row, and Mongo treats them as three different matches.
+    Company.countDocuments({
+      $or: [
+        { logo: { $in: [null, ""] } },
+        { logo: { $exists: false } },
+        { website: { $in: [null, ""] } },
+        { website: { $exists: false } },
+      ],
+    }),
+    Job.aggregate<{ _id: string; n: number }>([
+      { $match: { createdAt: { $gte: seriesFrom } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "UTC" } },
+          n: { $sum: 1 },
+        },
+      },
+    ]),
+    Job.aggregate<{ _id: string; n: number }>([
+      { $match: OPEN_JOBS },
+      { $group: { _id: "$department", n: { $sum: 1 } } },
+    ]),
+    Job.aggregate<{ _id: string; n: number }>([
+      { $match: OPEN_JOBS },
+      { $group: { _id: "$jobType", n: { $sum: 1 } } },
+    ]),
+    Job.countDocuments({ ...OPEN_JOBS, remote: true }),
+  ]);
+
+  // Every stage, zeros included. Seeded from the shared enum rather than from
+  // the rows, so a stage nobody has reached is still a row on the chart.
+  const byStatus = Object.fromEntries(
+    APPLICATION_STATUSES.map((status) => [status, 0]),
+  ) as Record<ApplicationStatus, number>;
+  for (const row of statusRows) {
+    if (row._id in byStatus) byStatus[row._id as ApplicationStatus] = row.n;
+  }
+
+  // Dense and ascending. A sparse series makes the client infer the gaps, and a
+  // chart that silently closes one draws a trend the data does not contain.
+  const countByDay = new Map(seriesRows.map((row) => [row._id, row.n]));
+  const jobsPostedSeries = Array.from({ length: SERIES_DAYS }, (_, i) => {
+    const date = isoDay(utcMidnight(SERIES_DAYS - 1 - i));
+    return { date, count: countByDay.get(date) ?? 0 };
+  });
+
+  const coverage = coverageRows[0] ?? { jobs: 0, applications: 0 };
+
+  return {
+    triage: { pendingRecruiters, companiesMissingBranding },
+    pipeline: { byStatus, total, live: total - decided, decided },
+    liquidity: {
+      openJobs,
+      jobsWithApplications: coverage.jobs,
+      // null, never 0: "no applications per job" is a finding, "no open jobs to
+      // divide by" is not, and the two must not render as the same number.
+      applicationsPerJob: openJobs === 0 ? null : coverage.applications / openJobs,
+    },
+    composition: {
+      byDepartment: ranked(departmentRows),
+      byType: ranked(typeRows),
+      remoteOpenJobs,
+    },
+    jobsPostedSeries,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+/** How many of each kind to read before merging. */
+const ACTIVITY_PER_KIND = 10;
+/** How many survive the merge. */
+const ACTIVITY_LIMIT = 12;
+
+/**
+ * Recent events across every collection, newest first.
+ *
+ * Four bounded reads merged in memory rather than a `$unionWith`: the inputs are
+ * capped at forty documents, each projection stays hand-written, and the
+ * pipeline stays legible. `$unionWith` would also have to agree on one shape
+ * across four different schemas before it could sort them.
+ *
+ * Nothing here carries a contact detail. The feed says what happened and where
+ * to go about it; an applicant's identity is part of neither, and a field
+ * inherited from a domain DTO later is how a moderation screen becomes an
+ * export. That is asserted rather than assumed — see `admin-insights.test.ts`.
+ */
+export async function getActivity(): Promise<AdminActivityDto> {
+  const [recruiters, jobs, companies, applications] = await Promise.all([
+    Recruiter.find({}).select("fullName createdAt").sort({ createdAt: -1 }).limit(ACTIVITY_PER_KIND),
+    Job.find({})
+      .select("title createdAt company")
+      .sort({ createdAt: -1 })
+      .limit(ACTIVITY_PER_KIND)
+      .populate<{ company: { name: string } | null }>("company", "name"),
+    Company.find({}).select("name createdAt").sort({ createdAt: -1 }).limit(ACTIVITY_PER_KIND),
+    Application.find({})
+      .select("createdAt job")
+      .sort({ createdAt: -1 })
+      .limit(ACTIVITY_PER_KIND)
+      .populate<{ job: { title: string } | null }>("job", "title"),
+  ]);
+
+  const at = (row: unknown): string =>
+    (row as { createdAt?: Date }).createdAt?.toISOString() ?? new Date(0).toISOString();
+
+  const items: AdminActivityItem[] = [
+    ...recruiters.map((row) => ({
+      id: `recruiter:${String(row._id)}`,
+      kind: "recruiter_registered" as const,
+      at: at(row),
+      label: row.fullName,
+      detail: null,
+      href: "/admin/recruiters",
+    })),
+    ...jobs.map((row) => ({
+      id: `job:${String(row._id)}`,
+      kind: "job_posted" as const,
+      at: at(row),
+      label: row.title,
+      detail: row.company?.name ?? null,
+      href: "/admin/review/jobs",
+    })),
+    ...companies.map((row) => ({
+      id: `company:${String(row._id)}`,
+      kind: "company_created" as const,
+      at: at(row),
+      label: row.name,
+      detail: null,
+      href: "/admin/review/companies",
+    })),
+    ...applications.map((row) => ({
+      id: `application:${String(row._id)}`,
+      kind: "application_submitted" as const,
+      at: at(row),
+      // The role applied to, never the applicant. See the note above.
+      label: row.job?.title ?? "a role",
+      detail: null,
+      href: null,
+    })),
+  ];
+
+  items.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return { items: items.slice(0, ACTIVITY_LIMIT) };
 }

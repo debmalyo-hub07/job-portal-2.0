@@ -16,6 +16,8 @@ import {
   setMailer,
 } from "../../src/lib/mailer.js";
 
+const SETUP_URL = "https://cairn.example/admin/set-password?email=new%40example.com";
+
 describe("email templates", () => {
   it("puts the code in both the html and text bodies", () => {
     const r = renderOtpEmail("012345", "verify_email", 10);
@@ -30,10 +32,38 @@ describe("email templates", () => {
   });
 
   it("describes a new admin setup rather than an existing password reset", () => {
-    const r = renderPasswordSetupEmail("012345", 10);
+    const r = renderPasswordSetupEmail("012345", 10, SETUP_URL);
     expect(r.subject).toMatch(/set up/i);
     expect(r.text).toMatch(/admin account is ready/i);
     expect(r.text).not.toMatch(/current password/i);
+  });
+
+  /**
+   * The invite's whole failure mode before Phase 1: a code with nowhere to
+   * enter it. The email named "the admin password setup screen" and carried no
+   * link, and no such screen existed — an invited admin was stranded unless
+   * somebody told them to type /reset-password?portal=admin by hand.
+   */
+  it("gives the invited admin somewhere to enter the code", () => {
+    const r = renderPasswordSetupEmail("012345", 10, SETUP_URL);
+    expect(r.html).toContain(SETUP_URL);
+    expect(r.text).toContain(SETUP_URL);
+  });
+
+  /**
+   * Navigation only, never authentication. A URL that carried the code would
+   * be a magic link into the highest-privilege portal, and links leak through
+   * mail scanners, referrer headers and browser history in a way a typed code
+   * does not.
+   */
+  it("keeps the code out of the setup link", () => {
+    const r = renderPasswordSetupEmail("012345", 10, SETUP_URL);
+    for (const url of [...r.html.matchAll(/https?:\/\/[^"'\s<]+/g)].map((m) => m[0])) {
+      expect(url).not.toContain("012345");
+    }
+    expect(r.text.split(/\s+/).filter((w) => w.startsWith("http"))).not.toContain(
+      expect.stringContaining("012345"),
+    );
   });
 
   it("renders the two notification templates with their subjects", () => {

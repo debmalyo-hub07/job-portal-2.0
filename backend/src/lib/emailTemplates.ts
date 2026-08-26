@@ -27,11 +27,31 @@ export function renderOtpEmail(code: string, purpose: OtpPurpose, minutes: numbe
   };
 }
 
-export function renderPasswordSetupEmail(code: string, minutes: number): Rendered {
+/**
+ * The invite email. `setupUrl` is built by the caller from `WEB_BASE_URL` so
+ * this module stays free of `env()` — a module-scope config read here would run
+ * at import time, before the test setup has an environment to read.
+ *
+ * The URL is navigation, never authentication: it carries the address so the
+ * form can prefill it, and never the code. A link that authenticated on click
+ * would be a magic link into the highest-privilege portal, and links leak
+ * through mail scanners, referrer headers and browser history in a way a typed
+ * code does not.
+ */
+export function renderPasswordSetupEmail(
+  code: string,
+  minutes: number,
+  setupUrl: string,
+): Rendered {
   return {
     subject: "Set up your Cairn admin password",
-    html: WRAPPER(`<h1 style="font-size:1.25rem">Your admin account is ready</h1><p>Enter this code on the admin password setup screen to choose your password. It expires in ${minutes} minutes.</p>${CODE(code)}`),
-    text: `Your admin account is ready\n\nCode: ${code}\nExpires in ${minutes} minutes.\n\nUse the admin password setup screen to choose your password.`,
+    html: WRAPPER(`<h1 style="font-size:1.25rem">Your admin account is ready</h1><p>Open the setup screen and enter this code to choose your password. It expires in ${minutes} minutes.</p>${CODE(code)}<p><a href="${setupUrl}" style="color:#1a1a1a;font-weight:600">Set your password</a></p><p style="font-size:.8125rem;color:#6b6b6b">Or paste this address into your browser:<br>${setupUrl}</p>`),
+    text: `Your admin account is ready
+
+Code: ${code}
+Expires in ${minutes} minutes.
+
+Open ${setupUrl} and enter the code to choose your password.`,
   };
 }
 

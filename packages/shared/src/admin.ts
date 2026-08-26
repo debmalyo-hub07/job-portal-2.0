@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { paginationQuerySchema } from "./pagination.js";
+import type { ApplicationStatus } from "./enums.js";
 
 /**
  * The admin console's wire contract.
@@ -100,3 +101,102 @@ export const adminListQuerySchema = paginationQuerySchema.extend({
 });
 
 export type AdminListQuery = z.infer<typeof adminListQuerySchema>;
+
+/**
+ * A ranked slice of the catalogue: one label, one count, biggest first.
+ *
+ * Entries at zero are omitted, unlike the pipeline's stages below. A ranking is
+ * a list of what exists, so a zero row is noise; a named pipeline stage at zero
+ * is the information that nobody has reached it.
+ */
+export type AdminRankedSlice = { label: string; count: number };
+
+/** One day of the jobs-posted series. `date` is a UTC `YYYY-MM-DD`. */
+export type AdminSeriesPoint = { date: string; count: number };
+
+/**
+ * The dashboard's aggregations, beyond the plain counters in AdminOverviewDto.
+ *
+ * Two rules run through this shape and both exist because the client must not
+ * have to reconstruct anything:
+ *
+ * `pipeline.byStatus` always carries every key in `APPLICATION_STATUSES`, zeros
+ * included. Omitting empty stages would make the client branch on presence, and
+ * a stage that disappears from the chart reads as a stage the platform does not
+ * have.
+ *
+ * A figure that cannot be measured is `null`, never `0`. Zero applications per
+ * job is a finding; "there are no open jobs to divide by" is not, and the two
+ * must not render as the same number. The landing page's counters already
+ * decline the same way.
+ */
+export type AdminInsightsDto = {
+  /** What is waiting for a decision. Every field links to a console screen. */
+  triage: {
+    pendingRecruiters: number;
+    /**
+     * Employers missing a logo OR a website — an incomplete profile an admin
+     * cannot verify at a glance.
+     *
+     * `OR`, not `AND`, and the live data is why: every one of production's 27
+     * companies carries a logo and not one carries a website, so "missing both"
+     * is permanently zero there while "missing either" is all 27.
+     */
+    companiesMissingBranding: number;
+  };
+  pipeline: {
+    byStatus: Record<ApplicationStatus, number>;
+    total: number;
+    /** Not yet at a terminal stage — `decidedAt` is null. */
+    live: number;
+    decided: number;
+  };
+  /**
+   * Demand against capacity. Everything here is scoped to OPEN jobs: a closed
+   * role cannot attract an application, so counting it as capacity understates
+   * liquidity for a reason unrelated to demand.
+   */
+  liquidity: {
+    openJobs: number;
+    jobsWithApplications: number;
+    applicationsPerJob: number | null;
+  };
+  composition: {
+    byDepartment: AdminRankedSlice[];
+    byType: AdminRankedSlice[];
+    remoteOpenJobs: number;
+  };
+  /** Dense and ascending, one point per UTC day, gaps zero-filled. */
+  jobsPostedSeries: AdminSeriesPoint[];
+  /** Server-side, because the screen's "as of" must describe the numbers. */
+  generatedAt: string;
+};
+
+/**
+ * What happened recently, across every collection.
+ *
+ * A narrow projection like every other console read. The feed names the thing
+ * that happened and where to go about it, and carries no contact details — a
+ * seeker's address has no place in a "what happened" list, and inheriting one
+ * later is how a moderation screen becomes an export.
+ */
+export const ADMIN_ACTIVITY_KINDS = [
+  "recruiter_registered",
+  "job_posted",
+  "company_created",
+  "application_submitted",
+] as const;
+
+export type AdminActivityKind = (typeof ADMIN_ACTIVITY_KINDS)[number];
+
+export type AdminActivityItem = {
+  id: string;
+  kind: AdminActivityKind;
+  at: string;
+  label: string;
+  detail: string | null;
+  /** A console route, or null where no screen resolves this event. */
+  href: string | null;
+};
+
+export type AdminActivityDto = { items: AdminActivityItem[] };

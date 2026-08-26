@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import type { AccountStatus } from "@jobportal/shared";
 
+import { apiClient } from "@/lib/apiClient";
 import { makeStore, renderAppAt } from "./helpers/renderRoute";
 import { appRoutes } from "@/routes/appRoutes";
 import { setBootstrapped, setUser } from "@/redux/authSlice";
+
+afterEach(() => vi.restoreAllMocks());
 
 const paths = appRoutes.flatMap((r) => (r.children ?? []).map((c) => c.path)).filter(Boolean);
 
@@ -24,6 +27,76 @@ function storeWithRecruiter(status: AccountStatus) {
   store.dispatch(setBootstrapped(true));
   return store;
 }
+
+/**
+ * The invited admin's landing screen.
+ *
+ * An admin created by another admin has `passwordHash: null` and receives a
+ * `reset_password` code by email. Before Phase 1 the email named a "password
+ * setup screen" that did not exist, so the only way to redeem the code was to
+ * know to type /reset-password?portal=admin by hand. These tests pin the screen
+ * the email now links to, and the first-run copy that separates it from a reset.
+ */
+describe("admin password setup", () => {
+  it("mounts a setup screen at /admin/set-password", async () => {
+    renderAppAt("/admin/set-password");
+    expect(await screen.findByLabelText(/^code/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^password/i)).toBeInTheDocument();
+  });
+
+  /**
+   * The portal comes from the route literal, not from `?portal=`. /admin/login
+   * needs no query parameter to resolve admin and neither should this — the
+   * link in the email carries only the address.
+   */
+  it("resolves the admin portal without a ?portal= parameter", async () => {
+    const { container } = renderAppAt("/admin/set-password");
+    await screen.findByLabelText(/^code/i);
+    expect(container.querySelector("[data-portal]")?.getAttribute("data-portal")).toBe("admin");
+  });
+
+  it("prefills the address the invite link carries", async () => {
+    renderAppAt("/admin/set-password?email=new%40example.com");
+    await screen.findByLabelText(/^code/i);
+    expect(screen.getByText("new@example.com")).toBeInTheDocument();
+  });
+
+  /**
+   * Someone who has never had a password is not "choosing a new" one and cannot
+   * have "remembered it". Reset copy on this screen reads as though the invited
+   * admin has an account they have forgotten the password to.
+   */
+  it("uses first-run copy rather than reset copy", async () => {
+    renderAppAt("/admin/set-password");
+    await screen.findByLabelText(/^code/i);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/set your password/i);
+    expect(screen.queryByText(/remembered it/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /set password/i })).toBeInTheDocument();
+  });
+
+  /**
+   * "New password" and "not one you have used before" both presuppose an old
+   * one. `passwordHash` is null on an invited admin, so there is nothing for a
+   * reuse check to compare against and nothing for "new" to contrast with.
+   */
+  it("does not describe the password as new", async () => {
+    renderAppAt("/admin/set-password");
+    await screen.findByLabelText(/^code/i);
+    expect(screen.getByLabelText(/^password/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^new password/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/used before/i)).not.toBeInTheDocument();
+  });
+
+  /** The one recovery path that does make sense here: the code expired. */
+  it("keeps a way to request a fresh code", async () => {
+    renderAppAt("/admin/set-password?email=new%40example.com");
+    await screen.findByLabelText(/^code/i);
+    expect(screen.getByRole("link", { name: /request a new one/i })).toHaveAttribute(
+      "href",
+      "/forgot-password?portal=admin&email=new%40example.com",
+    );
+  });
+});
 
 describe("admin portal sign-in", () => {
   it("mounts a sign-in at /admin/login", async () => {
@@ -166,6 +239,54 @@ describe("pending recruiter", () => {
     renderAppAt("/hire/companies", { store: storeWithRecruiter("pending") });
     await screen.findByText(/awaiting approval/i);
     expect(screen.getByRole("button", { name: /account menu/i })).toBeInTheDocument();
+  });
+
+  /**
+   * The gate reads `status` from Redux, which `useAuthBootstrap` fills once at
+   * startup. Approval happens on the server, in another session entirely, so
+   * without a poll of its own this screen never changes — a recruiter approved
+   * while looking at it waits on a promise the page cannot keep, and the only
+   * way through is a hard reload nothing tells them to perform.
+   */
+  it("clears itself when the server reports the account is now active", async () => {
+    const store = storeWithRecruiter("pending");
+    const get = vi.spyOn(apiClient, "get").mockImplementation(async (url: string) => {
+      if (url === "/recruiter/auth/me") {
+        return {
+          data: {
+            success: true,
+            user: { ...store.getState().auth.user!, status: "active" satisfies AccountStatus },
+          },
+        } as never;
+      }
+      return { data: { success: true, items: [], page: 1, pages: 1, total: 0 } } as never;
+    });
+
+    renderAppAt("/hire/companies", { store });
+    await screen.findByText(/awaiting approval/i);
+
+    await waitFor(() => expect(store.getState().auth.user?.status).toBe("active"));
+    await waitFor(() =>
+      expect(screen.queryByText(/awaiting approval/i)).not.toBeInTheDocument(),
+    );
+    expect(get.mock.calls.map(([url]) => url)).toContain("/recruiter/auth/me");
+  });
+
+  /**
+   * The poll exists for one state. An approved recruiter's status cannot change
+   * back, so leaving it running would be a request every minute per open tab for
+   * an answer that is already settled.
+   */
+  it("does not poll once the account is active", async () => {
+    const store = storeWithRecruiter("active");
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, items: [], page: 1, pages: 1, total: 0 },
+    } as never);
+
+    renderAppAt("/hire/companies", { store });
+    await screen.findByRole("button", { name: /new company/i });
+
+    expect(get.mock.calls.map(([url]) => url)).not.toContain("/recruiter/auth/me");
   });
 });
 

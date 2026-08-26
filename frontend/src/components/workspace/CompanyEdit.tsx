@@ -8,13 +8,13 @@ import { FormField } from "@/components/layout/FormField";
 import CompanyAvatar from "@/components/shared/CompanyAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FIELD_SURFACE } from "@/lib/fieldSurface";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { useCompany, useCompanyUpdate } from "@/hooks/useRecruiterWorkspace";
 
-const FIELD =
-  "w-full rounded-surface border border-line-strong bg-paper px-3 py-2 text-sm text-ink " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-ring";
+/** The `<textarea>` surface. Shared with `JobForm` — see `FIELD_SURFACE`. */
+const FIELD = FIELD_SURFACE;
 
 /**
  * Edit a company.
