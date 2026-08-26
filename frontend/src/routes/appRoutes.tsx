@@ -13,6 +13,7 @@ import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import JobCreate from "@/components/workspace/JobCreate";
 import JobEdit from "@/components/workspace/JobEdit";
 import Applicants from "@/components/workspace/Applicants";
+import RecruiterProfile from "@/components/workspace/RecruiterProfile";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
 import RequireApproved from "@/components/routing/RequireApproved";
 import RequireProfileComplete from "@/components/routing/RequireProfileComplete";
@@ -125,6 +126,21 @@ export const appRoutes: RouteObject[] = [
             element: (
               <ProtectedRoute portal="seeker">
                 <CompleteProfile portal="seeker" />
+              </ProtectedRoute>
+            ),
+          },
+          // Deliberately NOT `workspace(...)`, which adds `RequireApproved` —
+          // that replaces the whole workspace with an approval notice, so a
+          // pending recruiter would never reach the one page that explains their
+          // own account state. It mirrors the API, where `/user/profile` and
+          // `/user/profile/update` carry no approval gate either.
+          {
+            path: "/hire/profile",
+            element: (
+              <ProtectedRoute portal="recruiter">
+                <RequireProfileComplete portal="recruiter">
+                  <RecruiterProfile />
+                </RequireProfileComplete>
               </ProtectedRoute>
             ),
           },
