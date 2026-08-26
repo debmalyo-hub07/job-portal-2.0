@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { jobDepartmentSchema, jobTypeSchema, type ApplicationStatus, type JobStatus, JOB_STATUSES } from "./enums.js";
+import { genderSchema, jobDepartmentSchema, jobTypeSchema, type ApplicationStatus, type JobStatus, JOB_STATUSES } from "./enums.js";
 import { RECRUITER_SETTABLE } from "./applicationStatus.js";
-import type { Portal } from "./auth.js";
+import { dobSchema, phoneSchema, type Portal } from "./auth.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
@@ -380,3 +380,22 @@ export const profileUpdateBodySchema = z.object({
 }).strict();
 
 export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;
+
+/**
+ * The first-run identity step. `dob` is REQUIRED here, which is the whole reason
+ * this is not `profileUpdateBodySchema`: every field there is optional, so an
+ * empty body would succeed and return the user to the gate with nothing to show
+ * them.
+ *
+ * JSON, not multipart — there is no file on this path, so the values arrive with
+ * their real types rather than as strings.
+ */
+export const completeProfileBodySchema = z
+  .object({
+    dob: dobSchema,
+    phone: phoneSchema.optional(),
+    gender: genderSchema.optional(),
+  })
+  .strict();
+
+export type CompleteProfileBody = z.infer<typeof completeProfileBodySchema>;

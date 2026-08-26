@@ -1,4 +1,5 @@
 import type { Portal } from "./auth.js";
+import type { Gender } from "./enums.js";
 
 /**
  * The account status that crosses the wire.
@@ -70,6 +71,14 @@ export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];
 export interface ProfileView {
   user: SessionUser;
   phone: string | null;
+  /**
+   * `YYYY-MM-DD`, never a serialized instant. The model stores a `Date` at UTC
+   * midnight; sending the instant would let a client in a negative-offset zone
+   * render the day before.
+   */
+  dob: string | null;
+  /** `null` means never asked; "prefer-not-to-say" means asked and declined. */
+  gender: Gender | null;
   seeker: {
     headline: string | null;
     bio: string | null;

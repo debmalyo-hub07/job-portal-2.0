@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { HydratedDocument } from "mongoose";
-import { profileUpdateBodySchema } from "@jobportal/shared";
+import { completeProfileBodySchema, profileUpdateBodySchema } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import { AppError } from "../lib/AppError.js";
 import { findAccountById, type AccountDocument } from "../services/account.service.js";
@@ -8,7 +8,7 @@ import { toSessionUser } from "../services/auth.service.js";
 import { signedResumeUrl, uploadResume } from "../services/resume.service.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import type { RecruiterDocument } from "../models/recruiter.model.js";
-import type { Portal, ProfileView } from "@jobportal/shared";
+import type { Gender, Portal, ProfileView } from "@jobportal/shared";
 
 function toProfileView(
   portal: Portal,
@@ -19,6 +19,11 @@ function toProfileView(
   return {
     user: toSessionUser(portal, account),
     phone: account.phone ?? null,
+    // Date-only, formatted in UTC. `toISOString().slice(0, 10)` rather than any
+    // locale formatter: a local formatter shifts the day in every negative-offset
+    // zone, which renders a different birthday.
+    dob: account.dob ? account.dob.toISOString().slice(0, 10) : null,
+    gender: (account.gender as Gender | null) ?? null,
     seeker: seeker && {
       headline: seeker.profile!.headline ?? null,
       bio: seeker.profile!.bio ?? null,
@@ -39,6 +44,31 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
   const { portal, id } = req.auth!;
   const account = await findAccountById(portal, id);
   if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
+  res.status(200).json({ success: true, profile: toProfileView(portal, account) });
+};
+
+/**
+ * Writes the identity block and nothing else.
+ *
+ * Deliberately NOT behind `requireProfileComplete` — it is the route that clears
+ * the gate. Validation runs before any assignment, so a refused phone number
+ * cannot leave a stored `dob` behind and open the gate on a rejected body.
+ */
+export const completeProfile = async (req: Request, res: Response): Promise<void> => {
+  const body = parseBody(completeProfileBodySchema, req.body);
+  const { portal, id } = req.auth!;
+  const account = await findAccountById(portal, id);
+  if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
+
+  // The `T00:00:00Z` suffix makes the UTC-midnight normalisation explicit.
+  // Without it a date-only ISO string still parses as UTC, but the suffix is what
+  // stops a later reader "fixing" this into a local parse and moving every stored
+  // birthday by a day.
+  account.dob = new Date(`${body.dob}T00:00:00Z`);
+  if (body.phone !== undefined) account.phone = body.phone;
+  if (body.gender !== undefined) account.gender = body.gender;
+  await account.save();
+
   res.status(200).json({ success: true, profile: toProfileView(portal, account) });
 };
 
