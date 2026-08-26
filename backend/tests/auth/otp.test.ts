@@ -89,6 +89,7 @@ describe("otp redemption", () => {
       emailVerified: true,
       avatarUrl: null,
       status: "active",
+      profileComplete: false,
     }); // exact shape — an extra key here is a leak
     expect(setCookieNames(first)).toEqual(
       expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt", "jp_seeker_csrf"]),

@@ -3,7 +3,7 @@ import type { Portal } from "@jobportal/shared";
 import { AppError } from "../lib/AppError.js";
 import { accessCookieName } from "../lib/cookies.js";
 import { verifyAccessToken } from "../services/session.service.js";
-import { findAccountById } from "../services/account.service.js";
+import { findAccountById, isProfileComplete } from "../services/account.service.js";
 
 /**
  * Verifies the access token for exactly one portal.
@@ -66,6 +66,7 @@ export function authenticate(portal: Portal) {
       id: String(account._id),
       portal,
       emailVerified: account.emailVerifiedAt !== null,
+      profileComplete: isProfileComplete(portal, account),
     };
     next();
   };
@@ -125,6 +126,7 @@ async function resolveSession(req: Request, portal: Portal): Promise<boolean> {
     id: String(account._id),
     portal,
     emailVerified: account.emailVerifiedAt !== null,
+    profileComplete: isProfileComplete(portal, account),
   };
   return true;
 }

@@ -22,6 +22,13 @@ declare global {
         id: string;
         portal: Portal;
         emailVerified: boolean;
+        /**
+         * Set by `authenticate` and `authenticateAny`, both of which already
+         * fetch the account — so the gate needs no second query. Same reasoning
+         * as `emailVerified` above; `requireApproved` re-reads the account only
+         * because `status` never made it onto this object.
+         */
+        profileComplete: boolean;
       };
     }
   }

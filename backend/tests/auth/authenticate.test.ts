@@ -66,6 +66,9 @@ describe("authenticate", () => {
       id: String(seeker._id),
       portal: "seeker",
       emailVerified: true,
+      // Derived from `dob`, which this account does not have. The gate reads
+      // this field, so an authenticator that stopped setting it must fail here.
+      profileComplete: false,
     });
   });
 
