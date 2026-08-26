@@ -272,6 +272,26 @@ entitled to them, and `tests/auth/publicJobs.test.ts` asserts both key sets so a
 future widening of the DTO fails there rather than silently publishing a
 harvestable recruiter contact list.
 
+The identity fields are narrower again. `dob` and `gender` are visible to the
+account owner alone: they reach no recruiter surface and no console surface, and
+they are absent from every applicant DTO. The public byline is a **positive
+allowlist** — `POSTER_FIELDS` in `job.service.ts` is the literal string
+`"fullName designation email phone"`, applied at all five populate sites, and
+`tests/job.test.ts` asserts it contains neither `dob` nor `gender` nor
+`passwordHash`, so a careless widening fails there rather than publishing a
+birth date to crawlers.
+
+Gender is optional, includes an explicit "prefer not to say" that is stored as a
+distinct value from `null`, and is never used in matching or ranking — nothing in
+the fit pipeline reads it.
+
+The identity requirement itself is enforced **server-side**, on all seven
+consequential writes, as 403 `PROFILE_INCOMPLETE`. The client guard and the
+completion redirect are presentation: a caller who bypasses the browser entirely
+still meets the middleware. Its inverse also holds — the routes that *clear* the
+gate are deliberately ungated, because a gate on the route that fixes the problem
+is an unrecoverable lockout rather than a security control.
+
 Passwords are Argon2id hashes. OTPs and refresh tokens are stored only as keyed
 hashes. Resume objects use Cloudinary's authenticated delivery mode and short-
 lived signed URLs. Email, phone, names, and application content remain readable

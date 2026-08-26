@@ -13,11 +13,12 @@ import { FitBreakdown } from "./FitBadge";
 import PageShell from "./layout/PageShell";
 import { Reveal } from "@/lib/motion";
 import { apiClient } from "@/lib/apiClient";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { initialsOf } from "@/lib/initials";
 import { setSingleJob } from "@/redux/jobSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { userForPortal } from "@/redux/authSlice";
+import { completePathFor } from "@/lib/portalHome";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
@@ -51,6 +52,21 @@ const JobDescription = () => {
         toast.success(response.data.message);
       }
     } catch (error) {
+      // The gate's client half cannot cover this button: `/description/:id` is a
+      // PUBLIC page, so an incomplete seeker arrives here without ever passing
+      // `RequireProfileComplete`. Same shape as Login's EMAIL_NOT_VERIFIED branch
+      // — route them to the fix rather than showing a dead-end toast.
+      //
+      // The only call site that needs this. Every recruiter write lives inside the
+      // guarded workspace, and applying is the one consequential action reachable
+      // from a public route.
+      if (getApiErrorCode(error) === "PROFILE_INCOMPLETE") {
+        toast.error("Add your date of birth to apply.");
+        navigate(completePathFor("seeker"), {
+          state: { from: `${location.pathname}${location.search}${location.hash}` },
+        });
+        return;
+      }
       toast.error(getApiErrorMessage(error, "Could not apply"));
     }
   };

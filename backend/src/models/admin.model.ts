@@ -7,6 +7,13 @@ import { defineModel } from "./defineModel.js";
  * recruiter has a designation; an admin is an authority over the domain, not a
  * participant in it, so the schema is `authFields` alone.
  *
+ * That fragment now includes the identity block — `dob` and `gender` — so an admin
+ * holds them like every other account and can edit them from `/admin/profile`.
+ * Nothing gates an admin on them: `isProfileComplete` returns true for this portal
+ * unconditionally, because nothing in the platform reads an admin's date of birth
+ * and the account that can unblock every other one must not depend on a new
+ * middleware being correct.
+ *
  * A separate collection rather than a flag on `recruiters` (ADR-0006): the
  * portal boundary is cryptographic, because `accessTokenKey(portal)` derives a
  * per-portal signing key. A boolean would put admins and recruiters on one key

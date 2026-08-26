@@ -157,9 +157,10 @@ Two problems listed here before Phase 1C are now closed:
 
 ```
 Auth routes      authenticate(portal) → requireVerified → csrfProtection (mutations)
-Recruiter work   authenticate("recruiter") → requireApproved → ownership check
+Recruiter work   authenticate("recruiter") → requireApproved → requireProfileComplete → ownership check
+Seeker apply     authenticate("seeker") → requireProfileComplete → csrfProtection
 Domain routes    authenticate(portal) → service-layer ownership check
-Admin routes     authenticate("admin")
+Admin routes     authenticate("admin")                 ← including /admin/profile
 Public reads     optionalAuthenticate()
 Seeker+recruiter authenticateAny()                     ← /api/v1/user/profile
 ```
@@ -179,6 +180,55 @@ It briefly also accepted the inherited `token` cookie behind a
 `LEGACY_AUTH_FALLBACK` flag, so that a deploy could be rolled back without
 logging out every signed-in user. Both the flag and that branch are now deleted:
 the only session-issuing endpoints are the portal-scoped ones.
+
+### The identity gate
+
+Every account carries `dob` and `gender` on the shared `authFields` fragment, so
+all three collections gain them at once. Both are optional **at the schema level**
+and neither defaults to anything but `null` — `seed:admin` and `seed:catalog` both
+create accounts with no date of birth, and a schema-level `required` breaks both
+on their next run. The requirement lives in middleware instead.
+
+Completeness is **derived, never stored**. `isProfileComplete(portal, account)` is
+`account.dob != null`, with one exception: it returns `true` for every admin. A
+persisted boolean would drift the moment anything wrote `dob` by another path, and
+there are two such paths — the completion endpoint and the profile update. Admin is
+ungated by decision: nothing in the platform reads an admin's date of birth, and
+the one account that can unblock every other account must not depend on a new
+middleware being correct.
+
+`authenticate` and `resolveSession` both put the answer on `req.auth.profileComplete`,
+so `requireProfileComplete` costs no extra query — the same arrangement
+`emailVerified` has, and the reason `requireApproved` re-reads the account is only
+that `status` never made it onto that object. The middleware refuses on falsy
+rather than on `=== false`, so an authenticator that stopped setting the field fails
+closed instead of silently disabling the gate everywhere it is mounted.
+
+**Seven gated route sites:** `/application/apply/:id`, all four job writes
+(`/post`, `/update/:id`, `/status/:id/update`, `/delete/:id`) and both company
+writes (`/register`, `/update/:id`). It sits **after** `requireApproved` in the
+recruiter chain, so a pending recruiter hears about approval rather than about a
+birth date.
+
+**Deliberately ungated:** `/user/profile`, `/user/profile/update`,
+`/user/profile/complete`, `/application/:id/withdraw`, `/me`, refresh, logout and
+every public read. The first three are how the gate is cleared, and a gate mounted
+on the route that clears it is an unrecoverable lockout — the same trap
+`requireVerified` documents for the resend-code route. Withdrawing undoes something
+the seeker already did; gating it would trap them in a commitment made before the
+field existed.
+
+The admin console mounts `getProfile` and `updateProfile` a **second time** under
+`authenticate("admin")` rather than widening `authenticateAny`. That list stays
+seeker-and-recruiter for the reason above. The admin mount carries no multer, which
+makes it JSON-only where `/user/profile/update` is multipart.
+
+On the client, `landingAfterAuth(user)` is the single destination for every
+post-authentication navigation, and `loginDestination` decides whether a saved
+`from` may override it — it may not, while identity is unfinished, or the guard
+bounces the user straight back and they experience a redirect loop. Before this,
+`AuthComplete` sent a Google registration to `homePathFor(portal)`, so a Google
+seeker met the gate for the first time as a 403 on their first application.
 
 ### Identity and permission are separate steps
 

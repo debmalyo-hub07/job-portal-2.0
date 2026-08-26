@@ -30,6 +30,23 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "identity-and-profiles",
+    date: "2026-08-26",
+    kind: "Feature",
+    title: "Your account, filled in",
+    summary:
+      "Every account now carries a date of birth, phone and gender, asked once when you join — and recruiters and admins have a profile page for the first time.",
+    details: [
+      "Joining asks for a name, an address and a password. The rest is one short step afterwards, which is also the first place a Google sign-up is asked for a phone number at all.",
+      "Cairn is for candidates 18 or over. Internships for younger candidates are coming.",
+      "Gender is optional, includes a way to decline, and is never shown to a recruiter.",
+      "Recruiters and admins can now read and edit their own account. Previously neither had a profile page at any address.",
+      "A recruiter's designation — the byline shown on every role they post — can finally be edited. Until now nothing in the product could set it.",
+      "A recruiter waiting on approval can read why from their own profile, instead of inferring it from a workspace that refuses to save.",
+      "Every form that asks for something required now says so to a screen reader, not only to the eye.",
+    ],
+  },
+  {
     id: "live-console-and-admin-setup",
     date: "2026-08-26",
     kind: "Improvement",

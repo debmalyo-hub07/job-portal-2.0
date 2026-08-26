@@ -293,6 +293,19 @@ guarded. See [Create the first admin](#create-the-first-admin).
 | GET | `/google/callback` | OAuth return; redirects into the web app |
 | POST | `/google/confirm-link` | Confirm linking Google to an existing password account |
 
+Outside the per-portal auth router, three profile routes serve the account itself:
+`GET /api/v1/user/profile` and `POST /api/v1/user/profile/update` (seeker or
+recruiter, multipart), `POST /api/v1/user/profile/complete` (the identity step,
+JSON), and `GET|POST /api/v1/admin/profile[/update]` — the same two controllers
+mounted again under `authenticate("admin")`, JSON-only, because `authenticateAny`
+deliberately excludes admin.
+
+Every account must supply a date of birth before applying to a job or posting a
+role, and Cairn is for candidates **18 or over**. The refusal is
+**403 `PROFILE_INCOMPLETE`**, enforced server-side on all seven consequential
+writes; the client guard exists so that refusal is not the first the user hears of
+it. Admins are exempt: nothing reads an admin's date of birth.
+
 **The same email address may hold one seeker account and one recruiter
 account.** They are separate rows in separate collections with separate
 passwords, and signing into one grants nothing on the other. This is the single
@@ -335,13 +348,17 @@ mirroring the API's `buildAuthRouter(portal)`:
 | `/` | seeker | Marketing landing: hero search, role shortcuts, latest openings |
 | `/jobs` | seeker | The job board. Every filter lives in the URL, so a search is a shareable link |
 | `/description/:id`, `/profile` | seeker | Job detail is public; the profile requires a seeker session |
+| `/complete-profile` | seeker | The identity step. Reached by redirect when an account has no date of birth |
 | `/login`, `/signup` | seeker | |
 | `/hire` | recruiter | Employer landing page. Redirects to the workspace only when a recruiter session is active |
 | `/hire/login`, `/hire/signup` | recruiter | |
 | `/hire/companies`, `/hire/jobs`, applicants | recruiter | The workspace. Gated on admin approval |
+| `/hire/profile` | recruiter | A recruiter's own account, including the byline shown on every role they post. Reachable while pending, which is where the approval state is explained |
+| `/hire/complete-profile` | recruiter | The identity step for a recruiter |
 | `/admin` | admin | Protected session door: dashboard with an admin session, otherwise admin sign-in |
 | `/admin/login` | admin | Internal console login. No signup route - admins are seeded, then invited by an admin |
 | `/admin/set-password` | admin | Where a seeded or invited admin redeems their setup code. Reached from the emailed link |
+| `/admin/profile` | admin | An admin's own account. Served by `/admin/profile`, **not** `/user/profile` — `authenticateAny` excludes admin |
 | `/verify-email`, `/forgot-password`, `/reset-password`, OAuth landings | either | Portal-neutral, carried in `?portal=` because the Google callback redirects here |
 
 The workspace lived under `/admin/*` before Phase 3A. Those URLs redirect to
