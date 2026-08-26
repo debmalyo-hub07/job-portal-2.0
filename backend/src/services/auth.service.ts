@@ -54,7 +54,6 @@ export async function register(portal: Portal, input: RegisterBody): Promise<voi
     account = await accountModel(portal).create({
       email,
       fullName: input.fullName,
-      phone: input.phone ?? null,
       passwordHash,
       emailVerifiedAt: null,
       // Recruiters land pending and are useless until an admin approves them:

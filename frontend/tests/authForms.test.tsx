@@ -8,6 +8,7 @@ import type { Portal } from "@jobportal/shared";
 
 import { makeStore } from "./helpers/renderRoute";
 import Login from "@/components/auth/Login";
+import Signup from "@/components/auth/Signup";
 import { AUTH_COPY } from "@/components/auth/authCopy";
 import { apiClient } from "@/lib/apiClient";
 
@@ -145,5 +146,20 @@ describe("Login", () => {
       '[data-slot="button"][data-variant="signal"]',
     );
     expect(signalButtons).toHaveLength(1);
+  });
+});
+
+describe("Signup", () => {
+  it("does not ask for a phone number", () => {
+    // It moved to the completion step, which is the one place both a password
+    // and a Google registration pass through.
+    render(
+      <Provider store={makeStore()}>
+        <MemoryRouter>
+          <Signup portal="seeker" />
+        </MemoryRouter>
+      </Provider>,
+    );
+    expect(screen.queryByLabelText(/^phone/i)).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import {
   dobSchema,
   genderSchema,
   phoneSchema,
+  registerBodySchema,
 } from "../src/index.js";
 
 describe("gender", () => {
@@ -84,5 +85,16 @@ describe("dobSchema", () => {
     expect(dobSchema.safeParse("1900-01-01").success).toBe(false);
     expect(MIN_AGE_YEARS).toBe(18);
     expect(MAX_AGE_YEARS).toBe(100);
+  });
+});
+
+describe("registerBodySchema", () => {
+  it("no longer accepts phone, which moved to the completion step", () => {
+    // A Google registration never sees the signup form, so phone-at-signup only
+    // ever worked for password registrations. The completion step is where both
+    // paths meet.
+    const body = { fullName: "A B", email: "a@b.co", password: "correct horse battery" };
+    expect(registerBodySchema.safeParse(body).success).toBe(true);
+    expect(registerBodySchema.safeParse({ ...body, phone: "+919876543210" }).success).toBe(false);
   });
 });

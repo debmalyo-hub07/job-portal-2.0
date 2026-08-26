@@ -17,11 +17,13 @@ export const passwordSchema = z
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
 
 /**
- * One E.164 definition.
+ * One E.164 definition, now the only one: `profileUpdateBodySchema.phone` and
+ * `completeProfileBodySchema.phone` both build on it.
  *
- * It was inline in registerBodySchema while profileUpdateBodySchema.phoneNumber
- * accepted any string up to 20 characters, so the profile could store a number
- * registration would reject, under a different field name.
+ * It used to be inline in `registerBodySchema` while
+ * `profileUpdateBodySchema.phoneNumber` accepted any string up to 20 characters —
+ * so the profile could store a number registration would reject, under a
+ * different field name.
  */
 export const phoneSchema = z
   .string()
@@ -90,11 +92,19 @@ export const dobSchema = z
   .refine((v) => ageInYears(v, new Date()) >= MIN_AGE_YEARS, UNDER_AGE_MESSAGE)
   .refine((v) => ageInYears(v, new Date()) <= MAX_AGE_YEARS, "must be a plausible date of birth");
 
+/**
+ * Name, address, password.
+ *
+ * Phone moved to the completion step: a Google registration never reaches this
+ * form, so collecting it here only ever covered half the users, and the two
+ * paths had nowhere in common to ask. `.strict()` means a stale bundle still
+ * posting `phone` gets a 400 — a deliberate one-deploy window, and the reason
+ * the form drops the field in the same change.
+ */
 export const registerBodySchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   email: emailSchema,
   password: passwordSchema,
-  phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919876543210").optional(),
 }).strict();
 
 export const loginBodySchema = z.object({

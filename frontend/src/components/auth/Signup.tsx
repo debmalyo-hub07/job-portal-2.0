@@ -19,11 +19,11 @@ import { TurnstileChallenge } from "./TurnstileChallenge";
 
 /**
  * Portal comes from the route. The inherited form asked for it in a radio pair
- * placed *below* name, email, phone and password — the first decision presented
+ * placed *below* name, email and password — the first decision presented
  * last — and that decision is now made by which URL you are on.
  */
 const Signup = ({ portal }: { portal: Portal }) => {
-  const [input, setInput] = useState({ fullName: "", email: "", phone: "", password: "" });
+  const [input, setInput] = useState({ fullName: "", email: "", password: "" });
   const [botToken, setBotToken] = useState<string | null>(null);
   const [challengeKey, setChallengeKey] = useState(0);
   const { loading } = useAppSelector((state) => state.auth);
@@ -39,15 +39,15 @@ const Signup = ({ portal }: { portal: Portal }) => {
     e.preventDefault();
     try {
       dispatch(setLoading(true));
-      // JSON, not multipart: the endpoint takes no file. `phone` is optional and
-      // omitted entirely when blank — an empty string fails E.164.
+      // JSON, not multipart: the endpoint takes no file. Phone is asked for at
+      // the completion step instead, which a Google registration also passes
+      // through — this form does not.
       await apiClient.post(
         `/${portal}/auth/register`,
         {
           fullName: input.fullName,
           email: input.email,
           password: input.password,
-          ...(input.phone.trim() ? { phone: input.phone.trim() } : {}),
         },
         ...turnstileRequestConfig(botToken),
       );
@@ -96,22 +96,6 @@ const Signup = ({ portal }: { portal: Portal }) => {
             onChange={changeEventHandler}
             placeholder="you@example.com"
             spellCheck={false}
-          />
-        </FormField>
-
-        <FormField
-          label="Phone"
-          htmlFor="phone"
-          hint="Optional. Include the country code, e.g. +919876543210."
-        >
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            value={input.phone}
-            onChange={changeEventHandler}
-            placeholder="+919876543210"
           />
         </FormField>
 
