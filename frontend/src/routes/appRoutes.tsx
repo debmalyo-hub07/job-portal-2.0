@@ -22,6 +22,7 @@ import AdminDashboard from "@/components/console/AdminDashboard";
 import AdminRecruiters from "@/components/console/AdminRecruiters";
 import AdminJobsConsole from "@/components/console/AdminJobsConsole";
 import AdminCompanies from "@/components/console/AdminCompanies";
+import AdminProfile from "@/components/console/AdminProfile";
 import VerifyEmail from "@/components/auth/VerifyEmail";
 import ForgotPassword from "@/components/auth/ForgotPassword";
 import ResetPassword from "@/components/auth/ResetPassword";
@@ -237,6 +238,7 @@ export const appRoutes: RouteObject[] = [
       // own listings.
       { path: "/admin/dashboard", element: adminConsole(<AdminDashboard />) },
       { path: "/admin/recruiters", element: adminConsole(<AdminRecruiters />) },
+      { path: "/admin/profile", element: adminConsole(<AdminProfile />) },
       { path: "/admin/review/jobs", element: adminConsole(<AdminJobsConsole />) },
       { path: "/admin/review/companies", element: adminConsole(<AdminCompanies />) },
       // Pre-3A workspace URLs. The workspace lived under /admin through 2B-1, so

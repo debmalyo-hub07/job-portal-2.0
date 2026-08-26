@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 
 import { makeStore } from "./helpers/renderRoute";
@@ -8,7 +9,7 @@ import { setUser } from "@/redux/authSlice";
 import Navbar from "@/components/shared/Navbar";
 import { navLinksFor } from "@/components/shared/navLinks";
 
-function storeWithUser(portal: "seeker" | "recruiter") {
+function storeWithUser(portal: "seeker" | "recruiter" | "admin") {
   const s = makeStore();
   s.dispatch(
     setUser({
@@ -113,5 +114,29 @@ describe("Navbar account menu", () => {
   it("shows no auth links when signed in", () => {
     const { queryByRole } = renderNavbar(storeWithUser("seeker"));
     expect(queryByRole("link", { name: /sign in/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("the profile entry point", () => {
+  // Gating this on `portal === "seeker"` is what left a recruiter and an admin
+  // with no route to their own account at all. Still not in `navLinksFor`: the
+  // popover is present at every breakpoint, so a primary link would duplicate the
+  // only path and spend a slot in a five-item bar.
+  //
+  // One test per portal: Radix renders PopoverContent into a portal on
+  // `document.body`, which RTL only clears between tests, so a second render in
+  // the same test would leave two menus and every lookup ambiguous.
+  // Each rendered on a route its own portal owns: the navbar resolves the portal
+  // from the route, so a recruiter session on `/` is not a signed-in session and
+  // no account menu renders at all.
+  it.each([
+    ["seeker", "/", "/profile"],
+    ["recruiter", "/hire/companies", "/hire/profile"],
+    ["admin", "/admin/dashboard", "/admin/profile"],
+  ] as const)("offers View profile to a %s session", async (portal, route, href) => {
+    const view = renderNavbar(storeWithUser(portal), route);
+    await userEvent.click(view.getByRole("button", { name: /account/i }));
+    const link = await screen.findByRole("link", { name: /view profile/i });
+    expect(link.getAttribute("href")).toBe(href);
   });
 });

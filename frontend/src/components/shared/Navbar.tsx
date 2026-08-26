@@ -23,7 +23,7 @@ import { clearPortalHint } from "@/lib/portal";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { landingPathFor, loginPathFor } from "@/lib/portalHome";
+import { landingPathFor, loginPathFor, profilePathFor } from "@/lib/portalHome";
 import { portalForPath } from "@/lib/portalRoutes";
 import { useAuthBootstrap } from "@/hooks/useAuthBootstrap";
 
@@ -208,15 +208,19 @@ const Navbar = () => {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-1 border-t border-line pt-3">
-                  {user.portal === "seeker" && (
-                    <Link
-                      to="/profile"
-                      className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"
-                    >
-                      <User2 className="size-4" />
-                      View profile
-                    </Link>
-                  )}
+                  {/* Every portal, via the one path map. Gating this on
+                      `portal === "seeker"` is what left a recruiter and an admin
+                      with no route to their own account at all. Still not in
+                      `navLinksFor`: the popover is present at every breakpoint, so
+                      a primary link would duplicate the only path and spend a slot
+                      in a five-item bar. */}
+                  <Link
+                    to={profilePathFor(user.portal)}
+                    className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"
+                  >
+                    <User2 className="size-4" />
+                    View profile
+                  </Link>
                   <button
                     type="button"
                     onClick={logoutHandler}
