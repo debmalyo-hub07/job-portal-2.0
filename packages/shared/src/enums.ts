@@ -16,6 +16,18 @@ import { portalSchema, type Portal } from "./auth.js";
  */
 export const JOB_TYPES = ["Full-time", "Part-time", "Internship", "Contract"] as const;
 export const WORK_MODES = ["onsite", "hybrid", "remote"] as const;
+/**
+ * Lowercase slugs, not the title-case JOB_TYPES uses.
+ *
+ * The note above already calls slugs "the better data shape" and says title-case
+ * survived only because existing rows agreed on it. Gender has no existing rows,
+ * so there is nothing to migrate around, and WORK_MODES is already slugs.
+ *
+ * "prefer-not-to-say" is a STORED value distinct from null: null means never
+ * asked (a legacy row, or an admin who has not filled the form), the slug means
+ * asked and declined. Neither field is clearable, so null stays stable.
+ */
+export const GENDERS = ["female", "male", "non-binary", "prefer-not-to-say"] as const;
 export const JOB_DEPARTMENTS = [
   "Engineering",
   "Data & AI",
@@ -69,9 +81,22 @@ export const workModeSchema = z.enum(WORK_MODES);
 export const jobDepartmentSchema = z.enum(JOB_DEPARTMENTS);
 export const jobStatusSchema = z.enum(JOB_STATUSES);
 export const applicationStatusSchema = z.enum(APPLICATION_STATUSES);
+export const genderSchema = z.enum(GENDERS);
 
 export type JobType = z.infer<typeof jobTypeSchema>;
 export type WorkMode = z.infer<typeof workModeSchema>;
 export type JobDepartment = z.infer<typeof jobDepartmentSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type ApplicationStatus = z.infer<typeof applicationStatusSchema>;
+export type Gender = z.infer<typeof genderSchema>;
+
+/**
+ * Display strings, kept beside the enum so a new slug with no label fails a test
+ * rather than rendering blank.
+ */
+export const GENDER_LABELS: Record<Gender, string> = {
+  female: "Female",
+  male: "Male",
+  "non-binary": "Non-binary",
+  "prefer-not-to-say": "Prefer not to say",
+};

@@ -16,6 +16,80 @@ export const passwordSchema = z
 
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
 
+/**
+ * One E.164 definition.
+ *
+ * It was inline in registerBodySchema while profileUpdateBodySchema.phoneNumber
+ * accepted any string up to 20 characters, so the profile could store a number
+ * registration would reject, under a different field name.
+ */
+export const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919876543210");
+
+export const MIN_AGE_YEARS = 18;
+export const MAX_AGE_YEARS = 100;
+
+/**
+ * Under-18 is a "not yet", not a refusal: guardian consent and internship-only
+ * applications are their own project. Copy agreed with the user.
+ */
+export const UNDER_AGE_MESSAGE =
+  "You need to be 18 or over to join Cairn. We're working on internships for younger candidates.";
+
+/**
+ * Whole years from `dob` to `on`, both read in UTC.
+ *
+ * UTC on both sides deliberately. A birth date is a calendar date, not an
+ * instant; mixing a UTC-midnight dob with a local `now` shifts the answer by a
+ * day for anyone west of Greenwich, which turns an 18th birthday into 17.
+ */
+export function ageInYears(dob: string, on: Date): number {
+  const parts = dob.split("-").map(Number);
+  const year = parts[0] ?? 0;
+  const month = parts[1] ?? 1;
+  const day = parts[2] ?? 1;
+  let age = on.getUTCFullYear() - year;
+  const monthDelta = on.getUTCMonth() + 1 - month;
+  if (monthDelta < 0 || (monthDelta === 0 && on.getUTCDate() < day)) age -= 1;
+  return age;
+}
+
+/**
+ * Whether `v` names a real calendar day.
+ *
+ * A round-trip, not a NaN check. `Date` does NOT reject an out-of-range day in
+ * an ISO string — `new Date("2000-02-31T00:00:00Z")` rolls forward to 2000-03-02
+ * and parses perfectly happily — so `Number.isNaN(Date.parse(...))` accepts
+ * every impossible date anyone can type. Comparing the parsed value back against
+ * the input is the only check that catches February 31st.
+ */
+function isRealCalendarDate(v: string): boolean {
+  const parsed = new Date(v + "T00:00:00Z");
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.toISOString().slice(0, 10) === v;
+}
+
+/**
+ * A calendar date on the wire, a `Date` in the model.
+ *
+ * The future check is separate from the age check so a mistyped year reads
+ * "must be a date in the past" rather than the internships message, which
+ * would be baffling for someone who typed 2030.
+ *
+ * Concatenation rather than a template literal on purpose: the UTC suffix is
+ * what stops a later reader turning this into a local-time parse.
+ */
+export const dobSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD")
+  .refine(isRealCalendarDate, "must be a real date")
+  .refine((v) => ageInYears(v, new Date()) >= 0, "must be a date in the past")
+  .refine((v) => ageInYears(v, new Date()) >= MIN_AGE_YEARS, UNDER_AGE_MESSAGE)
+  .refine((v) => ageInYears(v, new Date()) <= MAX_AGE_YEARS, "must be a plausible date of birth");
+
 export const registerBodySchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   email: emailSchema,
