@@ -14,6 +14,12 @@ async function pendingRecruiter(email: string): Promise<{ access: string; csrf: 
     .send({ fullName: "Pending", email, password: PASSWORD });
   const code = await lastCodeFor(email);
   await request(app).post("/api/v1/recruiter/auth/verify-email").send({ email, code });
+  // This suite is about APPROVAL, not identity. Without a date of birth the two
+  // positive cases below would be refused by `requireProfileComplete` and read as
+  // approval failures — the same reasoning as the default in `signedUpOn`. The
+  // pending cases still assert RECRUITER_PENDING_APPROVAL, because approval is
+  // checked first in the chain.
+  await Recruiter.updateOne({ email }, { $set: { dob: new Date("1995-03-20T00:00:00Z") } });
   const login = await request(app)
     .post("/api/v1/recruiter/auth/login")
     .send({ email, password: PASSWORD });

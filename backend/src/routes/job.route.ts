@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate, optionalAuthenticate } from "../middleware/authenticate.js";
 import { requireApproved } from "../middleware/requireApproved.js";
+import { requireProfileComplete } from "../middleware/requireProfileComplete.js";
 import {
   postJob,
   getAllJobs,
@@ -21,22 +22,22 @@ const router = express.Router();
 // omission.
 router
   .route("/post")
-  .post(authenticate("recruiter"), requireApproved, csrfProtection(), postJob);
+  .post(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), postJob);
 // Partial update on PUT, matching /company/update/:id — the client already
 // speaks that shape. Ownership is resolved in the service, which answers 404 for
 // a foreign job so probing cannot distinguish it from a missing one.
 router
   .route("/update/:id")
-  .put(authenticate("recruiter"), requireApproved, csrfProtection(), updateJob);
+  .put(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), updateJob);
 // Close a filled role, or reopen one. Mirrors /application/status/:id/update.
 router
   .route("/status/:id/update")
-  .post(authenticate("recruiter"), requireApproved, csrfProtection(), updateJobStatus);
+  .post(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), updateJobStatus);
 // Only ever succeeds for a posting nobody applied to; the service refuses the
 // rest with 409 rather than erasing what a candidate applied to.
 router
   .route("/delete/:id")
-  .delete(authenticate("recruiter"), requireApproved, csrfProtection(), deleteJob);
+  .delete(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), deleteJob);
 // Public: the job board and a job's detail page are the product's front door.
 // The inherited code required a session on both, so an anonymous visitor got a
 // 401 and the home page rendered "No Job Available". `optionalAuthenticate`

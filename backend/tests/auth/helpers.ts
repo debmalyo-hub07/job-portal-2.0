@@ -162,6 +162,19 @@ export async function signedUpOn(
     await accountModel("recruiter").updateOne({ email }, { $set: { status: "active" } });
   }
 
+  // Every suite using this helper is testing something else — ownership,
+  // pagination, CSRF — so leaving accounts incomplete would make
+  // `requireProfileComplete` the thing dozens of unrelated tests assert. Same
+  // reasoning as the `approved` default above. `profileGate.test.ts` clears this
+  // back to null per account and is the suite that covers the gate itself.
+  //
+  // Before the login below, not after: the session's `/me` must report
+  // `profileComplete: true`, and that is computed when the account is read.
+  await accountModel(portal).updateOne(
+    { email },
+    { $set: { dob: new Date("1995-03-20T00:00:00Z") } },
+  );
+
   const res = await request(sharedApp)
     .post(`/api/v1/${portal}/auth/login`)
     .send({ email, password });

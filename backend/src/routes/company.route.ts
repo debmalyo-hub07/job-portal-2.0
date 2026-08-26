@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate } from "../middleware/authenticate.js";
 import { requireApproved } from "../middleware/requireApproved.js";
+import { requireProfileComplete } from "../middleware/requireProfileComplete.js";
 import {
   registerCompany,
   getCompany,
@@ -17,11 +18,11 @@ const router = express.Router();
 // empty workspace into an error screen with nothing to explain it.
 router
   .route("/register")
-  .post(authenticate("recruiter"), requireApproved, csrfProtection(), registerCompany);
+  .post(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), registerCompany);
 router.route("/get").get(authenticate("recruiter"), getCompany);
 router.route("/get/:id").get(authenticate("recruiter"), getCompanyById);
 router
   .route("/update/:id")
-  .put(authenticate("recruiter"), requireApproved, csrfProtection(), logoUpload, updateCompany);
+  .put(authenticate("recruiter"), requireApproved, requireProfileComplete, csrfProtection(), logoUpload, updateCompany);
 
 export default router;

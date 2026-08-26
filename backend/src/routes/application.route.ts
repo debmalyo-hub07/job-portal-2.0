@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate } from "../middleware/authenticate.js";
 import { requireApproved } from "../middleware/requireApproved.js";
+import { requireProfileComplete } from "../middleware/requireProfileComplete.js";
 import {
   applyJob,
   getAppliedJobs,
@@ -14,7 +15,13 @@ const router = express.Router();
 
 // POST, not GET: applying creates an Application. As a GET it was reachable by
 // any crawler, prefetch or <img> tag, and forgeable cross-site.
-router.route("/apply/:id").post(authenticate("seeker"), csrfProtection(), applyJob);
+//
+// Gated on identity as well as session: applying is the seeker's consequential
+// action, and `/get/:id` is a PUBLIC page, so this is the one place an incomplete
+// seeker can reach a write without ever passing the client-side guard.
+router
+  .route("/apply/:id")
+  .post(authenticate("seeker"), requireProfileComplete, csrfProtection(), applyJob);
 router.route("/get").get(authenticate("seeker"), getAppliedJobs);
 // Applicant data is the thing an unapproved recruiter most wants and least
 // deserves — a seeker's name, email, phone and resume link.
