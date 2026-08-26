@@ -15,6 +15,8 @@ import JobEdit from "@/components/workspace/JobEdit";
 import Applicants from "@/components/workspace/Applicants";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
 import RequireApproved from "@/components/routing/RequireApproved";
+import RequireProfileComplete from "@/components/routing/RequireProfileComplete";
+import CompleteProfile from "@/components/identity/CompleteProfile";
 import AdminDashboard from "@/components/console/AdminDashboard";
 import AdminRecruiters from "@/components/console/AdminRecruiters";
 import AdminJobsConsole from "@/components/console/AdminJobsConsole";
@@ -104,6 +106,25 @@ export const appRoutes: RouteObject[] = [
             element: (
               <ProtectedRoute portal="seeker">
                 <Profile />
+              </ProtectedRoute>
+            ),
+          },
+          // Inside ProtectedRoute (it writes to the caller's own account) and
+          // deliberately OUTSIDE RequireProfileComplete — the guard redirects
+          // here, so wrapping this would redirect it to itself forever.
+          {
+            path: "/complete-profile",
+            element: (
+              <ProtectedRoute portal="seeker">
+                <CompleteProfile portal="seeker" />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "/hire/complete-profile",
+            element: (
+              <ProtectedRoute portal="recruiter">
+                <CompleteProfile portal="recruiter" />
               </ProtectedRoute>
             ),
           },

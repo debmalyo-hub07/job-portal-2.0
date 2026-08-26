@@ -37,6 +37,12 @@ export function FormField({
     ? cloneElement(child, {
         "aria-describedby": describedBy,
         ...(error ? { "aria-invalid": true } : {}),
+        // `aria-required`, not the native `required`. The visible `*` beside the
+        // label is `aria-hidden`, correctly — a screen reader reading "asterisk"
+        // is noise — but that left requiredness available to sighted users only.
+        // This closes that without turning on native browser validation, which
+        // would start blocking submits in forms that never asked for it.
+        ...(required ? { "aria-required": true } : {}),
       })
     : child;
 
