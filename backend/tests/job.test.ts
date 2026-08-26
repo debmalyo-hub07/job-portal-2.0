@@ -694,3 +694,15 @@ describe("job routes", () => {
     });
   });
 });
+
+describe("the public poster block", () => {
+  it("keeps identity fields out of it", async () => {
+    // `POSTER_FIELDS` is a positive allowlist, so this is already true — but it
+    // is a bare string literal, and this is what stops a careless edit widening
+    // it into the seeker-visible byline.
+    const { POSTER_FIELDS } = await import("../src/services/job.service.js");
+    expect(POSTER_FIELDS).not.toContain("dob");
+    expect(POSTER_FIELDS).not.toContain("gender");
+    expect(POSTER_FIELDS).not.toContain("passwordHash");
+  });
+});

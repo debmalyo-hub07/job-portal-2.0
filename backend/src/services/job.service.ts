@@ -43,7 +43,12 @@ type PopulatedJob = Omit<HydratedDocument<JobDocument>, "company" | "created_by"
  * `authFields`: the recruiter document holds a password hash, lockout counters
  * and a token cutoff, none of which has any business travelling to a job page.
  */
-const POSTER_FIELDS = "fullName designation email phone";
+/**
+ * Exported so `job.test.ts` can assert what is NOT in it. A positive allowlist
+ * already keeps `dob` and `gender` out of the public byline, but it is a bare
+ * string literal — the test is what stops a careless edit widening it.
+ */
+export const POSTER_FIELDS = "fullName designation email phone";
 
 /**
  * Reads the poster block off a populated `created_by`.

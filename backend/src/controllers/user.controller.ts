@@ -37,6 +37,7 @@ function toProfileView(
       resumeName: seeker.resume!.originalName ?? null,
     },
     recruiter: recruiter && { designation: recruiter.designation ?? null },
+    admin: portal === "admin" ? {} : null,
   };
 }
 

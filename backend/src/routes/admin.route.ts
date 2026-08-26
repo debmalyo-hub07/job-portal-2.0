@@ -14,6 +14,7 @@ import {
   listCompanies,
   createAdmin,
 } from "../controllers/admin.controller.js";
+import { getProfile, updateProfile } from "../controllers/user.controller.js";
 
 const router = express.Router();
 
@@ -57,5 +58,22 @@ router
 router
   .route("/recruiters/:id/deny")
   .post(authenticate("admin"), csrfProtection(), denyRecruiter);
+
+/**
+ * The same two controller functions `/user/profile` uses, under a different gate.
+ * They read `req.auth.portal`, which is correct under either middleware.
+ *
+ * A second mount rather than widening `authenticateAny`: ADR-0006 requires that
+ * an admin cookie must never silently satisfy a route that meant "some signed-in
+ * user".
+ *
+ * No `resumeUpload`, because there is no file path into an admin row — which
+ * makes this mount JSON-only, unlike `/user/profile/update`. A multipart body
+ * here is a 400 rather than a silent no-op, which is asserted.
+ *
+ * No `requireProfileComplete` either: admin is ungated by decision.
+ */
+router.route("/profile").get(authenticate("admin"), getProfile);
+router.route("/profile/update").post(authenticate("admin"), csrfProtection(), updateProfile);
 
 export default router;

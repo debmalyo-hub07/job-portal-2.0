@@ -94,6 +94,12 @@ export interface ProfileView {
     resumeName: string | null;
   } | null;
   recruiter: { designation: string | null } | null;
+  /**
+   * Empty by design. An admin carries no fields beyond the identity block, and a
+   * present-but-empty object is what tells the client which page to render — the
+   * same discriminator `seeker` and `recruiter` already are.
+   */
+  admin: Record<string, never> | null;
 }
 
 export interface ProfileResponse {
