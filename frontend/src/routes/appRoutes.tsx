@@ -50,15 +50,21 @@ const DesignGallery = import.meta.env.DEV
   : null;
 
 /**
- * Every recruiter workspace page carries the same two gates, in the same order
+ * Every recruiter workspace page carries the same three gates, in the same order
  * the API applies them: the portal check first (`authenticate("recruiter")`),
- * then the approval check (`requireApproved`). Composing them here rather than
- * per route is what keeps a new workspace page from shipping with one of them
- * missing.
+ * then identity (`requireProfileComplete`), then approval (`requireApproved`).
+ * Composing them here rather than per route is what keeps a new workspace page
+ * from shipping with one of them missing.
  */
 const workspace = (page: ReactNode) => (
   <ProtectedRoute portal="recruiter">
-    <RequireApproved>{page}</RequireApproved>
+    {/* Identity sits OUTSIDE approval, matching the API — where
+        `requireApproved` runs first, so a pending recruiter hears about approval
+        rather than about a birth date. One edit here covers every workspace
+        route; seven copies is how one of them ends up ungated. */}
+    <RequireProfileComplete portal="recruiter">
+      <RequireApproved>{page}</RequireApproved>
+    </RequireProfileComplete>
   </ProtectedRoute>
 );
 
@@ -105,7 +111,9 @@ export const appRoutes: RouteObject[] = [
             path: "/profile",
             element: (
               <ProtectedRoute portal="seeker">
-                <Profile />
+                <RequireProfileComplete portal="seeker">
+                  <Profile />
+                </RequireProfileComplete>
               </ProtectedRoute>
             ),
           },

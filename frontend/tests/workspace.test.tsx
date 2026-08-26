@@ -36,6 +36,7 @@ function storeWith(portal: Portal, status: "active" | "pending") {
       email: "workspace@example.com",
       emailVerified: true,
       avatarUrl: null,
+      profileComplete: true,
       status,
     }),
   );

@@ -7,6 +7,7 @@ import { profileUpdateBodySchema, type ProfileView } from "@jobportal/shared";
 import { makeStore, renderRoute } from "./helpers/renderRoute";
 import Profile from "@/components/Profile";
 import UpdateProfileDialog from "@/components/UpdateProfileDialog";
+import IdentityCard from "@/components/identity/IdentityCard";
 import { setBootstrapped, setUser } from "@/redux/authSlice";
 import { apiClient } from "@/lib/apiClient";
 
@@ -329,5 +330,28 @@ describe("Profile renders the matching preferences it lets you set", () => {
     mount(FULL);
     await screen.findByRole("heading", { name: /matching preferences/i });
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+});
+
+describe("IdentityCard", () => {
+  it("formats the date of birth in UTC", () => {
+    // 1995-03-20 must not render as the 19th, which a local formatter would
+    // produce anywhere west of Greenwich — a different birthday.
+    render(<IdentityCard profile={{ ...FULL, dob: "1995-03-20", gender: "female" }} />);
+    expect(screen.getByText(/20 March 1995|March 20, 1995/)).toBeTruthy();
+    expect(screen.getByText(/^female$/i)).toBeTruthy();
+  });
+
+  it("says so plainly when a field was never filled in", () => {
+    render(<IdentityCard profile={{ ...FULL, phone: null, dob: null, gender: null }} />);
+    expect(screen.getAllByText(/not added/i).length).toBe(2);
+    expect(screen.getByText(/not specified/i)).toBeTruthy();
+  });
+
+  it("labels every row for a screen reader", () => {
+    render(<IdentityCard profile={FULL} />);
+    for (const label of ["Email", "Phone", "Date of birth", "Gender"]) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
   });
 });

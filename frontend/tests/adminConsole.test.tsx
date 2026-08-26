@@ -20,6 +20,7 @@ function storeWith(portal: Portal) {
       email: "console@example.com",
       emailVerified: true,
       avatarUrl: null,
+      profileComplete: true,
       status: "active",
     }),
   );

@@ -21,6 +21,7 @@ function storeWithRecruiter(status: AccountStatus) {
       email: "r@example.com",
       emailVerified: true,
       avatarUrl: null,
+      profileComplete: true,
       status,
     }),
   );
@@ -205,6 +206,7 @@ describe("admin portal sign-in", () => {
         email: "root@example.com",
         emailVerified: true,
         avatarUrl: null,
+        profileComplete: true,
         status: "active",
       }),
     );

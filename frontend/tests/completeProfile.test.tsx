@@ -92,3 +92,35 @@ describe("the completion routes", () => {
     expect(view.pathname()).not.toBe("/complete-profile");
   });
 });
+
+describe("the guard on gated subtrees", () => {
+  it("redirects an incomplete seeker off the profile page", () => {
+    // Assert the destination page RENDERED, not the URL: useAuthBootstrap sits
+    // above the router, so redirect chains resolve differently in jsdom.
+    const store = makeStore();
+    store.dispatch(setUser(seeker));
+    renderAppAt("/profile", { store });
+    expect(screen.getByText(/a few details before you start/i)).toBeTruthy();
+  });
+
+  it("lets a complete seeker through to the profile page", () => {
+    const store = makeStore();
+    store.dispatch(setUser({ ...seeker, profileComplete: true }));
+    renderAppAt("/profile", { store });
+    expect(screen.queryByText(/a few details before you start/i)).toBeNull();
+  });
+
+  it("redirects an incomplete recruiter off the workspace", () => {
+    const store = makeStore();
+    store.dispatch(setUser({ ...seeker, portal: "recruiter" }));
+    renderAppAt("/hire/jobs", { store });
+    expect(screen.getByText(/a few details before you start/i)).toBeTruthy();
+  });
+
+  it("leaves the public board open to an incomplete session", () => {
+    const store = makeStore();
+    store.dispatch(setUser(seeker));
+    const view = renderAppAt("/jobs", { store });
+    expect(view.pathname()).toBe("/jobs");
+  });
+});

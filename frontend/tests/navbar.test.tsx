@@ -17,6 +17,7 @@ function storeWithUser(portal: "seeker" | "recruiter") {
       email: "arjun@example.test",
       portal,
       avatarUrl: null,
+      profileComplete: true,
     } as never),
   );
   return s;

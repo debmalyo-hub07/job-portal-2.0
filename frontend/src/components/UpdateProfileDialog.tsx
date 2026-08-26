@@ -6,10 +6,10 @@ import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { GENDERS, GENDER_LABELS } from "@jobportal/shared";
-import type { ProfileResponse, ProfileView } from "@jobportal/shared";
+import type { Gender, ProfileResponse, ProfileView } from "@jobportal/shared";
 
 import { FormField } from "@/components/layout/FormField";
+import { IdentityFieldset } from "./identity/IdentityFieldset";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { setUser } from "@/redux/authSlice";
@@ -201,44 +201,17 @@ const UpdateProfileDialog = ({
               <Input id="email" name="email" type="email" value={profile?.user.email ?? ""} readOnly disabled />
             </FormField>
 
-            <FormField label="Phone" htmlFor="phone">
-              <Input
-                id="phone"
-                name="phone"
-                value={input.phone}
-                onChange={changeEventHandler}
-              />
-            </FormField>
-
-            {/* `type="date"` posts YYYY-MM-DD, which is exactly what `dobSchema`
-                reads — no locale parsing in between. */}
-            <FormField
-              label="Date of birth"
-              htmlFor="dob"
-              hint="You must be 18 or over. Leave unchanged to keep the stored date."
-            >
-              <Input id="dob" name="dob" type="date" value={input.dob} onChange={changeEventHandler} />
-            </FormField>
-
-            {/* A select, not a radio group: four options with a real "prefer not
-                to say" among them, and unlike `openToRemote` the blank is not a
-                distinct stored value — it only means "leave alone". */}
-            <FormField label="Gender" htmlFor="gender" hint="Only ever shown to you.">
-              <select
-                id="gender"
-                name="gender"
-                value={input.gender}
-                onChange={changeEventHandler}
-                className="h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink"
-              >
-                <option value="">Leave unchanged</option>
-                {GENDERS.map((g) => (
-                  <option key={g} value={g}>
-                    {GENDER_LABELS[g]}
-                  </option>
-                ))}
-              </select>
-            </FormField>
+            {/* The same fieldset the completion step renders, so the "18 or
+                over" rule and the E.164 hint exist once. `dobRequired={false}`
+                here: the field is correctable but absent means "leave alone", and
+                a required marker would imply this form refuses to save without
+                re-entering it. */}
+            <IdentityFieldset
+              value={{ dob: input.dob, phone: input.phone, gender: input.gender as Gender | "" }}
+              onChange={(next) => setInput({ ...input, ...next })}
+              dobRequired={false}
+              disabled={loading}
+            />
 
             <FormField label="Bio" htmlFor="bio">
               <Input id="bio" name="bio" value={input.bio} onChange={changeEventHandler} />

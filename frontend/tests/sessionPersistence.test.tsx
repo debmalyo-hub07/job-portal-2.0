@@ -38,6 +38,7 @@ describe("session persistence", () => {
       email: "recruiter@example.test",
       emailVerified: true,
       avatarUrl: null,
+      profileComplete: true,
       status: "active",
     } as const;
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({
@@ -67,6 +68,7 @@ describe("session persistence", () => {
         email: "seeker@example.test",
         emailVerified: true,
         avatarUrl: null,
+        profileComplete: true,
         status: "active",
       }),
     );

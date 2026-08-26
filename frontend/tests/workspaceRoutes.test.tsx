@@ -129,6 +129,7 @@ function recruiterStore() {
       email: "recruiter@example.test",
       emailVerified: true,
       avatarUrl: null,
+      profileComplete: true,
       // The account is authenticated, so the destination guard accepts it, and
       // pending status stops at RequireApproved rather than rendering a whole
       // workspace page this test has no data for. RequireApproved does its own

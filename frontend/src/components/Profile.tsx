@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Contact, Mail, Pen } from "lucide-react";
+import { Pen } from "lucide-react";
 import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -9,6 +9,7 @@ import { Skeleton } from "./ui/skeleton";
 import PageShell from "./layout/PageShell";
 import AppliedJobTable from "./AppliedJobTable";
 import UpdateProfileDialog from "./UpdateProfileDialog";
+import IdentityCard from "./identity/IdentityCard";
 import { apiClient } from "@/lib/apiClient";
 import { initialsOf } from "@/lib/initials";
 import { Reveal } from "@/lib/motion";
@@ -135,18 +136,11 @@ const Profile = () => {
             </Button>
           </div>
 
-          <dl className="mt-(--space-card) grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center gap-3">
-              <Mail className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <dt className="sr-only">Email</dt>
-              <dd className="truncate text-ink">{profile?.user.email ?? "—"}</dd>
-            </div>
-            <div className="flex items-center gap-3">
-              <Contact className="size-4 shrink-0 text-ink-muted" aria-hidden="true" />
-              <dt className="sr-only">Phone</dt>
-              <dd className="truncate text-ink">{profile?.phone ?? "Not provided"}</dd>
-            </div>
-          </dl>
+          {/* One component for all three portals' identity block, so date of
+              birth is formatted in UTC in exactly one place. */}
+          <div className="mt-(--space-card)">
+            {profile ? <IdentityCard profile={profile} /> : null}
+          </div>
 
           <div className="mt-(--space-card)">
             <h2 className="font-display text-xl font-semibold text-ink">Skills</h2>

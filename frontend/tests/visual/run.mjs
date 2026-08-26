@@ -129,6 +129,7 @@ async function mockWorkbench(page, portal) {
     email: portal === "admin" ? "mira@cairn.test" : "aarav@northstar.test",
     emailVerified: true,
     avatarUrl: null,
+    profileComplete: true,
     status: "active",
   };
   await page.addInitScript(({ portal }) => localStorage.setItem("jp.portal", portal), { portal });

@@ -25,6 +25,7 @@ function sessionStore(portal: Portal) {
     email: `${portal}@example.test`,
     emailVerified: true,
     avatarUrl: null,
+    profileComplete: true,
     status: "active",
   };
   store.dispatch(setUser(user));
@@ -143,6 +144,7 @@ describe("portal route isolation", () => {
           email: "dual@example.test",
           emailVerified: true,
           avatarUrl: null,
+          profileComplete: true,
           status: "active",
         },
       }),
@@ -157,6 +159,7 @@ describe("portal route isolation", () => {
           email: "dual@example.test",
           emailVerified: true,
           avatarUrl: null,
+          profileComplete: true,
           status: "active",
         },
       }),
