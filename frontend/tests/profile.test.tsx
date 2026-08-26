@@ -20,8 +20,11 @@ const FULL: ProfileView = {
     emailVerified: true,
     avatarUrl: null,
     status: "active",
+    profileComplete: true,
   },
   phone: "+911234567890",
+  dob: "1995-03-20",
+  gender: "female",
   seeker: {
     headline: null,
     bio: "Backend engineer",
@@ -41,6 +44,8 @@ const FULL: ProfileView = {
 const EMPTY: ProfileView = {
   ...FULL,
   phone: null,
+  dob: null,
+  gender: null,
   seeker: {
     headline: null,
     bio: null,
@@ -95,7 +100,25 @@ function submit() {
  * to it fails here rather than scoring as a permanent unknown.
  */
 describe("UpdateProfileDialog covers every field the endpoint accepts", () => {
-  const FIELDS = Object.keys(profileUpdateBodySchema.shape);
+  /**
+   * `/user/profile/update` serves BOTH portals through `authenticateAny`, so its
+   * schema is the union of what either can send — while this dialog is the
+   * seeker's. `designation` is the recruiter's byline and belongs to the
+   * recruiter profile page, which carries the same guard for its own side.
+   *
+   * A named exclusion rather than a shrinking list: the assertion below proves
+   * the field really is absent here, so this cannot quietly become the place new
+   * fields go to be forgotten.
+   */
+  const RECRUITER_ONLY = ["designation"];
+  const FIELDS = Object.keys(profileUpdateBodySchema.shape).filter(
+    (f) => !RECRUITER_ONLY.includes(f),
+  );
+
+  it.each(RECRUITER_ONLY)("deliberately does not render %s, a recruiter field", (field) => {
+    renderDialog(FULL);
+    expect(control(field)).toBeNull();
+  });
 
   it.each(FIELDS)("renders a labelled control for %s", (field) => {
     renderDialog(FULL);
@@ -244,7 +267,7 @@ describe("UpdateProfileDialog submit", () => {
     await waitFor(() => expect(post).toHaveBeenCalled());
     const body = post.mock.calls[0][1] as FormData;
     expect(body.get("fullname")).toBe("Ada Lovelace");
-    expect(body.get("phoneNumber")).toBe("+911234567890");
+    expect(body.get("phone")).toBe("+911234567890");
     expect(body.get("bio")).toBe("Backend engineer");
     expect(body.get("skills")).toBe("ts, node");
   });

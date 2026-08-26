@@ -106,3 +106,50 @@ describe("POST /user/profile/complete", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("POST /user/profile/update identity fields", () => {
+  beforeEach(() => installCaptureMailer());
+
+  it("writes a recruiter's designation, which had no writer anywhere", async () => {
+    const email = "designation@example.com";
+    const session = await signedUpOn("recruiter", email);
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .use(asSession("recruiter", session))
+      .field("designation", "Talent Lead");
+    expect(res.status).toBe(200);
+    expect(res.body.profile.recruiter.designation).toBe("Talent Lead");
+  });
+
+  it("ignores designation from a seeker", async () => {
+    const session = await signedUpOn("seeker", "designation-seeker@example.com");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .use(asSession("seeker", session))
+      .field("designation", "Nice Try");
+    expect(res.status).toBe(200);
+    expect(res.body.profile.recruiter).toBeNull();
+  });
+
+  it("corrects a mistyped date of birth", async () => {
+    const session = await signedUpOn("seeker", "dob-fix@example.com");
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .use(asSession("seeker", session))
+      .field("dob", "1992-11-05");
+    expect(res.status).toBe(200);
+    expect(res.body.profile.dob).toBe("1992-11-05");
+  });
+
+  it("does not let a correction re-open the gate on an under-age date", async () => {
+    const email = "dob-downgrade@example.com";
+    const session = await signedUpOn("seeker", email);
+    const res = await request(app)
+      .post("/api/v1/user/profile/update")
+      .use(asSession("seeker", session))
+      .field("dob", "2015-01-01");
+    expect(res.status).toBe(400);
+    const row = await accountModel("seeker").findOne({ email }).select("dob").lean();
+    expect((row?.dob as Date).toISOString()).toBe("1995-03-20T00:00:00.000Z");
+  });
+});

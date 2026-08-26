@@ -329,7 +329,40 @@ const clearableInt = (max: number) =>
  */
 export const profileUpdateBodySchema = z.object({
   fullname: z.string().trim().min(2).max(80).optional(),
-  phoneNumber: z.string().trim().max(20).optional(),
+  /**
+   * Renamed from `phoneNumber` and now validated exactly as registration does —
+   * the old `max(20)` meant the profile could store a number registration would
+   * have refused, under a different field name.
+   *
+   * Clearable, unlike `dob` and `gender` below. The model's `phone` is nullable,
+   * and the edit dialog posts the box whether or not it holds anything, so a
+   * blank has to mean "clear it" rather than 400 an unrelated bio edit. Same
+   * shape as `clearableInt` above.
+   */
+  phone: z
+    .preprocess(
+      (v) => (typeof v === "string" ? v.trim() : (v ?? "")),
+      z.union([z.literal(""), phoneSchema]),
+    )
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
+  /**
+   * Correctable, never clearable. Absent means "leave alone"; there is
+   * deliberately no `""`-clears branch, because blanking a `dob` would re-gate
+   * the account and blanking a `gender` would erase the difference between
+   * "declined to say" and "never asked".
+   *
+   * `dobSchema` carries the age floor, so the correction path cannot walk an
+   * under-age date past the gate that reads this field.
+   */
+  dob: dobSchema.optional(),
+  gender: genderSchema.optional(),
+  /**
+   * The field rendered publicly as the job poster's byline that no schema in
+   * this repository could write. Applied only on the recruiter branch of
+   * `updateProfile`, the same way the seeker fields are.
+   */
+  designation: z.string().trim().max(80).optional(),
   bio: z.string().trim().max(1000).optional(),
   skills: z
     .string()

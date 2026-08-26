@@ -82,7 +82,12 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   }
 
   if (body.fullname !== undefined) account.fullName = body.fullname;
-  if (body.phoneNumber !== undefined) account.phone = body.phoneNumber;
+  if (body.phone !== undefined) account.phone = body.phone;
+  // The correction path for the identity block. `dob` is validated by the same
+  // schema the completion step uses, so an under-age value is a 400 here rather
+  // than a silent way back past the gate.
+  if (body.dob !== undefined) account.dob = new Date(`${body.dob}T00:00:00Z`);
+  if (body.gender !== undefined) account.gender = body.gender;
 
   if (portal === "seeker") {
     const seeker = account as SeekerDocument;
@@ -107,6 +112,14 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       seeker.resume!.sizeBytes = file.size;
       seeker.resume!.uploadedAt = new Date();
     }
+  }
+
+  if (portal === "recruiter") {
+    const recruiter = account as RecruiterDocument;
+    // Rendered publicly as the job byline since 2B, and until now unwritable by
+    // any schema in the repository — recruiters saw it on their own postings with
+    // no way to set it.
+    if (body.designation !== undefined) recruiter.designation = body.designation;
   }
 
   await account.save();

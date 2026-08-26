@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { GENDERS, GENDER_LABELS } from "@jobportal/shared";
 import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
 import { FormField } from "@/components/layout/FormField";
@@ -53,7 +54,9 @@ const UpdateProfileDialog = ({
   // endpoint reads multipart fields, and "" is how it is told to clear one.
   const [input, setInput] = useState({
     fullname: "",
-    phoneNumber: "",
+    phone: "",
+    dob: "",
+    gender: "",
     bio: "",
     skills: "",
     experienceYears: "",
@@ -71,7 +74,9 @@ const UpdateProfileDialog = ({
     if (!profile) return;
     setInput({
       fullname: profile.user.fullName,
-      phoneNumber: profile.phone ?? "",
+      phone: profile.phone ?? "",
+      dob: profile.dob ?? "",
+      gender: profile.gender ?? "",
       bio: profile.seeker?.bio ?? "",
       skills: profile.seeker?.skills.join(", ") ?? "",
       experienceYears: numText(profile.seeker?.experienceYears),
@@ -103,7 +108,9 @@ const UpdateProfileDialog = ({
     return lo > hi ? "Your minimum is above your maximum." : undefined;
   }, [input.salaryMin, input.salaryMax]);
 
-  const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
+  // Widened to cover the gender `<select>` as well as the text inputs; both
+  // carry `name` and `value`, which is all this reads.
+  const changeEventHandler = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });
   };
 
@@ -121,7 +128,13 @@ const UpdateProfileDialog = ({
     // it". `clearableInt` in the schema is what turns that into `null` rather
     // than `Number("")`, which is `0`.
     formData.append("fullname", input.fullname);
-    formData.append("phoneNumber", input.phoneNumber);
+    formData.append("phone", input.phone);
+    // The two exceptions to the append-everything rule above, because neither is
+    // clearable: the schema has no `""`-clears branch for either, so posting a
+    // blank would 400 an edit to some unrelated field. Absent means "leave
+    // alone", which is exactly what an untouched box should mean here.
+    if (input.dob) formData.append("dob", input.dob);
+    if (input.gender) formData.append("gender", input.gender);
     formData.append("bio", input.bio);
     formData.append("skills", input.skills);
     formData.append("experienceYears", input.experienceYears);
@@ -188,13 +201,43 @@ const UpdateProfileDialog = ({
               <Input id="email" name="email" type="email" value={profile?.user.email ?? ""} readOnly disabled />
             </FormField>
 
-            <FormField label="Phone" htmlFor="phoneNumber">
+            <FormField label="Phone" htmlFor="phone">
               <Input
-                id="phoneNumber"
-                name="phoneNumber"
-                value={input.phoneNumber}
+                id="phone"
+                name="phone"
+                value={input.phone}
                 onChange={changeEventHandler}
               />
+            </FormField>
+
+            {/* `type="date"` posts YYYY-MM-DD, which is exactly what `dobSchema`
+                reads — no locale parsing in between. */}
+            <FormField
+              label="Date of birth"
+              htmlFor="dob"
+              hint="You must be 18 or over. Leave unchanged to keep the stored date."
+            >
+              <Input id="dob" name="dob" type="date" value={input.dob} onChange={changeEventHandler} />
+            </FormField>
+
+            {/* A select, not a radio group: four options with a real "prefer not
+                to say" among them, and unlike `openToRemote` the blank is not a
+                distinct stored value — it only means "leave alone". */}
+            <FormField label="Gender" htmlFor="gender" hint="Only ever shown to you.">
+              <select
+                id="gender"
+                name="gender"
+                value={input.gender}
+                onChange={changeEventHandler}
+                className="h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-ink"
+              >
+                <option value="">Leave unchanged</option>
+                {GENDERS.map((g) => (
+                  <option key={g} value={g}>
+                    {GENDER_LABELS[g]}
+                  </option>
+                ))}
+              </select>
             </FormField>
 
             <FormField label="Bio" htmlFor="bio">

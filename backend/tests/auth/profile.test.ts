@@ -65,7 +65,7 @@ describe("updateProfile on the account collections", () => {
     await request(app)
       .post("/api/v1/user/profile/update")
       .use(asSession("seeker", seeker))
-      .field("bio", "hello").field("skills", "ts").field("phoneNumber", "+919876543210");
+      .field("bio", "hello").field("skills", "ts").field("phone", "+919876543210");
 
     const res = await request(app)
       .get("/api/v1/user/profile")

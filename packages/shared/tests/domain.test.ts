@@ -252,3 +252,45 @@ describe("profileUpdateBodySchema", () => {
     expect(profileUpdateBodySchema.parse({ salaryMin: "  " }).salaryMin).toBeNull();
   });
 });
+
+describe("profileUpdateBodySchema identity fields", () => {
+  it("takes phone under its real name and no longer takes phoneNumber", () => {
+    expect(profileUpdateBodySchema.parse({ phone: "+919876543210" }).phone).toBe("+919876543210");
+    expect(profileUpdateBodySchema.safeParse({ phoneNumber: "+919876543210" }).success).toBe(false);
+  });
+
+  it("validates phone the same way registration does", () => {
+    // It previously accepted any string up to 20 characters here, so the profile
+    // could store a number registration would have refused.
+    expect(profileUpdateBodySchema.safeParse({ phone: "9876543210" }).success).toBe(false);
+  });
+
+  it("lets a blank clear the phone, the way a blank clears a salary", () => {
+    // `phone` is nullable on the model and the dialog posts the box whether or
+    // not it holds anything, so a blank has to mean "clear it" rather than 400 an
+    // unrelated bio edit. Same shape as `clearableInt`.
+    expect(profileUpdateBodySchema.parse({ phone: "" }).phone).toBeNull();
+    expect(profileUpdateBodySchema.parse({ phone: "  " }).phone).toBeNull();
+  });
+
+  it("accepts dob and gender but refuses a blank for either", () => {
+    // Not clearable, deliberately asymmetric with phone above: blanking a dob
+    // would re-gate the account, and blanking a gender would erase the
+    // difference between "declined to say" and "never asked".
+    expect(profileUpdateBodySchema.safeParse({ dob: "1995-03-20" }).success).toBe(true);
+    expect(profileUpdateBodySchema.safeParse({ gender: "male" }).success).toBe(true);
+    expect(profileUpdateBodySchema.safeParse({ dob: "" }).success).toBe(false);
+    expect(profileUpdateBodySchema.safeParse({ gender: "" }).success).toBe(false);
+  });
+
+  it("holds the age floor on the correction path too", () => {
+    // The gate reads `dob`, so an under-age value accepted here would walk
+    // straight past it.
+    expect(profileUpdateBodySchema.safeParse({ dob: "2015-01-01" }).success).toBe(false);
+  });
+
+  it("accepts designation, which nothing could write before", () => {
+    expect(profileUpdateBodySchema.parse({ designation: "Talent Lead" }).designation)
+      .toBe("Talent Lead");
+  });
+});
