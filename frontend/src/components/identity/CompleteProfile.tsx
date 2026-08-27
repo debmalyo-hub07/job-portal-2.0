@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import type { Portal, ProfileResponse } from "@jobportal/shared";
 
-import Navbar from "@/components/shared/Navbar";
 import { PageShell } from "@/components/layout/PageShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -18,10 +17,8 @@ import { useAppDispatch } from "@/redux/store";
 /**
  * The identity gate's only exit.
  *
- * `Navbar`, not `AuthLayout`: the user already holds a session, and AuthLayout's
- * Back link points at a portal prefix. The Navbar is also what stops this being a
- * trap — `RequireApproved` keeps it for exactly the same reason, so a user who
- * would rather leave than answer can still reach the account menu and sign out.
+ * The route lives under `PublicLayout`, which supplies the one shared Navbar.
+ * The user already holds a session, so this remains outside `AuthLayout`.
  */
 const CompleteProfile = ({ portal }: { portal: Extract<Portal, "seeker" | "recruiter"> }) => {
   const [value, setValue] = useState<IdentityValue>({ dob: "", phone: "", gender: "" });
@@ -53,28 +50,25 @@ const CompleteProfile = ({ portal }: { portal: Extract<Portal, "seeker" | "recru
   };
 
   return (
-    <>
-      <Navbar />
-      <PageShell density="compact" width="default">
-        <div className="mx-auto max-w-md">
-          <PageHeader
-            title="A few details before you start"
-            description={
-              portal === "recruiter"
-                ? "We ask every account for these once."
-                : "We ask every candidate for these once."
-            }
-          />
-          <form onSubmit={submit} noValidate>
-            <IdentityFieldset value={value} onChange={setValue} disabled={saving} />
-            <Button type="submit" variant="signal" className="mt-2 w-full" disabled={saving}>
-              {saving ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
-              {saving ? "Saving..." : "Continue"}
-            </Button>
-          </form>
-        </div>
-      </PageShell>
-    </>
+    <PageShell density="compact" width="default">
+      <div className="mx-auto max-w-md">
+        <PageHeader
+          title="A few details before you start"
+          description={
+            portal === "recruiter"
+              ? "We ask every account for these once."
+              : "We ask every candidate for these once."
+          }
+        />
+        <form onSubmit={submit} noValidate>
+          <IdentityFieldset value={value} onChange={setValue} disabled={saving} />
+          <Button type="submit" variant="signal" className="mt-2 w-full" disabled={saving}>
+            {saving ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
+            {saving ? "Saving..." : "Continue"}
+          </Button>
+        </form>
+      </div>
+    </PageShell>
   );
 };
 

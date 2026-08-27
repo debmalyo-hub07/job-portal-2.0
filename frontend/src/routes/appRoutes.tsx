@@ -130,21 +130,6 @@ export const appRoutes: RouteObject[] = [
               </ProtectedRoute>
             ),
           },
-          // Deliberately NOT `workspace(...)`, which adds `RequireApproved` —
-          // that replaces the whole workspace with an approval notice, so a
-          // pending recruiter would never reach the one page that explains their
-          // own account state. It mirrors the API, where `/user/profile` and
-          // `/user/profile/update` carry no approval gate either.
-          {
-            path: "/hire/profile",
-            element: (
-              <ProtectedRoute portal="recruiter">
-                <RequireProfileComplete portal="recruiter">
-                  <RecruiterProfile />
-                </RequireProfileComplete>
-              </ProtectedRoute>
-            ),
-          },
           {
             path: "/hire/complete-profile",
             element: (
@@ -226,6 +211,20 @@ export const appRoutes: RouteObject[] = [
       // companies routes above rely on.
       { path: "/hire/jobs/:id", element: workspace(<JobEdit />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
+      // RecruiterProfile owns HireShell/WorkbenchShell, including the workspace
+      // Navbar. Keep it outside PublicLayout or both layouts render their chrome.
+      // Deliberately not `workspace(...)`: pending recruiters need this page to
+      // explain their approval state, and the API profile routes are ungated too.
+      {
+        path: "/hire/profile",
+        element: (
+          <ProtectedRoute portal="recruiter">
+            <RequireProfileComplete portal="recruiter">
+              <RecruiterProfile />
+            </RequireProfileComplete>
+          </ProtectedRoute>
+        ),
+      },
       // The admin console.
       //
       // Deliberately NOT /admin/jobs and /admin/companies: those two prefixes

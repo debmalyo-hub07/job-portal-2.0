@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "single-profile-navigation",
+    date: "2026-08-27",
+    kind: "Fix",
+    title: "Account pages have one navigation bar",
+    summary:
+      "Profile completion and recruiter account pages no longer repeat the site header above the page they already belong to.",
+    details: [
+      "The candidate identity step now uses the shared public navigation supplied by its route instead of mounting a second copy.",
+      "The recruiter account page now lives with the hiring workspace surfaces, whose shell already provides its navigation and workspace links.",
+      "Pending recruiters can still reach their account page and read their approval state.",
+    ],
+  },
+  {
     id: "identity-and-profiles",
     date: "2026-08-26",
     kind: "Feature",

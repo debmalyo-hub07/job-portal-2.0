@@ -59,11 +59,10 @@ describe("the completion step", () => {
   });
 
   it("keeps a way off the page, so it is not a trap", () => {
-    // RequireApproved's lesson: the Navbar stays so a blocked user can still
-    // reach the account menu and sign out. Without it this is a page with no way
-    // off it.
     renderStep();
-    expect(screen.getByRole("navigation")).toBeTruthy();
+    // CompleteProfile is intentionally chrome-free; the route layout supplies
+    // the shared Navbar exactly once in the real application.
+    expect(screen.queryByRole("navigation")).toBeNull();
   });
 });
 

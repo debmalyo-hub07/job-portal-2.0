@@ -99,6 +99,7 @@ describe("who can reach the recruiter profile", () => {
   it("is reachable by an approved recruiter", () => {
     const view = renderAppAt("/hire/profile", { store: recruiter("active") });
     expect(view.pathname()).toBe("/hire/profile");
+    expect(document.querySelectorAll("body > div header > nav")).toHaveLength(1);
   });
 
   it("is not reachable without a session", () => {

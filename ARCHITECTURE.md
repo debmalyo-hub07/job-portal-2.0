@@ -414,6 +414,14 @@ applies them — `ProtectedRoute portal="recruiter"` then `RequireApproved` — 
 new workspace page cannot ship with one of them missing. `RequireApproved` is
 presentation only; the API is what actually refuses the write.
 
+Route chrome also has one owner. `PublicLayout` supplies the navbar and footer
+for public and seeker surfaces, while recruiter and admin workbench components
+own `WorkbenchShell`, including their navbar and sub-navigation. A route whose
+component owns a workbench shell must sit outside `PublicLayout`; nesting both
+renders two headers and gives two layouts responsibility for the same surface.
+Leaf pages such as `CompleteProfile` remain chrome-free and rely on their route
+layout instead of mounting `Navbar` themselves.
+
 Wrong-role sessions never satisfy a destination guard. The redirect goes to the
 destination portal's login, not the current user's home. This is navigation
 behavior, not the security boundary: every API route still authenticates its
