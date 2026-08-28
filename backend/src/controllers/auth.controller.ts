@@ -125,9 +125,15 @@ export function googleStartHandler(portal: Portal): RequestHandler {
  * DELIBERATE exception to the "failures throw AppError" convention, and the
  * only one in the phase: this endpoint is a top-level browser navigation from
  * Google, not an XHR. A JSON envelope strands a human on a wall of JSON, so
- * every outcome — including failure — is a redirect back into the web app, and
- * failure carries ONE uniform code so the URL never tells a prober which check
- * tripped.
+ * every outcome — including failure — is a redirect back into the web app.
+ *
+ * Failure carries ONE uniform code — GOOGLE_AUTH_FAILED — so the URL never
+ * tells a prober which check tripped, with a single carve-out: the address
+ * already holding an account answers EMAIL_TAKEN. That viewer proved mailbox
+ * control to Google to get here, and register() already says the same thing
+ * to anyone with no proof at all, so the distinction hides nothing — it just
+ * stops the address's legitimate owner meeting a dead end. `portal=` rides
+ * both URLs so "Back to sign in" returns to the login the person came from.
  */
 export function googleCallbackHandler(portal: Portal): RequestHandler {
   return async (req, res) => {
@@ -144,7 +150,11 @@ export function googleCallbackHandler(portal: Portal): RequestHandler {
       res.redirect(`${web}/auth/link-pending`);
       return;
     }
-    res.redirect(`${web}/auth/error?code=GOOGLE_AUTH_FAILED`);
+    if (outcome.kind === "address-taken") {
+      res.redirect(`${web}/auth/error?code=EMAIL_TAKEN&portal=${portal}`);
+      return;
+    }
+    res.redirect(`${web}/auth/error?code=GOOGLE_AUTH_FAILED&portal=${portal}`);
   };
 }
 

@@ -435,9 +435,12 @@ Six checks, in this order — each isolates a different layer.
    Google attempt sign in to that existing account. Admin login must offer no
    Google control.
 
-Every refused callback deliberately returns the same `GOOGLE_AUTH_FAILED` page.
-Use the Render application log to distinguish fixed internal reasons such as
-`missing-transaction-cookie`, `state-mismatch`, `nonce-mismatch`, and
+Every refused callback deliberately returns the same `GOOGLE_AUTH_FAILED` page,
+with one carve-out: an address that already holds an account on another portal
+answers `EMAIL_TAKEN` instead, because that viewer proved mailbox control to
+Google and register() already says the same sentence to anyone with no proof at
+all. Use the Render application log to distinguish fixed internal reasons such
+as `missing-transaction-cookie`, `state-mismatch`, `nonce-mismatch`, and
 `token-exchange`; those labels contain no OAuth code, token, email address, or
 account-existence result.
 

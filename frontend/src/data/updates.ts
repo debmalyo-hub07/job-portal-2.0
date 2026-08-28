@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "google-address-taken",
+    date: "2026-08-28",
+    kind: "Fix",
+    title: "Signing in with Google now says when an address already has an account",
+    summary:
+      "Trying Google sign-in with an address that already holds an account used to end on the same unexplained failure as a security check refusing you. It now says the address is taken and to sign in with your password.",
+    details: [
+      "One address holds exactly one account across the candidate, employer and administrator portals — Google cannot create a second, so it is refused.",
+      "Until now that refusal was indistinguishable from any other failed Google flow, leaving the address's owner with a dead end.",
+      "The message matches what sign-up already answers for the same situation, so nothing new is revealed by saying it here.",
+    ],
+  },
+  {
     id: "google-signup-and-linking",
     date: "2026-08-28",
     kind: "Fix",

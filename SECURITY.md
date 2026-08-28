@@ -211,8 +211,11 @@ subject to the per-account OTP failure budget.
   and nonce verified, and `email_verified` required. Seeker strangers start
   active; recruiter strangers start pending; admin mounts no Google routes.
   Callback rejection reasons are logged as fixed internal labels without
-  placing codes, tokens, email addresses, or account-existence details in the
-  browser redirect.
+  placing codes, tokens, or email addresses in the browser redirect. One
+  exception: an address already holding an account on another portal answers
+  `EMAIL_TAKEN` in the redirect — that viewer proved mailbox control to
+  Google, and `register` answers the same sentence to anyone with no proof at
+  all, so the distinction is not a new oracle.
 - **Cross-portal email uniqueness (2026-08-27):** an `emailRegistry` collection
   holds one row per account with a unique index on the email — the only
   cross-collection guarantee MongoDB can express. Every account-creation site

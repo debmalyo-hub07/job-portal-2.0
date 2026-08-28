@@ -356,6 +356,12 @@ after confirmation, either credential may sign in to the same account. A linked
 Google identity is keyed by Google's stable subject id, so a later Cairn email
 change does not detach it.
 
+An address that already holds an account on another portal cannot start a
+second one through Google — one address holds exactly one account — and that
+refusal says so (`EMAIL_TAKEN`, the same sentence registration answers) rather
+than the generic Google failure, so the address's owner is pointed back at
+their password instead of a dead end.
+
 ## Web app
 
 ### Three front doors

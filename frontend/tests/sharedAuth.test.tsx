@@ -102,6 +102,21 @@ describe("shared auth pages", () => {
     expect(getByText(/something went wrong/i)).toBeInTheDocument();
     expect(queryByText(/script/i)).not.toBeInTheDocument();
   });
+
+  // The Google callback's cross-portal refusal. The address's owner was
+  // previously met with the same dead end as a state-mismatch probe; now the
+  // page says what actually happened and where to sign in instead.
+  it("AuthError explains an address already held by an account", () => {
+    const { getByText, getByRole } = renderAt(
+      <AuthError />,
+      "/auth/error?code=EMAIL_TAKEN&portal=recruiter",
+    );
+    expect(getByText(/account already exists/i)).toBeInTheDocument();
+    expect(getByRole("link", { name: /back to sign in/i })).toHaveAttribute(
+      "href",
+      "/hire/login",
+    );
+  });
 });
 
 /**

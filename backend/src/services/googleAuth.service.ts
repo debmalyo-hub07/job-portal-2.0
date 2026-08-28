@@ -24,10 +24,10 @@ import { AppError } from "../lib/AppError.js";
 type AccountDoc = HydratedDocument<AccountDocument>;
 
 /**
- * The refusal shapes the stranger branch collapses into one outcome: the
- * registry's translated `EMAIL_TAKEN` (address held on another portal) and a
- * raw E11000 off the per-collection index (a raced same-portal first sign-in,
- * or registry drift made loud).
+ * The refusal shapes the stranger branch answers distinctly (see the catch in
+ * branch 3): the registry's translated `EMAIL_TAKEN` (address held on another
+ * portal) and a raw E11000 off the per-collection index (a raced same-portal
+ * first sign-in, or registry drift made loud).
  */
 function isEmailRefused(error: unknown): boolean {
   if (isDuplicateKeyError(error)) return true;
@@ -71,6 +71,7 @@ export function startGoogleFlow(portal: Portal, res: Response): string {
 export type CallbackOutcome =
   | { kind: "signed-in"; account: AccountDoc }
   | { kind: "link-pending" }
+  | { kind: "address-taken" }
   | { kind: "failed" };
 
 function googleCallbackFailed(portal: Portal, reason: string): CallbackOutcome {
@@ -195,14 +196,18 @@ async function resolveIdentity(
       return { kind: "signed-in", account: created };
     } catch (error) {
       // Both duplicate shapes — the registry refusing a cross-portal address,
-      // and the same-portal index on a raced first sign-in — collapse to the
-      // same outcome as every other failed Google flow: one uniform redirect,
-      // never a distinct code that maps the defences. The re-read covers the
-      // only race the registry cannot see: this identity's own concurrent
-      // first sign-in winning on another tab.
+      // and the same-portal index on a raced first sign-in — are the one
+      // refusal that is safe to NAME, unlike every other check below. The
+      // viewer proved mailbox control to Google to get this far, and
+      // register() already answers EMAIL_TAKEN to anyone with no proof at
+      // all, so this sentence discloses nothing an attacker could not learn
+      // by attempting registration. The re-read covers the only race the
+      // registry cannot see: this identity's own concurrent first sign-in
+      // winning on another tab.
       if (isEmailRefused(error)) {
         const raced = await model.findOne({ googleId: identity.sub });
-        return raced ? { kind: "signed-in", account: raced } : { kind: "failed" };
+        if (raced) return { kind: "signed-in", account: raced };
+        return { kind: "address-taken" };
       }
       throw error;
     }

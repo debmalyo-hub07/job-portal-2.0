@@ -292,8 +292,11 @@ describe("google creation and recruiter linking", () => {
   it("refuses a stranger whose address is held on another portal", async () => {
     // 2026-08-27: one address, one account. The recruiter below holds this
     // address, so Google cannot mint a seeker account on top of it — the
-    // registry refuses before any row is written, and the outcome is the same
-    // uniform failure landing as every other refused Google flow.
+    // registry refuses before any row is written. The refusal is
+    // distinguishable, though: the viewer proved mailbox control to Google,
+    // and register() already tells anyone the same sentence with no proof at
+    // all, so this hides nothing an attacker could not learn by attempting
+    // registration. GOOGLE_AUTH_FAILED stays uniform for every other check.
     const { EmailRegistry } = await import("../../src/models/emailRegistry.model.js");
     await Recruiter.create({
       email: "held@x.test",
@@ -315,7 +318,9 @@ describe("google creation and recruiter linking", () => {
       email: "held@x.test",
     });
 
-    expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+    expect(res.headers.location).toContain("EMAIL_TAKEN");
+    expect(res.headers.location).toContain("portal=seeker");
+    expect(setCookieNames(res)).not.toEqual(expect.arrayContaining(["jp_seeker_at"]));
     expect(await Seeker.countDocuments({})).toBe(before);
   });
 
