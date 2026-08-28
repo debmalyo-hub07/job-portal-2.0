@@ -4,6 +4,11 @@ import { issuePasswordSetupCode } from "../services/auth.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { assertMailerAvailable } from "../lib/mailer.js";
+import {
+  isDuplicateKeyError,
+  releaseEmail,
+  reserveEmail,
+} from "../services/emailRegistry.service.js";
 
 export interface SeedAdminInput {
   email: string;
@@ -45,12 +50,26 @@ export async function seedAdmin(input: SeedAdminInput): Promise<{ created: boole
 
   await assertMailerAvailable();
 
+  // Registry-first, like register(): the claim is cross-portal. A seeker or a
+  // recruiter already holding this address means it cannot be the first admin
+  // — the 2026-08-27 one-address-one-account rule.
+  const subjectId = await reserveEmail("admin", email);
+
   const admin = await Admin.create({
+    _id: subjectId,
     email,
     fullName: input.fullName,
     passwordHash: null,
     emailVerifiedAt: new Date(),
     status: "active",
+  }).catch(async (error: unknown) => {
+    // The admin never took the address: give it back before answering, so a
+    // failed seed cannot squat it.
+    await releaseEmail(subjectId);
+    if (isDuplicateKeyError(error)) {
+      throw new Error("An account already exists for this email address.");
+    }
+    throw error;
   });
 
   await issuePasswordSetupCode("admin", admin);

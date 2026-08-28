@@ -130,6 +130,9 @@ async function mockWorkbench(page, portal) {
     emailVerified: true,
     avatarUrl: null,
     profileComplete: true,
+    hasPassword: true,
+    isMinor: false,
+    pendingEmailChange: null,
     status: "active",
   };
   await page.addInitScript(({ portal }) => localStorage.setItem("jp.portal", portal), { portal });

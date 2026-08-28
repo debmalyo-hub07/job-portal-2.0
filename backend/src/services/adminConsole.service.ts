@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { APPLICATION_STATUSES } from "@jobportal/shared";
+import { APPLICATION_STATUSES, isMinor } from "@jobportal/shared";
 import type {
   AdminActivityDto,
   AdminActivityItem,
@@ -9,6 +9,8 @@ import type {
   AdminListQuery,
   AdminOverviewDto,
   AdminRankedSlice,
+  AdminRecruiterDto,
+  AdminSeekerDto,
   ApplicationStatus,
   PaginatedResponse,
 } from "@jobportal/shared";
@@ -160,6 +162,132 @@ export async function listAllCompanies(
       logoUrl: row.logo ?? null,
       jobCount: countByCompany.get(String(row._id)) ?? 0,
       ownerEmail: row.userId?.email ?? null,
+      createdAt: (row as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? "",
+    })),
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Seekers across the platform (Project D) — "admin oversight of candidates".
+ *
+ * Hand-written projection, like every other console read: the moderation
+ * question about a seeker is who they are, whether they are a minor (the one
+ * consent-era signal that changes how to read the row), how much they are
+ * using the platform, and whether they are currently suspended. Their phone,
+ * DOB, resume and profile stay in their own portal.
+ */
+export async function listAllSeekers(query: AdminListQuery): Promise<PaginatedResponse<AdminSeekerDto>> {
+  const filter: Record<string, unknown> = {};
+  if (query.keyword) {
+    const re = keywordMatcher(query.keyword);
+    filter.$or = [{ fullName: re }, { email: re }];
+  }
+
+  const { page, limit } = query;
+  const [total, rows] = await Promise.all([
+    Seeker.countDocuments(filter),
+    Seeker.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select("fullName email status dob guardianConsent createdAt"),
+  ]);
+
+  const ids = rows.map((r) => r._id);
+  const counts = await Application.aggregate<{ _id: mongoose.Types.ObjectId; n: number }>([
+    { $match: { applicant: { $in: ids } } },
+    { $group: { _id: "$applicant", n: { $sum: 1 } } },
+  ]);
+  const countBySeeker = new Map(counts.map((c) => [String(c._id), c.n]));
+
+  return {
+    items: rows.map((row) => ({
+      id: String(row._id),
+      fullName: row.fullName,
+      email: row.email,
+      status: row.status as AdminSeekerDto["status"],
+      // Derived on the server's clock — the console shows the band, not the DOB.
+      minor: isMinor(row.dob ?? null),
+      applicationCount: countBySeeker.get(String(row._id)) ?? 0,
+      createdAt: (row as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? "",
+    })),
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Every recruiter, not just the pending queue (Project D) — "all-recruiter
+ * monitoring with suspend and reinstate".
+ *
+ * `pending` rows carry the queue's own actions on the screen (approve/deny);
+ * `active` rows carry suspend; `suspended` rows carry reinstate. One listing
+ * is what makes the moderation story continuous: an approved recruiter does
+ * not vanish from the console the moment they clear the queue.
+ */
+export async function listAllRecruiters(
+  query: AdminListQuery,
+): Promise<PaginatedResponse<AdminRecruiterDto>> {
+  const filter: Record<string, unknown> = {};
+  if (query.keyword) {
+    const re = keywordMatcher(query.keyword);
+    filter.$or = [{ fullName: re }, { email: re }];
+  }
+
+  const { page, limit } = query;
+  const [total, rows] = await Promise.all([
+    Recruiter.countDocuments(filter),
+    Recruiter.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select("fullName email status createdAt"),
+  ]);
+
+  // Both aggregates in one pass over the recruiter's jobs: the job count and
+  // the applications those jobs attracted. Two separate $lookups could
+  // disagree under a concurrent write. An empty page of recruiters has no
+  // jobs to walk, so the counts are all zero without touching Mongo.
+  const ids = rows.map((r) => r._id);
+  const jobs =
+    ids.length === 0
+      ? []
+      : await Job.find({ created_by: mongoose.trusted({ $in: ids }) }).select("created_by").lean();
+  const jobIds = jobs.map((j) => j._id);
+  const jobCountByOwner = new Map<string, number>();
+  for (const job of jobs) {
+    const key = String(job.created_by);
+    jobCountByOwner.set(key, (jobCountByOwner.get(key) ?? 0) + 1);
+  }
+  const appCounts =
+    jobIds.length === 0
+      ? []
+      : await Application.aggregate<{ _id: mongoose.Types.ObjectId; n: number }>([
+          { $match: { job: { $in: jobIds } } },
+          { $group: { _id: "$job", n: { $sum: 1 } } },
+        ]);
+  const appCountByJob = new Map(appCounts.map((c) => [String(c._id), c.n]));
+  const appCountByOwner = new Map<string, number>();
+  for (const job of jobs) {
+    const owner = String(job.created_by);
+    appCountByOwner.set(
+      owner,
+      (appCountByOwner.get(owner) ?? 0) + (appCountByJob.get(String(job._id)) ?? 0),
+    );
+  }
+
+  return {
+    items: rows.map((row) => ({
+      id: String(row._id),
+      fullName: row.fullName,
+      email: row.email,
+      status: row.status as AdminRecruiterDto["status"],
+      jobCount: jobCountByOwner.get(String(row._id)) ?? 0,
+      applicationCount: appCountByOwner.get(String(row._id)) ?? 0,
       createdAt: (row as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? "",
     })),
     total,

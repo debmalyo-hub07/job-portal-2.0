@@ -296,6 +296,20 @@ export type ApplicantDto = {
 };
 
 /**
+ * One row of the recruiter's cross-job queue (Project D): the per-job
+ * `ApplicantDto` fields plus the posting the application belongs to, because
+ * the queue's whole point is that the rows no longer share one. `jobId` is
+ * `""` rather than null when the job was deleted after the application was
+ * filed — the row stays in the queue (it is the recruiter's record), with no
+ * link to follow.
+ */
+export type QueuedApplicantDto = ApplicantDto & {
+  jobId: string;
+  jobTitle: string;
+  companyName: string | null;
+};
+
+/**
  * A numeric profile field a blank form value *clears*.
  *
  * `z.coerce.number()` on its own turns `""` into `0`, because `Number("")` is

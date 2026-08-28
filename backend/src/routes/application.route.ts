@@ -6,6 +6,7 @@ import {
   applyJob,
   getAppliedJobs,
   getApplicants,
+  getQueue,
   updateStatus,
   withdraw,
 } from "../controllers/application.controller.js";
@@ -24,7 +25,9 @@ router
   .post(authenticate("seeker"), requireProfileComplete, csrfProtection(), applyJob);
 router.route("/get").get(authenticate("seeker"), getAppliedJobs);
 // Applicant data is the thing an unapproved recruiter most wants and least
-// deserves — a seeker's name, email, phone and resume link.
+// deserves — a seeker's name, email, phone and resume link. The queue carries
+// exactly the same fields, so it carries exactly the same gate.
+router.route("/queue").get(authenticate("recruiter"), requireApproved, getQueue);
 router.route("/:id/applicants").get(authenticate("recruiter"), requireApproved, getApplicants);
 router
   .route("/status/:id/update")

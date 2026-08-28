@@ -49,6 +49,10 @@ have made the diff unreviewable. Phase 1B introduced services for auth
 (`auth.service.ts`, `googleAuth.service.ts`, `account.service.ts`,
 `session.service.ts`), and Phase 1C completed the pattern across the domain
 modules — `company`, `job`, `application` and `resume` all have services now.
+The 2026-08-27 email-identity work added three more: `otp.service.ts` (the OTP
+lifecycle shared by verify-email, reset-password, admin setup and email
+change), `emailRegistry.service.ts` (the cross-portal address claim), and
+`emailChange.service.ts` (the address-change flow).
 No controller issues a query. The only remaining `models/` reference from a
 controller is a **type-only** import of `SeekerDocument`/`RecruiterDocument` in
 `user.controller.ts`, which erases at compile time and touches nothing.
@@ -106,17 +110,38 @@ applications   job → jobs, applicant → seekers, status
 `emailVerifiedAt`, `googleId` (**partial** unique index, not sparse — the field
 defaults to `null`, and a sparse index would let only one account exist without
 Google), `phone`, `avatarUrl`, `status`, `sessionsInvalidatedAt`,
-`migratedFromLegacyAt`, `pendingGoogleLink{}`, and the lockout counters
-`failedLoginCount` / `lockedUntil`.
+`migratedFromLegacyAt`, `pendingGoogleLink{}`, `pendingEmailChange{}` (an
+in-progress address change), `guardianConsent{}` / `pendingGuardian{}` (the
+under-18 consent record and its awaiting address), `suspension{}` (the
+recorded reason, timestamp and acting admin behind a suspended status), and
+the lockout counters `failedLoginCount` / `lockedUntil`.
 
 It is a shared fragment rather than a base model or discriminator precisely
 because the collections must stay physically separate: duplicating the
 definitions is how a lockout field gets added to one and forgotten on the other,
 which is a security hole that typechecks.
 
-The same email may hold one seeker account *and* one recruiter account. The
-unique index is per collection, which is the point of the split — see
-[ADR-0001](docs/adr/0001-two-account-collections.md).
+One email address holds exactly one account, across all three collections
+*(changed 2026-08-27; it previously allowed one seeker and one recruiter
+account per address)*. The guarantee is the `emailRegistry` collection — one
+row per account with a unique index on the email — written before the account
+at every creation site and deleted with the account by the sweeper. The
+per-collection unique indexes stay as a same-portal backstop. An address can
+also be changed (`emailChange.service.ts`): password step-up at start, a code
+to the new address (admins get a code to the current one first), and every
+session revoked on completion — see
+[ADR-0001](docs/adr/0001-two-account-collections.md) and its 2026-08-27
+amendment.
+
+Beyond the accounts sit two 2026-08-27 additions. `accountEvents` is the
+append-only oversight history — approve, deny, suspend, reinstate per subject,
+with the reason and the acting admin — written by `approval.service.ts` and
+`oversight.service.ts`, never edited. Age works the other way round:
+`isMinor` is **derived** from `dob` everywhere (the 16-17 band; recruiters
+refuse that band at completion), and `guardianConsent` on the account is the
+proof a minor completed the gate's second exit with. A minor's applications
+are internships only, enforced in `applyToJob`; a suspended recruiter's
+listings stay public but apply answers `JOB_OWNER_SUSPENDED`.
 
 ### Known problems with this model
 

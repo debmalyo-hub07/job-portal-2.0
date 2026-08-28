@@ -30,6 +30,52 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "oversight-and-queues",
+    date: "2026-08-27",
+    kind: "Trust",
+    title: "Oversight queues: suspension with a reason, and one applicants queue",
+    summary:
+      "Admins can now suspend and reinstate any candidate or recruiter — with a reason the account's owner sees at sign-in — and employers get a single queue of every applicant across all their roles.",
+    details: [
+      "The Recruiters screen shows every recruiter on the platform, not just those awaiting approval, with Suspend on active rows and Reinstate on suspended ones.",
+      "A new Candidates screen lists every candidate, including who is under 18, with the same actions.",
+      "Suspending requires a reason. The owner sees it only after entering the correct password — a stranger guessing at an address still gets the ordinary 'Incorrect email or password'.",
+      "A suspended employer's job listings stay on the board but stop accepting applications; reinstating restores everything untouched.",
+      "Every approval, denial, suspension and reinstatement is recorded per account, with the reason and the acting admin, viewable from both screens.",
+      "The workspace's new Applicants page shows every application to every role an employer owns, newest first, linking to each role's own ranked list.",
+    ],
+  },
+  {
+    id: "under-18-internships",
+    date: "2026-08-27",
+    kind: "Feature",
+    title: "16 and 17 year olds can join, with a guardian's OK",
+    summary:
+      "Candidates aged 16-17 can now create an account with guardian consent, and apply to internship roles.",
+    details: [
+      "Signing up is unchanged; the date-of-birth step now accepts 16 and 17 with a guardian's confirmation instead of refusing everyone under 18.",
+      "The guardian receives a 6-digit code by email, entered on the candidate's screen — consent is verified, not just typed.",
+      "Accounts under 18 can apply to internship roles only. Every other role explains this on the page instead of failing at the submit button.",
+      "Employer accounts remain 18 and over, as before.",
+      "Under-16 remains a refusal; the join floor is 16.",
+    ],
+  },
+  {
+    id: "one-address-one-account",
+    date: "2026-08-27",
+    kind: "Trust",
+    title: "One email address, one account — and the address can change",
+    summary:
+      "An email address now belongs to exactly one account across the candidate, employer and admin sides of Cairn, and you can change the address on your own account from your profile.",
+    details: [
+      "Signing up with an address that already has an account on any side is refused. Previously the same address could hold a candidate account and an employer account at the same time.",
+      "The email row on your profile has a Change action. It asks for your password when your account has one, then a code sent to the new address before anything moves.",
+      "Admin accounts confirm a code on their current address before the new one is even mailed — the highest-privilege account needs both the password and the mailbox it is leaving.",
+      "Completing a change signs you out everywhere, including the session that made the change, and the new address becomes the one you sign in with.",
+      "The old address is released the moment a change completes, and can be registered by anyone from then on.",
+    ],
+  },
+  {
     id: "single-profile-navigation",
     date: "2026-08-27",
     kind: "Fix",

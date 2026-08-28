@@ -75,3 +75,14 @@ does not permit offline enumeration of a six-digit space.
 The failure budget is cumulative per account per purpose rather than per code.
 Per-code counting would have made five attempts unlimited: request a fresh code,
 get five more.
+
+## Amendment (2026-08-27) — the account model premise changed
+
+The "Good" point above — full control over the account model, which ADR-0001
+needs because most providers assume one user record per email — no longer cuts
+both ways: since 2026-08-27 the platform itself assumes one account per email
+(see ADR-0001's amendment). What remains load-bearing from that point is the
+control itself: the email-change flow (password step-up, one code to the new
+address, a two-code path for admins) and the `emailRegistry` collection that
+enforces cross-portal uniqueness are exactly the kind of bespoke machinery a
+managed provider would not have accommodated in this shape.

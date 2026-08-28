@@ -1,5 +1,5 @@
 import type { Model } from "mongoose";
-import type { Portal } from "@jobportal/shared";
+import { isMinor, type Portal } from "@jobportal/shared";
 import { Seeker, type SeekerDocument } from "../models/seeker.model.js";
 import { Recruiter, type RecruiterDocument } from "../models/recruiter.model.js";
 import { Admin, type AdminDocument } from "../models/admin.model.js";
@@ -28,27 +28,39 @@ export function accountModel(portal: Portal): Model<AccountDocument> {
  * `dob` by another path — and there are two such paths (the completion endpoint
  * and the profile update).
  *
+ * For a seeker in the 16-17 band the gate has a second exit (Project C): the
+ * DOB alone is not enough, the guardian's consent must be on file too. Adults
+ * and recruiters need only the DOB; the two portals share one gate, and a
+ * recruiter can never be a minor (their completion refuses the DOB outright).
+ *
  * Admin is ungated by decision: nothing in the platform reads an admin's DOB,
- * and the one account that can unblock every other account must not depend on a
- * new middleware being correct.
+ * and the one account that can unblock every other account must not depend on
+ * a new middleware being correct.
  */
 export function isProfileComplete(
   portal: Portal,
-  account: { dob?: Date | null },
+  account: { dob?: Date | null; guardianConsent?: { consentedAt?: Date | null } | null },
 ): boolean {
   if (portal === "admin") return true;
   // `undefined` as well as null, and deliberately fail-closed on it. Mongoose
   // types a `default: null` Date as possibly-undefined, and a query that
   // projected `dob` away would hand us undefined at runtime — which must read
   // as "not proven complete", never as "complete". `!= null` covers both.
-  return account.dob != null;
+  if (account.dob == null) return false;
+  if (portal === "seeker" && isMinor(account.dob)) {
+    return account.guardianConsent?.consentedAt != null;
+  }
+  return true;
 }
 
 /**
  * `withSecret` is the only way to read `passwordHash`, which the schema marks
- * `select: false`. Exactly three call sites need it — login, password reset, and
- * Google identity resolution — and each is a credential comparison. A fourth is
- * a design question, not a one-line change.
+ * `select: false`. The call sites are all credential work or boolean
+ * projections of it: login, password reset, Google identity resolution, the
+ * email-change password step-up, and — since 2026-08-27 — every read that
+ * feeds `toSessionUser`, which answers `hasPassword`. The hash itself never
+ * crosses the wire; a new call site that reads it for any other reason is a
+ * design question, not a one-line change.
  *
  * Nothing here is type-enforced: Mongoose types `passwordHash` as present
  * regardless of `select`, so forgetting the flag compiles and then fails at

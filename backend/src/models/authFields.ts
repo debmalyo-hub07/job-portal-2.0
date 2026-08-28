@@ -80,12 +80,52 @@ export const authFields = {
     googleId: { type: String, default: null },
     requestedAt: { type: Date, default: null },
   },
+  /**
+   * Set while an email change awaits its code(s). Latest attempt wins: a new
+   * start overwrites any older pending, the same idiom as `pendingGoogleLink`.
+   * `confirmedCurrentAt` is admin-only — it marks the stage-1 (current
+   * address) code as redeemed, which is when the stage-2 (new address) code
+   * is mailed. Seekers and recruiters leave it null: their single code to the
+   * new address is the whole proof.
+   */
+  pendingEmailChange: {
+    newEmail: { type: String, default: null },
+    requestedAt: { type: Date, default: null },
+    confirmedCurrentAt: { type: Date, default: null },
+  },
+  /**
+   * The guardian whose consent is on file (Project C). `consentedAt` is the
+   * proof timestamp; the pair is null for every adult account and every
+   * account created before the floor opened. Nothing is backfilled — the old
+   * 18+ floor means every existing DOB is an adult's.
+   */
+  guardianConsent: {
+    email: { type: String, default: null },
+    consentedAt: { type: Date, default: null },
+  },
+  /** The address awaiting a consent code, in the `pendingGoogleLink` idiom. */
+  pendingGuardian: {
+    email: { type: String, default: null },
+    requestedAt: { type: Date, default: null },
+  },
+  /**
+   * Why the account is suspended, and by whom (Project D). `status` remains
+   * the driver every check reads; this fragment is what the login answer and
+   * the console display. Cleared on reinstate.
+   */
+  suspension: {
+    reason: { type: String, default: null },
+    suspendedAt: { type: Date, default: null },
+    byAdminId: { type: Schema.Types.ObjectId, default: null },
+  },
 } as const;
 
 /** Indexes every account collection needs. Call with the schema. */
 export function applyAuthIndexes(schema: Schema): void {
-  // Unique WITHIN the collection, not globally — one person may be both a
-  // seeker and a recruiter, which is normal on Naukri and Internshala.
+  // Unique WITHIN the collection — a backstop that makes registry drift fail
+  // loudly on the same portal. The cross-portal guarantee is the
+  // `emailRegistry` collection's unique index (2026-08-27: one address holds
+  // exactly one account, reversing ADR-0001's original dual-account rule).
   schema.index({ email: 1 }, { unique: true });
   // A PARTIAL index, not a sparse one. `sparse` only skips documents where the
   // field is ABSENT, and `googleId` has `default: null`, so every

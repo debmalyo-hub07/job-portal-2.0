@@ -293,6 +293,43 @@ describe("google cannot create a recruiter", () => {
     });
     expect(res.headers.location).toContain("/auth/complete?portal=seeker");
     expect(await Seeker.countDocuments({})).toBe(before + 1);
+    // The registry row went with the account: the address is now taken
+    // cross-portal, and the registry agrees with the collections.
+    const created = await Seeker.findOne({ email: "stranger2@x.test" });
+    const { EmailRegistry } = await import("../../src/models/emailRegistry.model.js");
+    const row = await EmailRegistry.findOne({ subjectId: created?._id }).lean();
+    expect(row?.email).toBe("stranger2@x.test");
+    expect(row?.portal).toBe("seeker");
+  });
+
+  it("refuses a stranger whose address is held on another portal", async () => {
+    // 2026-08-27: one address, one account. The recruiter below holds this
+    // address, so Google cannot mint a seeker account on top of it — the
+    // registry refuses before any row is written, and the outcome is the same
+    // uniform failure landing as every other refused Google flow.
+    const { EmailRegistry } = await import("../../src/models/emailRegistry.model.js");
+    await Recruiter.create({
+      email: "held@x.test",
+      fullName: "Holding Rec",
+      googleId: null,
+      passwordHash: "x",
+      emailVerifiedAt: new Date(),
+      status: "active",
+    });
+    await EmailRegistry.create({
+      email: "held@x.test",
+      portal: "recruiter",
+      subjectId: (await Recruiter.findOne({ email: "held@x.test" }))!._id,
+    });
+
+    const before = await Seeker.countDocuments({});
+    const res = await completeFlow("seeker", {
+      sub: "google-stranger-held",
+      email: "held@x.test",
+    });
+
+    expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+    expect(await Seeker.countDocuments({})).toBe(before);
   });
 
   it("still signs in a recruiter whose googleId is already known", async () => {

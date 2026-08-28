@@ -26,9 +26,11 @@ the matching session, even though the server remains the authorization boundary.
   `/<portal>/auth/me`. A matching portal session opens its workspace. Anonymous
   and wrong-role visitors go to that portal's login.
 - Treat `/hire` and `/admin` as protected session doors. Their login and signup
-  routes remain public; admin has no signup route. A seeker may therefore create
-  a separate recruiter account without ending the seeker session. *(Revised for
-  `/hire` — see the amendment below.)*
+  routes remain public; admin has no signup route. A seeker may create a
+  separate recruiter account without ending the seeker session. *(Revised for
+  `/hire` — see the amendment below. The "separate recruiter account on the
+  same address" half ended 2026-08-27 with cross-portal email uniqueness;
+  separate sessions on separate addresses remain fully supported.)*
 - Keep job browsing public. An anonymous Apply action navigates to seeker login
   with a validated job-detail return path. The API independently requires a
   seeker session before it creates an application.
@@ -54,6 +56,10 @@ security controls.
 
 **One active browser session.** Rejected because a person may legitimately be a
 seeker and recruiter, and login/logout in one role would disrupt the other.
+*(The same-address dual account ended 2026-08-27 — one address, one account —
+but the rejection stands: distinct addresses can still hold seeker and
+recruiter accounts in one browser, and one portal's session must not disrupt
+the other's.)*
 
 **One global CSRF cookie.** Rejected because signing into a second portal
 overwrites the token needed by the first portal's mutations.

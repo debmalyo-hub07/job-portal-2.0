@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import type { HydratedDocument } from "mongoose";
-import { completeProfileBodySchema, profileUpdateBodySchema } from "@jobportal/shared";
+import { completeProfileBodySchema, isMinor, profileUpdateBodySchema } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import { AppError } from "../lib/AppError.js";
 import { findAccountById, type AccountDocument } from "../services/account.service.js";
@@ -9,6 +9,16 @@ import { signedResumeUrl, uploadResume } from "../services/resume.service.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import type { RecruiterDocument } from "../models/recruiter.model.js";
 import type { Gender, Portal, ProfileView } from "@jobportal/shared";
+
+/** The recruiter age rule, one implementation for both write paths. */
+function assertRecruiterAdult(portal: Portal, dob: Date): void {
+  if (portal === "recruiter" && isMinor(dob)) {
+    throw AppError.badRequest(
+      "RECRUITER_AGE_MINIMUM",
+      "Recruiters must be 18 or over. A candidate account can be created with a guardian's OK instead.",
+    );
+  }
+}
 
 function toProfileView(
   portal: Portal,
@@ -24,6 +34,10 @@ function toProfileView(
     // zone, which renders a different birthday.
     dob: account.dob ? account.dob.toISOString().slice(0, 10) : null,
     gender: (account.gender as Gender | null) ?? null,
+    // Derived here, on the server's clock — the completion step reads this pair
+    // to decide whether the guardian stage renders (minor, no consent yet).
+    minor: isMinor(account.dob ?? null),
+    guardianEmail: account.guardianConsent?.email ?? null,
     seeker: seeker && {
       headline: seeker.profile!.headline ?? null,
       bio: seeker.profile!.bio ?? null,
@@ -43,7 +57,9 @@ function toProfileView(
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
   const { portal, id } = req.auth!;
-  const account = await findAccountById(portal, id);
+  // `withSecret` selects `+passwordHash` so `toSessionUser` can answer
+  // `hasPassword` — the projection is a boolean, never the hash itself.
+  const account = await findAccountById(portal, id, { withSecret: true });
   if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
   res.status(200).json({ success: true, profile: toProfileView(portal, account) });
 };
@@ -58,14 +74,19 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 export const completeProfile = async (req: Request, res: Response): Promise<void> => {
   const body = parseBody(completeProfileBodySchema, req.body);
   const { portal, id } = req.auth!;
-  const account = await findAccountById(portal, id);
+  const account = await findAccountById(portal, id, { withSecret: true });
   if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
 
   // The `T00:00:00Z` suffix makes the UTC-midnight normalisation explicit.
   // Without it a date-only ISO string still parses as UTC, but the suffix is what
   // stops a later reader "fixing" this into a local parse and moving every stored
   // birthday by a day.
-  account.dob = new Date(`${body.dob}T00:00:00Z`);
+  const dob = new Date(`${body.dob}T00:00:00Z`);
+  // Minors are seekers only (Project C's locked rule): a 16-17 recruiter DOB is
+  // refused before anything is written, so the refused body leaves no stored DOB
+  // behind — the same guarantee the schema ordering gives the other validations.
+  assertRecruiterAdult(portal, dob);
+  account.dob = dob;
   if (body.phone !== undefined) account.phone = body.phone;
   if (body.gender !== undefined) account.gender = body.gender;
   await account.save();
@@ -77,7 +98,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   const body = parseBody(profileUpdateBodySchema, req.body);
 
   const { portal, id } = req.auth!;
-  const account = await findAccountById(portal, id);
+  const account = await findAccountById(portal, id, { withSecret: true });
   if (!account) {
     throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
   }
@@ -87,7 +108,11 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   // The correction path for the identity block. `dob` is validated by the same
   // schema the completion step uses, so an under-age value is a 400 here rather
   // than a silent way back past the gate.
-  if (body.dob !== undefined) account.dob = new Date(`${body.dob}T00:00:00Z`);
+  if (body.dob !== undefined) {
+    const dob = new Date(`${body.dob}T00:00:00Z`);
+    assertRecruiterAdult(portal, dob);
+    account.dob = dob;
+  }
   if (body.gender !== undefined) account.gender = body.gender;
 
   if (portal === "seeker") {

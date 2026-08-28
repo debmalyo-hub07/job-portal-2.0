@@ -15,7 +15,29 @@ const otpCodeSchema = new Schema(
      * against a different account even with the pepper.
      */
     codeHash: { type: String, required: true },
-    purpose: { type: String, enum: ["verify_email", "reset_password"], required: true },
+    /**
+     * Keep in sync with the `otpBudget` enum and the `OtpPurpose` type, plus
+     * `renderOtpEmail`'s branches — the four places a purpose exists.
+     */
+    purpose: {
+      type: String,
+      enum: ["verify_email", "reset_password", "change_email", "guardian_consent"],
+      required: true,
+    },
+    /**
+     * Which mailbox proof a `change_email` row demands. `confirm-current` is
+     * the admin stage-1 code (sent to the address being left);
+     * `confirm-new` proves the new mailbox and is the only stage seekers and
+     * recruiters ever see. Null for every other purpose.
+     *
+     * The stage is enforced in the redemption query itself, so a stage-1 code
+     * presented as stage 2 fails the lookup before any state is consulted.
+     */
+    stage: {
+      type: String,
+      enum: ["confirm-current", "confirm-new"],
+      default: null,
+    },
     subjectId: { type: Schema.Types.ObjectId, required: true },
     subjectType: { type: String, enum: PORTALS, required: true },
     attempts: { type: Number, default: 0 },
@@ -35,4 +57,11 @@ export const OtpCode: Model<OtpCodeDocument> =
   defineModel<OtpCodeDocument>("OtpCode", otpCodeSchema);
 
 /** Exported for the mailer and the services; keep in sync with the enum above. */
-export type OtpPurpose = "verify_email" | "reset_password";
+export type OtpPurpose =
+  | "verify_email"
+  | "reset_password"
+  | "change_email"
+  | "guardian_consent";
+
+/** Which mailbox a `change_email` code was mailed to. See `stage` above. */
+export type OtpStage = "confirm-current" | "confirm-new";

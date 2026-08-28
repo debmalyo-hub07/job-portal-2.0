@@ -2,7 +2,7 @@ import { BrevoClient } from "@getbrevo/brevo";
 import { env } from "../config/env.js";
 import { AppError } from "./AppError.js";
 import { logger } from "./logger.js";
-import type { OtpPurpose } from "../models/otpCode.model.js";
+import type { OtpPurpose, OtpStage } from "../models/otpCode.model.js";
 import { renderOtpEmail } from "./emailTemplates.js";
 
 /**
@@ -187,8 +187,13 @@ export function dispatch(work: Promise<void>): void {
   });
 }
 
-export async function sendOtpEmail(to: string, code: string, purpose: OtpPurpose): Promise<void> {
-  const { subject, html, text } = renderOtpEmail(code, purpose, env().OTP_TTL_MINUTES);
+export async function sendOtpEmail(
+  to: string,
+  code: string,
+  purpose: OtpPurpose,
+  stage: OtpStage | null = null,
+): Promise<void> {
+  const { subject, html, text } = renderOtpEmail(code, purpose, env().OTP_TTL_MINUTES, stage);
   await active.send(to, subject, html, text);
 }
 

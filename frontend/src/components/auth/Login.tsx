@@ -39,6 +39,11 @@ const Login = ({ portal }: { portal: Portal }) => {
   const copy = AUTH_COPY[portal];
   // A local const so the narrowing below survives into the onClick closure.
   const googleStartPath = copy.googleStartPath;
+  // Set by the email-change flow's landing here — see where it renders below.
+  const notice = (location.state as { notice?: string } | null)?.notice;
+  // The suspension sentence, shown on the form until the next submit. Cleared
+  // on any new attempt so it never reads as a stale verdict.
+  const [suspendedMessage, setSuspendedMessage] = useState<string | null>(null);
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });
   };
@@ -65,6 +70,17 @@ const Login = ({ portal }: { portal: Portal }) => {
         navigate(`/verify-email?portal=${portal}&email=${encodeURIComponent(input.email)}`);
         return;
       }
+      // ACCOUNT_SUSPENDED is the one failure whose message the person MUST
+      // read: it carries the admin's reason, which they can act on and which
+      // no other channel shows them this fast. Toasted errors vanish; this
+      // one stays on the form.
+      if (getApiErrorCode(error) === "ACCOUNT_SUSPENDED") {
+        setSuspendedMessage(getApiErrorMessage(error, "This account is suspended."));
+        setBotToken(null);
+        setChallengeKey((value) => value + 1);
+        return;
+      }
+      setSuspendedMessage(null);
       toast.error(getApiErrorMessage(error, "Login failed"));
       setBotToken(null);
       setChallengeKey((value) => value + 1);
@@ -84,6 +100,35 @@ const Login = ({ portal }: { portal: Portal }) => {
       }
     >
       <form onSubmit={submitHandler} noValidate>
+        {/*
+          Arrives from the email-change flow: every session died by design, so
+          the person lands here with a sentence explaining why, rather than a
+          bare login that reads as an unexplained sign-out. `returnPathFor`
+          ignores state without a `from` key, so this rides along harmlessly.
+        */}
+        {notice ? (
+          <p
+            role="status"
+            className="mb-4 rounded-surface border border-line bg-paper-raised px-3 py-2 text-sm text-ink"
+          >
+            {notice}
+          </p>
+        ) : null}
+
+        {/*
+          Project D: the owner's view of their suspension. The server only
+          answers this after a CORRECT password, so whoever reads it has
+          already proven they own the account — the reason is theirs to see.
+        */}
+        {suspendedMessage ? (
+          <p
+            role="alert"
+            className="mb-4 rounded-surface border border-danger-muted bg-paper-raised px-3 py-2 text-sm text-danger-text"
+          >
+            {suspendedMessage}
+          </p>
+        ) : null}
+
         <FormField label="Email" htmlFor="email" required>
           <Input
             id="email"

@@ -9,6 +9,11 @@ import { googleOAuth, type GoogleIdentity } from "../lib/googleOAuth.js";
 import { clearGoogleTxnCookie, googleTxnCookieName, setGoogleTxnCookie } from "../lib/cookies.js";
 import { accountModel, findAccountByEmail, type AccountDocument } from "./account.service.js";
 import { revokeAllForSubject } from "./session.service.js";
+import {
+  isDuplicateKeyError,
+  releaseEmail,
+  reserveEmail,
+} from "./emailRegistry.service.js";
 import { OtpCode } from "../models/otpCode.model.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
 import { renderAccountClaimedEmail, renderGoogleLinkEmail } from "../lib/emailTemplates.js";
@@ -17,6 +22,17 @@ import { AppError } from "../lib/AppError.js";
 
 /** Same reason as auth.service.ts: InferSchemaType has no `_id`. */
 type AccountDoc = HydratedDocument<AccountDocument>;
+
+/**
+ * The refusal shapes the stranger branch collapses into one outcome: the
+ * registry's translated `EMAIL_TAKEN` (address held on another portal) and a
+ * raw E11000 off the per-collection index (a raced same-portal first sign-in,
+ * or registry drift made loud).
+ */
+function isEmailRefused(error: unknown): boolean {
+  if (isDuplicateKeyError(error)) return true;
+  return error instanceof AppError && error.code === "EMAIL_TAKEN";
+}
 
 interface TxnClaims {
   purpose: "google-txn";
@@ -145,26 +161,47 @@ async function resolveIdentity(
   // the mailbox and we independently required email_verified above).
   if (!byEmail) {
     try {
-      const created = await model.create({
-        email: identity.email.toLowerCase(),
-        // `?? "Member"` is not defensive noise: `noUncheckedIndexedAccess` is
-        // on, so `split("@")[0]` is `string | undefined`, and `fullName` is
-        // required with a 2-character minimum. A Google account with no name
-        // and a single-character local part would otherwise fail schema
-        // validation here — after the OAuth round trip, where the only place
-        // to report it is a redirect to /auth/error.
-        fullName: identity.fullName ?? identity.email.split("@")[0] ?? "Member",
-        googleId: identity.sub,
-        passwordHash: null,
-        emailVerifiedAt: new Date(),
-        avatarUrl: identity.avatarUrl,
-      });
+      // Registry-first, like register(): the address is claimed across ALL
+      // portals before the account exists, with the account's _id minted up
+      // front. A recruiter already holding this address means the Google
+      // stranger cannot have a seeker account with it — the 2026-08-27
+      // one-address-one-account rule.
+      const subjectId = await reserveEmail(portal, identity.email);
+      let created: AccountDoc;
+      try {
+        created = await model.create({
+          _id: subjectId,
+          email: identity.email.toLowerCase(),
+          // `?? "Member"` is not defensive noise: `noUncheckedIndexedAccess` is
+          // on, so `split("@")[0]` is `string | undefined`, and `fullName` is
+          // required with a 2-character minimum. A Google account with no name
+          // and a single-character local part would otherwise fail schema
+          // validation here — after the OAuth round trip, where the only place
+          // to report it is a redirect to /auth/error.
+          fullName: identity.fullName ?? identity.email.split("@")[0] ?? "Member",
+          googleId: identity.sub,
+          passwordHash: null,
+          emailVerifiedAt: new Date(),
+          avatarUrl: identity.avatarUrl,
+        });
+      } catch (error) {
+        // The account never took the address: give it back before failing.
+        await releaseEmail(subjectId);
+        throw error;
+      }
       return { kind: "signed-in", account: created };
     } catch (error) {
-      // Two first sign-ins racing the unique email index: loser re-reads.
-      if ((error as { code?: number }).code !== 11000) throw error;
-      const raced = await model.findOne({ googleId: identity.sub });
-      return raced ? { kind: "signed-in", account: raced } : { kind: "failed" };
+      // Both duplicate shapes — the registry refusing a cross-portal address,
+      // and the same-portal index on a raced first sign-in — collapse to the
+      // same outcome as every other failed Google flow: one uniform redirect,
+      // never a distinct code that maps the defences. The re-read covers the
+      // only race the registry cannot see: this identity's own concurrent
+      // first sign-in winning on another tab.
+      if (isEmailRefused(error)) {
+        const raced = await model.findOne({ googleId: identity.sub });
+        return raced ? { kind: "signed-in", account: raced } : { kind: "failed" };
+      }
+      throw error;
     }
   }
 

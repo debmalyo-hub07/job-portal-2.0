@@ -17,6 +17,9 @@ const user = (over: Partial<SessionUser>): SessionUser => ({
   avatarUrl: null,
   status: "active",
   profileComplete: true,
+  hasPassword: true,
+  isMinor: false,
+  pendingEmailChange: null,
   ...over,
 });
 

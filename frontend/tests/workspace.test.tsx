@@ -37,6 +37,9 @@ function storeWith(portal: Portal, status: "active" | "pending") {
       emailVerified: true,
       avatarUrl: null,
       profileComplete: true,
+      hasPassword: true,
+      isMinor: false,
+      pendingEmailChange: null,
       status,
     }),
   );

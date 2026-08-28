@@ -3,6 +3,7 @@ import { PORTALS, type Portal } from "@jobportal/shared";
 import { env } from "../config/env.js";
 import { logger } from "./logger.js";
 import { accountModel } from "../services/account.service.js";
+import { EmailRegistry } from "../models/emailRegistry.model.js";
 import { OtpCode } from "../models/otpCode.model.js";
 import { OtpBudget } from "../models/otpBudget.model.js";
 import { RefreshToken } from "../models/refreshToken.model.js";
@@ -71,6 +72,10 @@ export async function sweepUnverifiedAccounts(): Promise<Record<Portal, number>>
           subjectId: mongoose.trusted({ $in: ids }),
           subjectType: portal,
         }),
+        // The registry row dies with the account, exactly like the OTP rows —
+        // an abandoned unverified registration gives the address back across
+        // every portal, not just within one collection.
+        EmailRegistry.deleteMany({ subjectId: mongoose.trusted({ $in: ids }) }),
       ]);
 
       const result = await accountModel(portal).deleteMany({

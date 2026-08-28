@@ -10,6 +10,19 @@ import type { Gender } from "./enums.js";
  */
 export type AccountStatus = "pending" | "active" | "suspended";
 
+/** An email change in progress, mirrored to its owner's session projection. */
+export interface PendingEmailChange {
+  newEmail: string;
+  /** ISO instant. A pending older than 24 hours is dead and reads as none. */
+  requestedAt: string;
+  /**
+   * Admin two-stage flow only: set once the code to the CURRENT address has
+   * been redeemed, which is when the code to the NEW address is mailed. Always
+   * null for seekers and recruiters, whose single code is the whole proof.
+   */
+  confirmedCurrentAt: string | null;
+}
+
 /** The only account shape that ever crosses the wire. */
 export interface SessionUser {
   id: string;
@@ -24,6 +37,26 @@ export interface SessionUser {
    * `dob`; the client must not recompute it, or there are two sources of truth.
    */
   profileComplete: boolean;
+  /**
+   * Whether a password is set on the account. The email-change dialog needs it
+   * to render the right shape: password accounts re-enter the password, and
+   * Google-only accounts do not. A boolean projection — the hash itself never
+   * crosses the wire.
+   */
+  hasPassword: boolean;
+  /**
+   * Whether the account is in the 16-17 band. Derived server-side from `dob`;
+   * the client must not recompute age from the wire DOB, or there are two
+   * sources of truth that disagree across timezones. The job detail page's
+   * internship-only refusal reads this.
+   */
+  isMinor: boolean;
+  /**
+   * The email change awaiting a code, or null. Owner-visible by design: a
+   * holder of the session can already see everything else here, and the
+   * password step-up is what stops them *completing* a change.
+   */
+  pendingEmailChange: PendingEmailChange | null;
 }
 
 export interface AuthResponse {
@@ -56,9 +89,11 @@ export const AUTH_ERROR_CODES = [
   "INVALID_CREDENTIALS",
   "EMAIL_NOT_VERIFIED",
   "EMAIL_TAKEN",
+  "EMAIL_UNCHANGED",
   "OTP_INVALID",
   "OTP_BUDGET_EXHAUSTED",
   "PASSWORD_REUSED",
+  "PASSWORD_INVALID",
   "SESSION_MISSING",
   "SESSION_INVALID",
   "CSRF_INVALID",
@@ -79,6 +114,18 @@ export interface ProfileView {
   dob: string | null;
   /** `null` means never asked; "prefer-not-to-say" means asked and declined. */
   gender: Gender | null;
+  /**
+   * Whether this account sits in the 16-17 band on the server's clock. Derived,
+   * like `SessionUser.isMinor`. The completion step reads it to decide whether
+   * the guardian stage renders after the identity block saves.
+   */
+  minor: boolean;
+  /**
+   * The guardian whose consent is on file, or null. Owner-visible: it is the
+   * account's own record, and re-consent (a new guardian address) is the same
+   * flow that set the first one.
+   */
+  guardianEmail: string | null;
   seeker: {
     headline: string | null;
     bio: string | null;
@@ -106,4 +153,15 @@ export interface ProfileResponse {
   success: true;
   message?: string;
   profile: ProfileView;
+}
+
+/**
+ * Both email-change steps. `message` is the human sentence the client surfaces
+ * — which code to enter next (admin stage 1) or that every session is dead and
+ * the new address is the sign-in (final). The final response returns no
+ * session: none survives the swap.
+ */
+export interface EmailChangeResponse {
+  success: true;
+  message: string;
 }

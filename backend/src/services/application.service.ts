@@ -1,4 +1,5 @@
-import type { HydratedDocument } from "mongoose";
+import mongoose, { type HydratedDocument } from "mongoose";
+import { isMinor, notifiesSeeker, transitionRefusal } from "@jobportal/shared";
 import type {
   ApplicantDto,
   ApplicationEventDto,
@@ -6,12 +7,12 @@ import type {
   AppliedJobDto,
   PaginatedResponse,
   PaginationQuery,
+  QueuedApplicantDto,
 } from "@jobportal/shared";
-import { notifiesSeeker, transitionRefusal } from "@jobportal/shared";
 import { Application, type ApplicationDocument } from "../models/application.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
-import { assertJobOpen, getOwnedJob, toJobDto } from "./job.service.js";
+import { getOwnedJob, toJobDto } from "./job.service.js";
 import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
@@ -30,10 +31,42 @@ function isDuplicateKey(err: unknown): boolean {
 }
 
 export async function applyToJob(seekerId: string, jobId: string): Promise<void> {
-  // Existence *and* still open. A closed role that kept accepting applications
-  // was the other half of the missing lifecycle: the recruiter had filled the
-  // job and candidates went on applying to it.
-  await assertJobOpen(jobId);
+  // Existence, still open, and — loaded in the same read — everything the
+  // eligibility rules below need. `assertJobOpen` selected only `status`; this
+  // needs the type and the poster too, so it loads the job itself.
+  const job = await Job.findById(jobId).select("status jobType created_by");
+  if (!job) {
+    throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
+  }
+  if (job.status === "closed") {
+    throw AppError.conflict("JOB_CLOSED", "This role is no longer accepting applications");
+  }
+
+  // Project C: a minor's consequential write is internships only. The DOB is
+  // read here rather than trusted from the token because `requireProfileComplete`
+  // proves the gate cleared, not which band cleared it — and age crosses a
+  // birthday, which a token minted days ago cannot know.
+  const seeker = await Seeker.findById(seekerId).select("dob guardianConsent");
+  if (seeker && isMinor(seeker.dob ?? null) && job.jobType !== "Internship") {
+    throw AppError.forbidden(
+      "MINOR_NON_INTERNSHIP",
+      "Candidates under 18 can apply to internship roles only.",
+    );
+  }
+
+  // Project D: a suspended recruiter's listings stay live by decision, but
+  // taking applications for them is a live write the suspension must block.
+  // The copy is deliberately vague — the board does not announce suspensions.
+  if (job.created_by) {
+    const owner = await Recruiter.findById(job.created_by).select("status");
+    if (owner?.status === "suspended") {
+      throw AppError.forbidden(
+        "JOB_OWNER_SUSPENDED",
+        "This employer is not accepting applications right now.",
+      );
+    }
+  }
+
   try {
     // The first history entry is written here rather than derived later: a
     // timeline that starts at the first *decision* would show an application
@@ -164,6 +197,84 @@ export async function listApplicants(
 
 const applicationNotFound = () =>
   AppError.notFound("APPLICATION_NOT_FOUND", "Application not found");
+
+/**
+ * The recruiter's cross-job queue (Project D): every application on every job
+ * the recruiter owns, newest first.
+ *
+ * Ownership is resolved through the jobs themselves — the applications are
+ * found by `{ job: { $in: ownedIds } }` — so a foreign application can no more
+ * appear here than in the per-job list, without a single ownership check per
+ * row.
+ *
+ * Paginated at the database rather than after a full fetch: unlike
+ * `listApplicants`, whose per-job set is bounded by one posting's audience,
+ * this spans every posting the recruiter owns and must stay O(page).
+ * Consequence: no global fit ranking (fit is scored per row, against that
+ * application's own job, after the page is chosen) and the order is recency —
+ * which is also what a queue means.
+ */
+export async function listApplicationQueue(
+  recruiterId: string,
+  { page, limit }: PaginationQuery,
+): Promise<PaginatedResponse<QueuedApplicantDto>> {
+  const ownedJobs = await Job.find({ created_by: recruiterId }).select("_id");
+  const ownedIds = ownedJobs.map((job) => job._id);
+  // `trusted` because `job` is an ObjectId path: Mongoose otherwise tries to
+  // cast the `$in` object itself. And an empty `$in` would be a cast error on
+  // an empty array in some driver versions — `{ $in: [] }` matches nothing,
+  // which is exactly what a recruiter with no postings deserves, but only if
+  // it survives the cast. Early-return the empty page instead.
+  if (ownedIds.length === 0) {
+    return { items: [], total: 0, page, pages: 0 };
+  }
+  const filter = { job: mongoose.trusted({ $in: ownedIds }) };
+
+  const [total, applications] = await Promise.all([
+    Application.countDocuments(filter),
+    Application.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate({ path: "applicant", select: "fullName email phone profile resume" })
+      .populate({ path: "job", select: "title company remote location", populate: { path: "company", select: "name" } }),
+  ]);
+
+  // The per-row job, for scoring only — the DTO's job fields come from the
+  // same populated document, so the fit and the label can never disagree.
+  const jobById = new Map(
+    ownedJobs.map((job) => [String(job._id), job as unknown as Parameters<typeof scoreSeekerForJob>[1]]),
+  );
+
+  return {
+    items: (applications as unknown as Array<
+      PopulatedApplicant & {
+        job: { _id: unknown; title: string; company: { name: string } | null } | null;
+      }
+    >).map((a) => ({
+      applicationId: String(a._id),
+      status: a.status as QueuedApplicantDto["status"],
+      appliedAt: a.createdAt?.toISOString() ?? "",
+      fullName: a.applicant?.fullName ?? "",
+      email: a.applicant?.email ?? "",
+      phone: a.applicant?.phone ?? null,
+      headline: a.applicant?.profile?.headline ?? null,
+      skills: a.applicant?.profile?.skills ?? [],
+      resumeUrl: signedResumeUrl(a.applicant?.resume?.storageKey),
+      resumeName: a.applicant?.resume?.originalName ?? null,
+      fit:
+        a.applicant && a.job && typeof a.job === "object"
+          ? scoreSeekerForJob(a.applicant, jobById.get(String(a.job._id)) ?? (a.job as never))
+          : null,
+      jobId: a.job && typeof a.job === "object" ? String(a.job._id) : "",
+      jobTitle: a.job && typeof a.job === "object" ? a.job.title : "",
+      companyName: a.job && typeof a.job === "object" ? a.job.company?.name ?? null : null,
+    })),
+    total,
+    page,
+    pages: Math.ceil(total / limit),
+  };
+}
 
 /**
  * Turns a refusal from the shared state machine into the right HTTP answer.

@@ -6,6 +6,7 @@ import {
   renderRecruiterDeniedEmail,
 } from "../lib/emailTemplates.js";
 import { logger } from "../lib/logger.js";
+import { recordAccountEvent } from "./oversight.service.js";
 
 export interface PendingRecruiterDto {
   id: string;
@@ -51,7 +52,7 @@ export async function listPendingRecruiters(): Promise<PendingRecruiterDto[]> {
  * probed. The 404-for-foreign-resources rule does not apply — an admin has no
  * "foreign" recruiters.
  */
-export async function approveRecruiter(id: string): Promise<void> {
+export async function approveRecruiter(id: string, adminId: string | null = null): Promise<void> {
   const exists = await Recruiter.exists({ _id: id });
   if (!exists) throw AppError.notFound("NOT_FOUND", "No such recruiter.");
 
@@ -61,6 +62,10 @@ export async function approveRecruiter(id: string): Promise<void> {
   );
   if (result.matchedCount === 0) return; // already approved
 
+  // The history row. Written after the guarded update, so a raced no-op
+  // records nothing — the doctrine that keeps two admins from minting two
+  // events for one decision.
+  await recordAccountEvent("recruiter", id, "approved", null, adminId);
   const account = await Recruiter.findById(id).select("email");
   if (account) dispatch(sendRendered(account.email, renderRecruiterApprovedEmail()));
   logger.info({ recruiterId: id }, "recruiter approved");
@@ -83,7 +88,7 @@ export async function approveRecruiter(id: string): Promise<void> {
  * already reviewed. Deleting it would let the same person re-register into the
  * queue and be re-reviewed from scratch.
  */
-export async function denyRecruiter(id: string, reason: string): Promise<void> {
+export async function denyRecruiter(id: string, reason: string, adminId: string | null = null): Promise<void> {
   const account = await Recruiter.findById(id).select("email status");
   if (!account) throw AppError.notFound("NOT_FOUND", "No such recruiter.");
   if (account.status === "active") {
@@ -99,6 +104,10 @@ export async function denyRecruiter(id: string, reason: string): Promise<void> {
   );
   if (result.matchedCount === 0) return; // already suspended
 
+  // A denial IS a suspension in the model's terms, but the history keeps the
+  // kinds distinct: `denied` is what makes a later reinstate return the
+  // account to the approval queue rather than straight to active.
+  await recordAccountEvent("recruiter", id, "denied", reason, adminId);
   dispatch(sendRendered(account.email, renderRecruiterDeniedEmail(reason)));
   logger.info({ recruiterId: id }, "recruiter denied");
 }

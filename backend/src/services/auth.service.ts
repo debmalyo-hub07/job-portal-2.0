@@ -1,13 +1,12 @@
 import mongoose, { Types, type HydratedDocument } from "mongoose";
-import type { AccountStatus, Portal, RegisterBody, SessionUser } from "@jobportal/shared";
+import { isMinor, type AccountStatus, type Portal, type RegisterBody, type SessionUser } from "@jobportal/shared";
 import { AppError } from "../lib/AppError.js";
 import { env } from "../config/env.js";
 import { burnPasswordTime, hashPassword, needsRehash, verifyPassword } from "../lib/password.js";
-import { generateOtp, hashOtp } from "../lib/otp.js";
-import { dispatch, sendOtpEmail, sendRendered } from "../lib/mailer.js";
-import { renderOtpBudgetEmail, renderPasswordSetupEmail } from "../lib/emailTemplates.js";
-import { OtpCode, type OtpPurpose } from "../models/otpCode.model.js";
-import { OtpBudget, type OtpBudgetDocument } from "../models/otpBudget.model.js";
+import { hashOtp } from "../lib/otp.js";
+import { sendRendered } from "../lib/mailer.js";
+import { renderPasswordSetupEmail } from "../lib/emailTemplates.js";
+import { OtpCode } from "../models/otpCode.model.js";
 import {
   accountModel,
   findAccountByEmail,
@@ -16,6 +15,13 @@ import {
   type AccountDocument,
 } from "./account.service.js";
 import { revokeAllForSubject } from "./session.service.js";
+import { chargeOtpAttempt, clearOtpBudget, issueOtp, writeGhostOtp } from "./otp.service.js";
+import {
+  EMAIL_TAKEN,
+  isDuplicateKeyError,
+  releaseEmail,
+  reserveEmail,
+} from "./emailRegistry.service.js";
 
 /**
  * A saved account, not the bare schema shape.
@@ -36,6 +42,13 @@ type AccountDoc = HydratedDocument<AccountDocument>;
  * indefinitely by re-registering an address that already existed. There is no
  * file in this path at all now — avatars move to the profile screen, after
  * verification.
+ *
+ * The email registry row is claimed BEFORE the account is created, with the
+ * account's `_id` minted up front. The registry's unique index is the
+ * cross-portal guarantee — one address, one account, on any portal — and an
+ * E11000 there is the `EMAIL_TAKEN` refusal. If the account create then fails,
+ * the compensating delete frees the row so a half-failed registration squats
+ * nothing.
  */
 export async function register(portal: Portal, input: RegisterBody): Promise<void> {
   const email = input.email.trim().toLowerCase();
@@ -45,13 +58,18 @@ export async function register(portal: Portal, input: RegisterBody): Promise<voi
     // Registration cannot hide existence — the user has to be told the address
     // is taken. What it must not do is leak anything *else*: not whether the
     // account is verified, not whether it has a password, not when it was made.
-    throw AppError.conflict("EMAIL_TAKEN", "An account already exists for this email address.");
+    throw EMAIL_TAKEN();
   }
 
+  // Hash before claiming the address, so the registry row exists for the
+  // shortest possible window between claim and account.
   const passwordHash = await hashPassword(input.password);
+  const subjectId = await reserveEmail(portal, email);
+
   let account: AccountDoc;
   try {
     account = await accountModel(portal).create({
+      _id: subjectId,
       email,
       fullName: input.fullName,
       passwordHash,
@@ -63,59 +81,17 @@ export async function register(portal: Portal, input: RegisterBody): Promise<voi
       status: portal === "recruiter" ? "pending" : "active",
     });
   } catch (error) {
-    // The findOne above is a fast path, not the guarantee — two concurrent
-    // registrations both pass it. The unique email index is the guarantee;
-    // translate its violation instead of letting it surface as a 500.
-    if ((error as { code?: number }).code === 11000) {
-      throw AppError.conflict("EMAIL_TAKEN", "An account already exists for this email address.");
+    // Free the address the account never took, then answer. The E11000 path
+    // is registry drift made loud (same-portal duplicate with no row); any
+    // other failure is a genuine 500, and the delete still ran.
+    await releaseEmail(subjectId);
+    if (isDuplicateKeyError(error)) {
+      throw EMAIL_TAKEN();
     }
     throw error;
   }
 
   await issueOtp(portal, account, "verify_email");
-}
-
-/**
- * Mints a code, stores its peppered hash, and sends it.
- *
- * Shared by register, resend, and forgot-password so the three cannot drift.
- * Rate limiting is the caller's job (Task 10) — this function is also called
- * from the migration script, which must not be throttled.
- */
-async function issueOtp(
-  portal: Portal,
-  account: AccountDoc,
-  purpose: OtpPurpose,
-  deliver: (code: string) => Promise<void> = (code) => sendOtpEmail(account.email, code, purpose),
-): Promise<void> {
-  const code = generateOtp();
-
-  // Supersede any live code for this subject+purpose. Without this, every
-  // resend leaves another independently-guessable code alive for its full TTL,
-  // which multiplies the attacker's per-hour attempts by the number of resends
-  // they trigger.
-  await OtpCode.updateMany(
-    { subjectId: account._id, subjectType: portal, purpose, consumedAt: null },
-    { $set: { consumedAt: new Date() } },
-  );
-
-  await OtpCode.create({
-    codeHash: hashOtp(code, account._id),
-    purpose,
-    subjectId: account._id,
-    subjectType: portal,
-    attempts: 0,
-    expiresAt: new Date(Date.now() + env().OTP_TTL_MINUTES * 60_000),
-  });
-
-  // Mail last, and ENQUEUED rather than awaited. Ordering: a provider failure
-  // after the store leaves a consistent database (account exists unverified,
-  // resend recovers), whereas mailing first and failing to store hands the user
-  // a code that can never work. Timing: awaiting the send would make
-  // forgot-password reveal whether an address exists. The route-level readiness
-  // gate handles known outages before any account or OTP write; dispatch opens
-  // that circuit if the provider fails after the check.
-  dispatch(deliver(code));
 }
 
 /**
@@ -175,11 +151,16 @@ export async function verifyEmail(portal: Portal, email: string, code: string): 
     throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
   }
 
-  const target = await accountModel(portal).findByIdAndUpdate(
-    otp.subjectId, // <-- the account comes from HERE. Never from `email`.
-    { $set: { emailVerifiedAt: new Date() }, $unset: { failedLoginCount: "" } },
-    { new: true },
-  );
+  // `+passwordHash` because the session projection answers `hasPassword` and
+  // this update is where the returned document comes from. A boolean in the
+  // DTO is the point — the hash itself still never crosses the wire.
+  const target = await accountModel(portal)
+    .findByIdAndUpdate(
+      otp.subjectId, // <-- the account comes from HERE. Never from `email`.
+      { $set: { emailVerifiedAt: new Date() }, $unset: { failedLoginCount: "" } },
+      { new: true },
+    )
+    .select("+passwordHash");
   if (!target) throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
 
   await clearOtpBudget(portal, otp.subjectId, "verify_email");
@@ -187,93 +168,9 @@ export async function verifyEmail(portal: Portal, email: string, code: string): 
 }
 
 /**
- * Per-account, per-purpose failure budget that OUTLIVES individual codes.
- *
- * The per-code cap of 5 cannot meter brute force at all here: a wrong guess
- * hashes to a digest that matches no row, so no row's counter moves. And even
- * a located row resets on resend — a fresh code arrives with attempts:0.
- * Without this cumulative charge the real rate is ~15-20 guesses/hour
- * indefinitely — about 0.25% per account-week, which against a breach list of
- * 10,000 addresses is roughly 25 takeovers a week with no per-account signal
- * ever tripping. This document is what survives new codes.
- *
- * Every redemption attempt pre-pays one failure; success deletes the row.
- * Throws OTP_BUDGET_EXHAUSTED once the window's budget is spent.
- *
- * The charge is a single atomic increment-and-check, not a read-then-decide. A
- * separate `assert` followed by a later `record` re-creates the exact
- * concurrency bug the per-code counter fixed: fifty parallel guesses all read
- * `failures < 20` before any of them has written, and all fifty proceed.
+ * Per-account, per-purpose failure budget — the implementation lives in
+ * `otp.service.ts`, shared with the email-change flow. See the notes there.
  */
-async function chargeOtpAttempt(
-  portal: Portal,
-  subjectId: Types.ObjectId,
-  purpose: OtpPurpose,
-): Promise<void> {
-  const windowMs = env().OTP_BUDGET_WINDOW_HOURS * 3_600_000;
-  const now = new Date();
-
-  const charge = () =>
-    OtpBudget.findOneAndUpdate(
-      { subjectId, subjectType: portal, purpose },
-      {
-        $inc: { failures: 1 },
-        // The window is fixed from first failure, not sliding — a sliding
-        // window that each failure extends would let an attacker who has
-        // already blown the budget keep the victim locked out of their own
-        // recovery forever. $setOnInsert only, never $set.
-        $setOnInsert: {
-          windowStartedAt: now,
-          expiresAt: new Date(now.getTime() + windowMs),
-        },
-      },
-      { upsert: true, new: true },
-    );
-
-  let row: HydratedDocument<OtpBudgetDocument> | null;
-  try {
-    row = await charge();
-  } catch (error) {
-    // Two concurrent first-attempts can race the upsert on the unique
-    // (subjectId, subjectType, purpose) index; the loser gets E11000. The row
-    // exists now, so retrying once takes the plain-update path.
-    if ((error as { code?: number }).code !== 11000) throw error;
-    row = await charge();
-  }
-
-  // `upsert: true, new: true` always yields a document, but Mongoose types the
-  // result nullable because TS cannot see that guarantee. Guarded rather than
-  // `!`-asserted: a real null would mean the driver contract changed, and
-  // reading `.failures` off undefined would surface as a baffling 500 instead
-  // of naming what broke.
-  if (!row) throw new Error("otp budget upsert returned no document");
-
-  const max = env().OTP_BUDGET_MAX_FAILURES;
-  if (row.failures > max) {
-    // Exactly-once notification, at the crossing. Blocks REDEMPTION only —
-    // password login is untouched, so an attacker burning a victim's budget
-    // degrades recovery, never the account. See the Task 3 design note.
-    if (row.failures === max + 1) {
-      const owner = await findAccountById(portal, String(subjectId));
-      if (owner) {
-        dispatch(sendRendered(owner.email, renderOtpBudgetEmail(env().OTP_BUDGET_WINDOW_HOURS)));
-      }
-    }
-    throw AppError.tooManyRequests(
-      "OTP_BUDGET_EXHAUSTED",
-      "Too many incorrect codes. Try again later or contact support.",
-    );
-  }
-}
-
-/** Refund on success: any correct redemption proves the owner has control. */
-async function clearOtpBudget(
-  portal: Portal,
-  subjectId: Types.ObjectId,
-  purpose: OtpPurpose,
-): Promise<void> {
-  await OtpBudget.deleteOne({ subjectId, subjectType: portal, purpose });
-}
 
 /**
  * While mail is available, returns a uniform 200 whether the address is
@@ -288,29 +185,6 @@ export async function resendVerification(portal: Portal, email: string): Promise
     return;
   }
   await writeGhostOtp(portal, "verify_email");
-}
-
-/**
- * issueOtp's exact database work against a subject id that cannot exist.
- * Nothing can ever redeem the row (the ghost ObjectId resolves to no account,
- * and the digest is bound to it); the TTL index removes it within the hour.
- * Shared with forgot-password in Task 8.
- */
-async function writeGhostOtp(portal: Portal, purpose: OtpPurpose): Promise<void> {
-  const code = generateOtp();
-  const ghost = new Types.ObjectId();
-  await OtpCode.updateMany(
-    { subjectId: ghost, subjectType: portal, purpose, consumedAt: null },
-    { $set: { consumedAt: new Date() } },
-  );
-  await OtpCode.create({
-    codeHash: hashOtp(code, ghost),
-    purpose,
-    subjectId: ghost,
-    subjectType: portal,
-    attempts: 0,
-    expiresAt: new Date(Date.now() + env().OTP_TTL_MINUTES * 60_000),
-  });
 }
 
 /**
@@ -358,13 +232,20 @@ export async function login(portal: Portal, email: string, password: string): Pr
   }
 
   if (account.status === "suspended") {
-    // Suspended reads exactly like a bad credential — account state is not
-    // for strangers. The owner finds out through support, not through probes.
+    // Project D's amendment: the owner sees WHY, but only here — after the
+    // password checked out. A stranger probing the address took the uniform
+    // exit above, so account state is still not for strangers; the only person
+    // who can read the reason is someone who already knows the password.
     //
-    // Pending logs in normally. It has to: the pending recruiter needs a
-    // session to see the "awaiting approval" screen, and refusing here would
-    // leave them with a correct password and no way to learn why it failed.
-    throw AppError.unauthorized("INVALID_CREDENTIALS", "Incorrect email or password.");
+    // (Pending still logs in normally below: the pending recruiter needs a
+    // session to see the "awaiting approval" screen.)
+    const reason = account.suspension?.reason ?? null;
+    throw AppError.forbidden(
+      "ACCOUNT_SUSPENDED",
+      reason
+        ? `This account is suspended: ${reason}`
+        : "This account is suspended.",
+    );
   }
 
   if (account.emailVerifiedAt === null) {
@@ -472,7 +353,7 @@ export async function issuePasswordSetupCode(
   portal: Portal,
   account: AccountDoc,
 ): Promise<void> {
-  await issueOtp(portal, account, "reset_password", (code) =>
+  await issueOtp(portal, account, "reset_password", null, (code) =>
     sendRendered(
       account.email,
       renderPasswordSetupEmail(code, env().OTP_TTL_MINUTES, adminSetupUrl(account.email)),
@@ -568,8 +449,26 @@ export async function resetPassword(
  * purpose — a spread would leak whatever the schema grows next. This is the
  * function that makes `getApplicants`-style hash leaks structurally impossible
  * on the new surface.
+ *
+ * `hasPassword` is a boolean projection of `passwordHash`: the email-change
+ * dialog needs to know whether to ask for the password, but the hash column is
+ * `select: false` and stays that way — callers that reach here through a read
+ * must select `+passwordHash` or the boolean reads false. `pendingEmailChange`
+ * is owner-visible by design: a session holder can already see everything else
+ * here, and the password step-up is what stops them *completing* a change.
  */
 export function toSessionUser(portal: Portal, account: AccountDoc): SessionUser {
+  const pending =
+    account.pendingEmailChange?.newEmail != null &&
+    account.pendingEmailChange.requestedAt != null
+      ? {
+          newEmail: account.pendingEmailChange.newEmail,
+          requestedAt: account.pendingEmailChange.requestedAt.toISOString(),
+          confirmedCurrentAt:
+            account.pendingEmailChange.confirmedCurrentAt?.toISOString() ?? null,
+        }
+      : null;
+
   return {
     id: String(account._id),
     portal,
@@ -582,5 +481,10 @@ export function toSessionUser(portal: Portal, account: AccountDoc): SessionUser 
     // workspace and no reason for it.
     status: account.status as AccountStatus,
     profileComplete: isProfileComplete(portal, account),
+    hasPassword: (account.passwordHash ?? null) !== null,
+    // Derived on the server's clock; the client never recomputes age from the
+    // wire DOB (see the DTO field's note).
+    isMinor: isMinor(account.dob ?? null),
+    pendingEmailChange: pending,
   };
 }

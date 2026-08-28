@@ -33,6 +33,15 @@ export const recruiterDenyBodySchema = z.object({
 export type RecruiterDenyBody = z.infer<typeof recruiterDenyBodySchema>;
 
 /**
+ * Project D: suspension needs a reason for the same line of reasoning as
+ * denial — it is the one moderation action that locks the owner out, and both
+ * the mail and the login refusal carry it. Reinstatement needs none: there is
+ * no justification owed for restoring someone.
+ */
+export const accountSuspendBodySchema = recruiterDenyBodySchema;
+export type AccountSuspendBody = RecruiterDenyBody;
+
+/**
  * A new admin invitation. The existing admin session supplies authority and a
  * server-held provisioning secret supplies the second control; the invited
  * admin sets a password through the same short-lived OTP path as recovery.
@@ -200,3 +209,46 @@ export type AdminActivityItem = {
 };
 
 export type AdminActivityDto = { items: AdminActivityItem[] };
+
+/**
+ * A seeker as the oversight table lists them (Project D).
+ *
+ * Same rules as every console read: enough to moderate, nothing that turns
+ * the screen into an export. `minor` is the derived band, not the DOB; the
+ * phone, resume and profile stay in the seeker's own portal.
+ */
+export type AdminSeekerDto = {
+  id: string;
+  fullName: string;
+  email: string;
+  status: "pending" | "active" | "suspended";
+  minor: boolean;
+  applicationCount: number;
+  createdAt: string;
+};
+
+/**
+ * A recruiter as the monitoring table lists them (Project D) — every
+ * recruiter, not just the pending queue. `status` decides the row's actions:
+ * pending carries approve/deny, active carries suspend, suspended carries
+ * reinstate.
+ */
+export type AdminRecruiterDto = {
+  id: string;
+  fullName: string;
+  email: string;
+  status: "pending" | "active" | "suspended";
+  jobCount: number;
+  applicationCount: number;
+  createdAt: string;
+};
+
+/** One row of a per-account status history, newest first. */
+export type AccountEventDto = {
+  id: string;
+  kind: "approved" | "denied" | "suspended" | "reinstated";
+  reason: string | null;
+  at: string;
+  /** The acting admin's email, or null where a script made the decision. */
+  actorEmail: string | null;
+};

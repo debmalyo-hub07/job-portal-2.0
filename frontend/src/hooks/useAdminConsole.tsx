@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type {
+  AccountEventDto,
   AdminActivityDto,
   AdminCompanyDto,
   AdminInsightsDto,
   AdminJobDto,
   AdminOverviewDto,
+  AdminRecruiterDto,
+  AdminSeekerDto,
   PaginatedResponse,
   PendingRecruiterDto,
 } from "@jobportal/shared";
@@ -219,4 +222,93 @@ export function useAdminCompanies() {
     staleTime: 30 * 1000,
   });
   return { ...query, keyword, page, setKeyword, setPage };
+}
+
+/**
+ * Project D's oversight listings. The seekers screen paginates and
+ * keyword-matches exactly like the jobs and companies screens, so the two
+ * share `useListParams` and the same query shape — a console listing whose
+ * URL state behaved differently from its siblings would be a small mystery.
+ */
+export function useAdminSeekers() {
+  const { keyword, page, setKeyword, setPage } = useListParams();
+  const qs = listQueryString(keyword, page);
+  const query = useQuery({
+    queryKey: [...ADMIN_KEY, "seekers", qs],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean } & PaginatedResponse<AdminSeekerDto>>(
+        `/admin/seekers?${qs}`,
+        { signal },
+      );
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+  });
+  return { ...query, keyword, page, setKeyword, setPage };
+}
+
+/**
+ * Every recruiter, not just the pending queue — the monitoring screen's read.
+ */
+export function useAdminRecruiters() {
+  const { keyword, page, setKeyword, setPage } = useListParams();
+  const qs = listQueryString(keyword, page);
+  const query = useQuery({
+    queryKey: [...ADMIN_KEY, "recruiters", "all", qs],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean } & PaginatedResponse<AdminRecruiterDto>>(
+        `/admin/recruiters?${qs}`,
+        { signal },
+      );
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+  });
+  return { ...query, keyword, page, setKeyword, setPage };
+}
+
+/**
+ * Suspend or reinstate an account. Shared by both screens because the
+ * mutation is the same write with a different portal prefix; the invalidation
+ * covers both listings AND the overview, whose counters move with every
+ * status change.
+ */
+export function useAccountStatusChange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      portal: "seeker" | "recruiter";
+      id: string;
+      action: "suspend" | "reinstate";
+      reason?: string;
+    }) => {
+      await apiClient.post(`/admin/${input.portal === "seeker" ? "seekers" : "recruiters"}/${input.id}/${input.action}`, ...(input.reason ? [{ reason: input.reason }] : []));
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "seekers"] });
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "recruiters"] });
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "overview"] });
+      void queryClient.invalidateQueries({
+        queryKey: [...ADMIN_KEY, "events", variables.portal, variables.id],
+      });
+    },
+  });
+}
+
+/** The per-account history. Keyed per subject so the dialog refetches on open. */
+export function useAccountEvents(portal: "seeker" | "recruiter" | null, id: string | null) {
+  return useQuery({
+    queryKey: [...ADMIN_KEY, "events", portal, id],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean; items: AccountEventDto[] }>(
+        `/admin/accounts/${portal}/${id}/events`,
+        { signal },
+      );
+      return res.data.items;
+    },
+    enabled: portal !== null && id !== null,
+    staleTime: 15 * 1000,
+  });
 }

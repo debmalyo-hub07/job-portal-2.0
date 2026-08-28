@@ -18,6 +18,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
     case "recruiter":
       if (surface === "session") {
         return [
+          { to: "/hire/applicants", label: "Applicants" },
           { to: "/hire/companies", label: "Companies" },
           { to: "/hire/jobs", label: "Jobs" },
         ];
@@ -48,6 +49,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
       return [
         { to: "/admin/dashboard", label: "Dashboard" },
         { to: "/admin/recruiters", label: "Recruiters" },
+        { to: "/admin/seekers", label: "Candidates" },
         { to: "/admin/review/jobs", label: "Jobs" },
         { to: "/admin/review/companies", label: "Companies" },
       ];

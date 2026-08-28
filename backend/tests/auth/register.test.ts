@@ -48,7 +48,7 @@ describe("register", () => {
     expect(account?.passwordHash).toMatch(/^\$argon2id\$/);
   });
 
-  it("rejects a duplicate on the same portal but allows it on the other", async () => {
+  it("rejects a duplicate on the same portal AND on the other", async () => {
     await registerAndCaptureCode("seeker", "both@x.test");
     const dupe = await post("/api/v1/seeker/auth/register", {
       fullName: "Dup Person",
@@ -58,12 +58,17 @@ describe("register", () => {
     expect(dupe.status).toBe(409);
     expect(dupe.body.code).toBe("EMAIL_TAKEN");
 
+    // Inverted 2026-08-27: the email registry makes the address unique across
+    // portals too — one address, one account. The registry's unique index is
+    // the guarantee; the per-collection index and the findOne above are fast
+    // paths.
     const other = await post("/api/v1/recruiter/auth/register", {
       fullName: "Dup Person",
       email: "both@x.test",
       password: "correct horse battery staple",
     });
-    expect(other.status).toBe(201); // one person, both portals — ADR-0001
+    expect(other.status).toBe(409);
+    expect(other.body.code).toBe("EMAIL_TAKEN");
   });
 
   it("rejects a short password with a 400 envelope, not a 500", async () => {

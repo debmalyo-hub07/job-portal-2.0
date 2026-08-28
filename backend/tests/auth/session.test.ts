@@ -126,8 +126,11 @@ describe("session issuance", () => {
     const seeker = await issue(app, "seeker");
     const recruiter = await issue(app, "recruiter");
 
-    // ADR-0001: one person may hold both. Distinct names are what stop the
-    // second sign-in from evicting the first.
+    // Distinct names are what stop the second sign-in from evicting the
+    // first. (The comment this replaces cited ADR-0001's "one person may hold
+    // both"; that dual-account rule ended 2026-08-27, but the separation it
+    // justified is about the portal boundary, not two accounts — a browser
+    // still holds one session per portal on separate addresses.)
     expect(refreshCookieName("seeker")).not.toBe(refreshCookieName("recruiter"));
     expect(csrfCookieName("seeker")).not.toBe(csrfCookieName("recruiter"));
     expect(seeker.refresh).not.toBe(recruiter.refresh);

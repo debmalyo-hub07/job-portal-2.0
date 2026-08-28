@@ -4,17 +4,28 @@ import { csrfProtection } from "../middleware/csrf.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 import { requireMailerAvailable } from "../middleware/requireMailerAvailable.js";
 import {
+  accountEvents,
+  listCompanies,
+  listJobs,
+  listRecruiters,
+  listSeekers,
+  reinstateRecruiter,
+  reinstateSeeker,
+  suspendRecruiter,
+  suspendSeeker,
   listPendingRecruiters,
   approveRecruiter,
   denyRecruiter,
   getActivity,
   getInsights,
   getOverview,
-  listJobs,
-  listCompanies,
   createAdmin,
 } from "../controllers/admin.controller.js";
 import { getProfile, updateProfile } from "../controllers/user.controller.js";
+import {
+  confirmEmailChangeHandler,
+  startEmailChangeHandler,
+} from "../controllers/emailChange.controller.js";
 
 const router = express.Router();
 
@@ -58,6 +69,61 @@ router
 router
   .route("/recruiters/:id/deny")
   .post(authenticate("admin"), csrfProtection(), denyRecruiter);
+
+/**
+ * Project D's oversight surface. The listings follow the jobs and companies
+ * pattern (keyword + pagination, hand-written projections); the actions are
+ * four separate mounts with the portal as a route literal — never a :portal
+ * parameter the request could steer — and the history validates its :portal
+ * segment against the shared enum because that one, unlike these four, is
+ * read from the URL.
+ */
+router.route("/seekers").get(authenticate("admin"), listSeekers);
+router.route("/recruiters").get(authenticate("admin"), listRecruiters);
+router
+  .route("/seekers/:id/suspend")
+  .post(authenticate("admin"), csrfProtection(), suspendSeeker);
+router
+  .route("/seekers/:id/reinstate")
+  .post(authenticate("admin"), csrfProtection(), reinstateSeeker);
+router
+  .route("/recruiters/:id/suspend")
+  .post(authenticate("admin"), csrfProtection(), suspendRecruiter);
+router
+  .route("/recruiters/:id/reinstate")
+  .post(authenticate("admin"), csrfProtection(), reinstateRecruiter);
+router.route("/accounts/:portal/:id/events").get(authenticate("admin"), accountEvents);
+
+/**
+ * The admin's email change — the same two controller functions the user mount
+ * serves, under the admin gate (ADR-0006), and a deliberately stronger flow:
+ * the service runs the two-stage state machine for this portal, password
+ * first, code to the CURRENT address, then a second code to the new one.
+ *
+ * Same rate shape as the user mount: start 3/hour keyed by subject, confirm
+ * 10/hour per IP.
+ */
+router
+  .route("/email-change")
+  .post(
+    authenticate("admin"),
+    csrfProtection(),
+    rateLimit({
+      windowMs: 3_600_000,
+      max: 3,
+      keyFn: (req) => `subject:${req.auth?.id ?? req.ip ?? "unknown"}`,
+    }),
+    requireMailerAvailable,
+    startEmailChangeHandler,
+  );
+router
+  .route("/email-change/confirm")
+  .post(
+    authenticate("admin"),
+    csrfProtection(),
+    rateLimit({ windowMs: 3_600_000, max: 10 }),
+    confirmEmailChangeHandler,
+  );
 
 /**
  * The same two controller functions `/user/profile` uses, under a different gate.

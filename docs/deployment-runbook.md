@@ -376,6 +376,28 @@ logos are files in the web bundle, so seeding production before the web host
 deploys leaves those employers filterable but rendered as initials. Deploy the
 web app in the same window as the seed.
 
+### One-time: backfill the email registry (2026-08-27)
+
+Cross-portal email uniqueness is enforced by an `emailRegistry` collection — one
+row per account. The registry ships inert first: nothing consults it until the
+enforcement deploy follows, and **enforcement must never run against an empty
+registry**, or an existing account's address would read as free.
+
+Between the two deploys, populate it against the production database:
+
+```bash
+npm run registry:backfill --workspace @jobportal/api -- --confirm-database jobportal
+npm run registry:reconcile --workspace @jobportal/api -- --confirm-database jobportal
+```
+
+The backfill writes one row per existing account across the three collections.
+A collision fails loudly with the address named — that failure is the
+re-verification of zero cross-portal collisions, not a bug; resolve it by hand
+before the enforcement deploy. The reconcile pass then repairs any drift (it is
+safe to re-run any time, and reports what it touched) and exits non-zero if any
+disagreement remains. Both scripts refuse to run without the
+`--confirm-database` guard naming the exact database in `MONGO_URI`.
+
 ## 7. Verify
 
 Four checks, in this order — each isolates a different layer.

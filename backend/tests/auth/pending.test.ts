@@ -53,10 +53,15 @@ describe("pending recruiters", () => {
   it("a suspended account still cannot log in", async () => {
     await registerAndVerify("recruiter", "susp@example.com");
     await Recruiter.updateOne({ email: "susp@example.com" }, { $set: { status: "suspended" } });
-    await request(app)
+    // Project D: a CORRECT password now answers 403 with the recorded reason
+    // — this test's account was suspended by a raw update with no fragment,
+    // so the reasonless sentence is the one exercised. A wrong password keeps
+    // the uniform 401 (asserted in login.test.ts).
+    const res = await request(app)
       .post("/api/v1/recruiter/auth/login")
-      .send({ email: "susp@example.com", password: PASSWORD })
-      .expect(401);
+      .send({ email: "susp@example.com", password: PASSWORD });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("ACCOUNT_SUSPENDED");
   });
 
   it("a suspended account's existing token is refused by authenticate", async () => {

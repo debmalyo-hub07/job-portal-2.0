@@ -22,6 +22,9 @@ function storeWithRecruiter(status: AccountStatus) {
       emailVerified: true,
       avatarUrl: null,
       profileComplete: true,
+      hasPassword: true,
+      isMinor: false,
+      pendingEmailChange: null,
       status,
     }),
   );
@@ -207,6 +210,9 @@ describe("admin portal sign-in", () => {
         emailVerified: true,
         avatarUrl: null,
         profileComplete: true,
+        hasPassword: true,
+        isMinor: false,
+        pendingEmailChange: null,
         status: "active",
       }),
     );

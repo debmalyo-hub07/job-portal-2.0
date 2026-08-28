@@ -72,7 +72,10 @@ standing in the way.
 - Per-portal cookie names mean a seeker refresh cookie and a recruiter refresh
   cookie coexist in one browser without either overwriting the other, so a user
   who is legitimately both does not get logged out of one portal by using the
-  other.
+  other. *(The "legitimately both" premise ended 2026-08-27 — one address now
+  holds one account — but the coexistence property itself is unchanged and
+  still required: a browser may hold sessions on different addresses across
+  portals, and one portal's activity must never disturb another's cookies.)*
 
 **Bad**
 
@@ -137,8 +140,10 @@ this ADR was accepted:
 1. **Naming, not paths, isolates the portals.** `__Host-jp_seeker_rt` and
    `__Host-jp_recruiter_rt` at `Path=/`. Distinct names mean a browser holding
    both a seeker and a recruiter session keeps them separate, which the
-   two-collection model (ADR-0001) requires — one person may legitimately be
-   both.
+   two-collection model (ADR-0001) requires. *(The original wording — "one
+   person may legitimately be both" — described the dual-account capability
+   that ended on 2026-08-27; the separation it justified is not about two
+   accounts, it is about the portal boundary, and it stays.)*
 
 2. **The portal comes from the database row, never from the URL.** The refresh
    handler looks up the presented token's hash, reads `subjectType` off the

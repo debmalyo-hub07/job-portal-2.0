@@ -35,7 +35,10 @@ export default function Privacy() {
 
       <LegalSection id="what-we-collect" title="What we collect">
         <p>
-          <strong>Account information:</strong> full name, email address, optional phone number, account portal, verification state, and an optional profile image supplied through Google sign-in. Passwords are stored only as Argon2 hashes, never as recoverable text.
+          <strong>Account information:</strong> full name, email address, optional phone number, date of birth, optional gender, account portal, verification state, and an optional profile image supplied through Google sign-in. Passwords are stored only as Argon2 hashes, never as recoverable text.
+        </p>
+        <p>
+          <strong>Guardian information (candidates aged 16-17):</strong> a guardian's email address and the time their confirmation code was redeemed. The code itself is stored only as a hash and expires; no guardian identity document is collected. Until the candidate turns 18, their account can apply to internship roles only.
         </p>
         <p>
           <strong>Candidate information:</strong> optional headline, biography, skills, experience, location, salary preferences, remote-work preference, and a resume. An application records the job, status, and application time.

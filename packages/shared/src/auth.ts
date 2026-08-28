@@ -30,15 +30,41 @@ export const phoneSchema = z
   .trim()
   .regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919876543210");
 
+/**
+ * The adult boundary — the age at which every restriction lifts. Recruiter
+ * completion reads this directly, and the minor derivation compares against it.
+ */
 export const MIN_AGE_YEARS = 18;
+/**
+ * The join floor — the youngest age that may hold an account at all, with
+ * guardian consent. 16-17 is the minor band Project C opened.
+ */
+export const MINOR_JOIN_YEARS = 16;
 export const MAX_AGE_YEARS = 100;
 
 /**
- * Under-18 is a "not yet", not a refusal: guardian consent and internship-only
- * applications are their own project. Copy agreed with the user.
+ * Under the join floor is still a refusal — internships are for 16 and up.
+ * Copy agreed with the user.
  */
 export const UNDER_AGE_MESSAGE =
-  "You need to be 18 or over to join Cairn. We're working on internships for younger candidates.";
+  "You need to be 16 or over to join Cairn.";
+
+/**
+ * Whether `dob` puts the account in the 16-17 minor band on `on`.
+ *
+ * Derived, never stored — the same doctrine as `profileComplete`, for the same
+ * reason: two paths write `dob`, and a stored boolean drifts the moment either
+ * of them does.
+ *
+ * Takes the model's `Date` (UTC midnight), not the wire's `YYYY-MM-DD`:
+ * `toISOString().slice(0, 10)` recovers the calendar string, so both sides of
+ * the comparison stay UTC. `null` (no DOB yet) is not a minor — it is an
+ * incomplete account, which is the gate's business, not this one.
+ */
+export function isMinor(dob: Date | null, on: Date = new Date()): boolean {
+  if (dob === null) return false;
+  return ageInYears(dob.toISOString().slice(0, 10), on) < MIN_AGE_YEARS;
+}
 
 /**
  * Whole years from `dob` to `on`, both read in UTC.
@@ -89,7 +115,7 @@ export const dobSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD")
   .refine(isRealCalendarDate, "must be a real date")
   .refine((v) => ageInYears(v, new Date()) >= 0, "must be a date in the past")
-  .refine((v) => ageInYears(v, new Date()) >= MIN_AGE_YEARS, UNDER_AGE_MESSAGE)
+  .refine((v) => ageInYears(v, new Date()) >= MINOR_JOIN_YEARS, UNDER_AGE_MESSAGE)
   .refine((v) => ageInYears(v, new Date()) <= MAX_AGE_YEARS, "must be a plausible date of birth");
 
 /**
@@ -140,6 +166,23 @@ export const resetPasswordBodySchema = z.object({
 export const forgotPasswordBodySchema = z.object({ email: emailSchema }).strict();
 export const resendVerificationBodySchema = z.object({ email: emailSchema }).strict();
 
+/**
+ * Email change, step 1. `password` is optional at the schema level so the
+ * response to a missing password and a wrong one is the same uniform 401 —
+ * whether an account has a password is not information a body schema should
+ * hand out. The service decides it: password accounts must present a correct
+ * one, and an admin always must (the only admin sign-in is a password).
+ */
+export const emailChangeStartBodySchema = z
+  .object({
+    newEmail: emailSchema,
+    password: z.string().min(1).max(128).optional(),
+  })
+  .strict();
+
+/** Email change, step 2 — for admins this is presented once per stage. */
+export const emailChangeConfirmBodySchema = z.object({ code: otpCodeSchema }).strict();
+
 export const confirmGoogleLinkBodySchema = z.object({
   token: z.string().min(1).max(2048),
 }).strict();
@@ -158,3 +201,14 @@ export type LoginBody = z.infer<typeof loginBodySchema>;
 export type VerifyEmailBody = z.infer<typeof verifyEmailBodySchema>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBodySchema>;
+export type EmailChangeStartBody = z.infer<typeof emailChangeStartBodySchema>;
+export type EmailChangeConfirmBody = z.infer<typeof emailChangeConfirmBodySchema>;
+
+/**
+ * Guardian consent, step 1 — the address a `guardian_consent` code is mailed to.
+ * Step 2 is the same one-code shape every redemption uses.
+ */
+export const guardianConsentStartBodySchema = z.object({ email: emailSchema }).strict();
+export type GuardianConsentStartBody = z.infer<typeof guardianConsentStartBodySchema>;
+export const guardianConsentConfirmBodySchema = z.object({ code: otpCodeSchema }).strict();
+export type GuardianConsentConfirmBody = z.infer<typeof guardianConsentConfirmBodySchema>;

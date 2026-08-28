@@ -41,13 +41,18 @@ describe("updateProfile on the account collections", () => {
 
     expect(res.status).toBe(200);
     // Explicit DTO all the way down: SessionUser inside, no hash anywhere.
+    // `hasPassword` and `pendingEmailChange` are the 2026-08-27 owner-only
+    // additions — a boolean about the hash, never the hash.
     expect(Object.keys(res.body.profile.user).sort())
       .toEqual([
         "avatarUrl",
         "email",
         "emailVerified",
         "fullName",
+        "hasPassword",
         "id",
+        "isMinor",
+        "pendingEmailChange",
         "portal",
         "profileComplete",
         "status",

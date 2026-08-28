@@ -340,21 +340,6 @@ export async function getOwnedJob(
 }
 
 /**
- * The job is real and still accepting applications.
- *
- * Replaces `jobExists`, whose single caller was `applyToJob` — an existence
- * check alone cannot tell a live role from a filled one, so a closed job kept
- * taking applications.
- */
-export async function assertJobOpen(jobId: string): Promise<void> {
-  const job = await Job.findById(jobId).select("status");
-  if (!job) throw notFound();
-  if (job.status === "closed") {
-    throw AppError.conflict("JOB_CLOSED", "This role is no longer accepting applications");
-  }
-}
-
-/**
  * Correct a posted job.
  *
  * Only the fields present in the body are written, so a form that posts what it

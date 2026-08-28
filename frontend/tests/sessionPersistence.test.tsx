@@ -39,6 +39,9 @@ describe("session persistence", () => {
       emailVerified: true,
       avatarUrl: null,
       profileComplete: true,
+      hasPassword: true,
+      isMinor: false,
+      pendingEmailChange: null,
       status: "active",
     } as const;
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({
@@ -69,6 +72,9 @@ describe("session persistence", () => {
         emailVerified: true,
         avatarUrl: null,
         profileComplete: true,
+        hasPassword: true,
+        isMinor: false,
+        pendingEmailChange: null,
         status: "active",
       }),
     );

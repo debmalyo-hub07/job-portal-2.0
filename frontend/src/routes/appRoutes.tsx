@@ -13,6 +13,7 @@ import WorkspaceJobs from "@/components/workspace/WorkspaceJobs";
 import JobCreate from "@/components/workspace/JobCreate";
 import JobEdit from "@/components/workspace/JobEdit";
 import Applicants from "@/components/workspace/Applicants";
+import QueueApplicants from "@/components/workspace/QueueApplicants";
 import RecruiterProfile from "@/components/workspace/RecruiterProfile";
 import ProtectedRoute from "@/components/routing/ProtectedRoute";
 import RequireApproved from "@/components/routing/RequireApproved";
@@ -20,6 +21,7 @@ import RequireProfileComplete from "@/components/routing/RequireProfileComplete"
 import CompleteProfile from "@/components/identity/CompleteProfile";
 import AdminDashboard from "@/components/console/AdminDashboard";
 import AdminRecruiters from "@/components/console/AdminRecruiters";
+import AdminSeekers from "@/components/console/AdminSeekers";
 import AdminJobsConsole from "@/components/console/AdminJobsConsole";
 import AdminCompanies from "@/components/console/AdminCompanies";
 import AdminProfile from "@/components/console/AdminProfile";
@@ -211,6 +213,11 @@ export const appRoutes: RouteObject[] = [
       // companies routes above rely on.
       { path: "/hire/jobs/:id", element: workspace(<JobEdit />) },
       { path: "/hire/jobs/:id/applicants", element: workspace(<Applicants />) },
+      // The cross-job queue (Project D). Listed after the per-job route so the
+      // static segment wins; `/hire/applicants` matches no :id pattern anyway.
+      // Same three gates as every workspace page: the queue carries exactly
+      // the applicant data the per-job list does.
+      { path: "/hire/applicants", element: workspace(<QueueApplicants />) },
       // RecruiterProfile owns HireShell/WorkbenchShell, including the workspace
       // Navbar. Keep it outside PublicLayout or both layouts render their chrome.
       // Deliberately not `workspace(...)`: pending recruiters need this page to
@@ -237,6 +244,9 @@ export const appRoutes: RouteObject[] = [
       // own listings.
       { path: "/admin/dashboard", element: adminConsole(<AdminDashboard />) },
       { path: "/admin/recruiters", element: adminConsole(<AdminRecruiters />) },
+      // Project D's candidate oversight screen. Same gate as every console
+      // page, composed by `adminConsole`.
+      { path: "/admin/seekers", element: adminConsole(<AdminSeekers />) },
       { path: "/admin/profile", element: adminConsole(<AdminProfile />) },
       { path: "/admin/review/jobs", element: adminConsole(<AdminJobsConsole />) },
       { path: "/admin/review/companies", element: adminConsole(<AdminCompanies />) },

@@ -164,7 +164,9 @@ export function meHandler(portal: Portal): RequestHandler {
     // the failure mode of forgetting is a 500 on a TypeError rather than the
     // 401 this obviously means.
     if (!req.auth) throw AppError.unauthorized("SESSION_MISSING", "Sign in to continue.");
-    const account = await findAccountById(portal, req.auth.id);
+    // `withSecret` selects `+passwordHash` so `toSessionUser` can answer
+    // `hasPassword` — the projection is a boolean, never the hash itself.
+    const account = await findAccountById(portal, req.auth.id, { withSecret: true });
     if (!account) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
 
     // Hands back the CSRF token so the client can re-arm after a reload.

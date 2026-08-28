@@ -16,7 +16,12 @@ const otpBudgetSchema = new Schema(
   {
     subjectId: { type: Schema.Types.ObjectId, required: true },
     subjectType: { type: String, enum: PORTALS, required: true },
-    purpose: { type: String, enum: ["verify_email", "reset_password"], required: true },
+    // Keep in sync with otpCode.model.ts's enum and the OtpPurpose type.
+    purpose: {
+      type: String,
+      enum: ["verify_email", "reset_password", "change_email", "guardian_consent"],
+      required: true,
+    },
     failures: { type: Number, default: 0 },
     windowStartedAt: { type: Date, required: true },
     lockedUntil: { type: Date, default: null },

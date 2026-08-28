@@ -29,6 +29,9 @@ describe("admin profile", () => {
         avatarUrl: null,
         status: "active",
         profileComplete: true,
+        hasPassword: true,
+        isMinor: false,
+        pendingEmailChange: null,
       }),
     );
     renderRoute(<AdminProfile />, { route: "/admin/profile", store });

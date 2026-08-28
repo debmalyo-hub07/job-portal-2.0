@@ -88,11 +88,21 @@ describe("account schemas", () => {
     ).rejects.toThrow(/E11000/);
   });
 
-  it("scopes email uniqueness to one collection", async () => {
-    // ADR-0001: one person may hold both a seeker and a recruiter account.
+  it("scopes email uniqueness to one collection — the registry guards across", async () => {
+    // Inverted 2026-08-27. This used to assert ADR-0001's dual-account rule
+    // outright (same address, one seeker row AND one recruiter row). The
+    // email registry reversed the rule, but deliberately did NOT touch the
+    // per-collection indexes: they stay unique WITHIN each collection as the
+    // backstop that makes registry drift fail loudly on the same portal.
+    // Cross-portal refusal is the service layer's job — every creation site
+    // writes the registry row first — and that is what the service-path tests
+    // in register.test.ts, emailRegistry.test.ts and emailChange.test.ts
+    // assert. The layering is the assertion: raw models stay per-collection,
+    // services refuse cross-portal.
     await Seeker.syncIndexes();
     await Recruiter.syncIndexes();
     await Seeker.create({ email: "both@x.test", fullName: "Both Seeker" });
+    // Possible at the raw-model level — nothing here consults the registry.
     await Recruiter.create({ email: "both@x.test", fullName: "Both Recruiter" });
     expect(await Seeker.countDocuments({ email: "both@x.test" })).toBe(1);
     expect(await Recruiter.countDocuments({ email: "both@x.test" })).toBe(1);

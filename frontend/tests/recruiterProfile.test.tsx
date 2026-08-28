@@ -80,6 +80,9 @@ describe("who can reach the recruiter profile", () => {
         avatarUrl: null,
         status,
         profileComplete: true,
+        hasPassword: true,
+        isMinor: false,
+        pendingEmailChange: null,
       }),
     );
     return store;

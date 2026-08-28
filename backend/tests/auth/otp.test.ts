@@ -64,14 +64,18 @@ describe("otp redemption", () => {
   });
 
   it("does not let a seeker code redeem on the recruiter mount", async () => {
-    const { code } = await registerAndCaptureCode("seeker", "dual@x.test");
-    await registerAndCaptureCode("recruiter", "dual@x.test"); // same address, both portals
+    // Two addresses now — the same-address version relied on the dual-account
+    // rule the registry reversed. The essence survives: a code issued under
+    // subjectType "seeker" can never redeem on the recruiter mount, because
+    // the digest is bound to a subject id no recruiter row will ever have.
+    const { code } = await registerAndCaptureCode("seeker", "seeker-side@x.test");
+    await registerAndCaptureCode("recruiter", "recruiter-side@x.test");
     const res = await post("/api/v1/recruiter/auth/verify-email", {
-      email: "dual@x.test",
+      email: "recruiter-side@x.test",
       code,
     });
     expect(res.status).toBe(400);
-    expect(await isVerified("recruiter", "dual@x.test")).toBe(false);
+    expect(await isVerified("recruiter", "recruiter-side@x.test")).toBe(false);
   });
 
   it("redeems the happy path exactly once and issues a session", async () => {
@@ -90,6 +94,13 @@ describe("otp redemption", () => {
       avatarUrl: null,
       status: "active",
       profileComplete: false,
+      // The account was created through register(), so a password hash exists.
+      // The boolean is the projection; the hash itself can never appear here.
+      hasPassword: true,
+      // The registered DOB is absent (signup no longer collects it), so the
+      // derived band reads adult — an incomplete account, not a minor.
+      isMinor: false,
+      pendingEmailChange: null,
     }); // exact shape — an extra key here is a leak
     expect(setCookieNames(first)).toEqual(
       expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt", "jp_seeker_csrf"]),

@@ -19,6 +19,9 @@ const seeker = {
   avatarUrl: null,
   status: "active" as const,
   profileComplete: false,
+  hasPassword: true,
+  isMinor: false,
+  pendingEmailChange: null,
 };
 
 function renderStep() {
@@ -53,9 +56,13 @@ describe("the completion step", () => {
     expect(screen.getByRole("option", { name: /non-binary/i })).toBeTruthy();
   });
 
-  it("says the platform is 18 and over", () => {
+  it("states the join floor and the minor rules", () => {
     renderStep();
-    expect(screen.getByText(/18 or over/i)).toBeTruthy();
+    // Inverted by Project C: the floor is 16 with guardian consent, not 18 —
+    // and the hint says what a 16-17 account can do.
+    expect(screen.getByText(/16-17 year olds/i)).toBeTruthy();
+    expect(screen.getByText(/guardian's ok/i)).toBeTruthy();
+    expect(screen.getByText(/internships only/i)).toBeTruthy();
   });
 
   it("keeps a way off the page, so it is not a trap", () => {

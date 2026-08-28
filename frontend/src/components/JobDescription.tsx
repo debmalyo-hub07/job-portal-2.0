@@ -41,9 +41,7 @@ const JobDescription = () => {
         state: { from: `${location.pathname}${location.search}${location.hash}` },
       });
       return;
-    }
-
-    try {
+    }    try {
       const response = await apiClient.post<{ success: boolean; message: string }>(
         `/application/apply/${jobId}`,
       );
@@ -123,6 +121,11 @@ const JobDescription = () => {
   // `?? "open"` for the same reason the API filters on `$ne "closed"`: a job row
   // written before the field existed carries no status, and it is open.
   const closed = (singleJob.status ?? "open") === "closed";
+  // Project C: a signed-in minor sees the internship-only rule on the button
+  // rather than discovering it on submit. Advisory only — the server check is
+  // the enforcement, the same arrangement as the closed-role block below.
+  const minorBlocked =
+    user?.portal === "seeker" && user.isMinor && singleJob.jobType !== "Internship";
 
   return (
     <PageShell width="wide" motion="standard" className="pt-8">
@@ -201,6 +204,20 @@ const JobDescription = () => {
               </p>
               <Button asChild variant="outline" className="mt-4 w-full">
                 <Link to="/jobs">See open roles</Link>
+              </Button>
+            </div>
+          ) : minorBlocked ? (
+            <div className="rounded-surface border border-line-strong bg-paper-sunken p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <CircleSlash aria-hidden="true" className="size-4 shrink-0" />
+                Internships only
+              </p>
+              <p className="mt-2 text-sm leading-6 text-ink-muted">
+                Candidates under 18 can apply to internship roles only. This one is{" "}
+                {singleJob.jobType.toLowerCase()}.
+              </p>
+              <Button asChild variant="outline" className="mt-4 w-full">
+                <Link to="/jobs?jobType=Internship">See internship roles</Link>
               </Button>
             </div>
           ) : (

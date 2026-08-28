@@ -1,6 +1,6 @@
 # Identity Fields and Profile Surfaces — Project A
 
-**Status:** Design agreed with the user 2026-08-26. Not yet implemented.
+**Status:** Implemented 2026-08-26. Design agreed with the user 2026-08-26.
 
 This is the first of four projects decomposed from a single request on
 2026-08-26. The others are deliberately out of scope here and are named in
@@ -303,7 +303,10 @@ which is for pre-session screens and carries a Back link to a portal prefix.
 
 Under-18 refusal copy: **"You need to be 18 or over to join Cairn. We're working
 on internships for younger candidates."** A 400 from `dobSchema`, rendered as a
-field error rather than a dead end.
+field error rather than a dead end. *(Superseded by Project C on 2026-08-27:
+the join floor is now 16 with guardian consent, and the message reads
+"You need to be 16 or over to join Cairn." — see the under-18 spec in this
+directory.)*
 
 ## Error handling
 

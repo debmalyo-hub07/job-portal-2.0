@@ -6,6 +6,7 @@ import type {
   JobDto,
   JobStatus,
   PaginatedResponse,
+  QueuedApplicantDto,
 } from "@jobportal/shared";
 import { RECRUITER_SETTABLE } from "@jobportal/shared";
 
@@ -170,6 +171,31 @@ export function useApplicants(jobId: string | undefined) {
 }
 
 /**
+ * The cross-job queue (Project D): every application on every owned job.
+ *
+ * Same 30s refetch cadence as the per-job list and for the same reason — new
+ * applications arrive here too — and a separate key so the two lists
+ * invalidate independently.
+ */
+export function useApplicationQueue() {
+  const { page, setPage } = useListParams();
+  const qs = listQueryString("", page);
+  const query = useQuery({
+    queryKey: [...WORKSPACE_KEY, "queue", qs],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean } & PaginatedResponse<QueuedApplicantDto>>(
+        `/application/queue?${qs}`,
+        { signal },
+      );
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: 30 * 1000,
+  });
+  return { ...query, page, setPage };
+}
+
+/**
  * One posted job, for the edit form.
  *
  * Reads the public detail route rather than a new owner-scoped one: the DTO
@@ -315,6 +341,11 @@ export function useApplicantDecision(jobId: string | undefined) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: [...WORKSPACE_KEY, "applicants", jobId],
+      });
+      // The cross-job queue shows the same rows; a decision made from either
+      // screen must refresh both.
+      void queryClient.invalidateQueries({
+        queryKey: [...WORKSPACE_KEY, "queue"],
       });
     },
   });

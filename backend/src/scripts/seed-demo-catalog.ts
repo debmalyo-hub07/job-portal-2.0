@@ -6,6 +6,7 @@ import { Application } from "../models/application.model.js";
 import { Company, type CompanyDocument } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { Recruiter } from "../models/recruiter.model.js";
+import { releaseEmail, reserveEmail } from "../services/emailRegistry.service.js";
 
 const CATALOG_OWNER_EMAIL = "catalog@demo.invalid";
 
@@ -32,7 +33,15 @@ export async function seedDemoCatalog(input: SeedDemoCatalogInput): Promise<Seed
   let owner = existingOwner;
   let recruiterCreated = false;
   if (!owner) {
-    owner = await Recruiter.create({ email: CATALOG_OWNER_EMAIL, fullName: "Cairn Marketplace Catalogue", passwordHash: null, googleId: null, emailVerifiedAt: new Date(), status: "active", designation: "Seeded catalogue owner" });
+    // Registry-first, like register(): the reserved address is claimed
+    // cross-portal before the row exists. The `.invalid` domain means no real
+    // mailbox can ever collide in practice, but the rule is the rule — and a
+    // seed must not be the one code path that can drift the registry.
+    const subjectId = await reserveEmail("recruiter", CATALOG_OWNER_EMAIL);
+    owner = await Recruiter.create({ _id: subjectId, email: CATALOG_OWNER_EMAIL, fullName: "Cairn Marketplace Catalogue", passwordHash: null, googleId: null, emailVerifiedAt: new Date(), status: "active", designation: "Seeded catalogue owner" }).catch(async (error: unknown) => {
+      await releaseEmail(subjectId);
+      throw error;
+    });
     recruiterCreated = true;
   }
 

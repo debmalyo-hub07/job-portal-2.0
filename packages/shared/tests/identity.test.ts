@@ -4,10 +4,12 @@ import {
   GENDER_LABELS,
   MAX_AGE_YEARS,
   MIN_AGE_YEARS,
+  MINOR_JOIN_YEARS,
   UNDER_AGE_MESSAGE,
   ageInYears,
   dobSchema,
   genderSchema,
+  isMinor,
   phoneSchema,
   registerBodySchema,
 } from "../src/index.js";
@@ -59,17 +61,27 @@ describe("dobSchema", () => {
     expect(dobSchema.parse("1995-03-20")).toBe("1995-03-20");
   });
 
-  it("passes someone who turns 18 today and fails them one day short", () => {
-    expect(dobSchema.safeParse("2008-08-26").success).toBe(true);
-    expect(dobSchema.safeParse("2008-08-27").success).toBe(false);
+  it("passes someone who turns 16 today and fails them one day short", () => {
+    // Project C lowered the JOIN floor to 16; 18 is now the adult boundary
+    // the minor derivation reads, not the signup rule.
+    expect(dobSchema.safeParse("2010-08-26").success).toBe(true);
+    expect(dobSchema.safeParse("2010-08-27").success).toBe(false);
   });
 
-  it("refuses an under-age date with the internships message", () => {
+  it("refuses an under-16 date with the join-floor message", () => {
     const result = dobSchema.safeParse("2015-01-01");
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0]?.message).toBe(UNDER_AGE_MESSAGE);
     }
+  });
+
+  it("derives the minor band from a model Date, on the server's clock", () => {
+    // 16-17 is the band; 18 the day it lifts.
+    expect(isMinor(new Date("2010-01-01T00:00:00Z"))).toBe(true);
+    expect(isMinor(new Date("2008-08-26T00:00:00Z"))).toBe(false);
+    // No DOB yet is not a minor — incompleteness is the gate's business.
+    expect(isMinor(null)).toBe(false);
   });
 
   it("rejects a future date, a non-date and a malformed string", () => {

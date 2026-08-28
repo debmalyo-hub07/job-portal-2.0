@@ -19,6 +19,9 @@ function storeWithUser(portal: "seeker" | "recruiter" | "admin") {
       portal,
       avatarUrl: null,
       profileComplete: true,
+      hasPassword: true,
+      isMinor: false,
+      pendingEmailChange: null,
     } as never),
   );
   return s;

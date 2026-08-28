@@ -195,8 +195,34 @@ subject to the per-account OTP failure budget.
 - **Login hardening:** dummy hash comparison when the email does not exist, so
   response timing cannot enumerate registered addresses. Exponential backoff
   lockout from the fifth failure. Uniform failure message regardless of cause.
+- **Suspended login (2026-08-27):** a correct password on a suspended account
+  answers 403 `ACCOUNT_SUSPENDED` carrying the recorded reason; a wrong
+  password keeps the uniform `INVALID_CREDENTIALS`. Account state is still not
+  for strangers — only someone who already knows the password can read the
+  reason. Suspension also sets `sessionsInvalidatedAt` and revokes every
+  refresh family, so live sessions die with the status change.
+- **Guardian consent (2026-08-27):** a 16-17-year-old's account is gated on a
+  `guardian_consent` OTP mailed to the guardian's address — the same
+  subject-bound, budget-metered machinery as verify-email. The consent row
+  records the guardian's address and the timestamp; minor status itself is
+  derived from DOB, never stored.
 - **Google OAuth:** authorization-code flow with PKCE, portal bound into the
   `state` parameter, `email_verified` required.
+- **Cross-portal email uniqueness (2026-08-27):** an `emailRegistry` collection
+  holds one row per account with a unique index on the email — the only
+  cross-collection guarantee MongoDB can express. Every account-creation site
+  (register, Google stranger branch, admin provisioning, both seed scripts)
+  writes the registry row *before* the account and frees it on failure; the
+  sweeper deletes the row with a swept account.
+- **Email change (2026-08-27):** requires the current password when the account
+  has one — a stolen session cannot redirect the account's recovery mail to an
+  attacker's mailbox — plus a code mailed to the new address. Admins need a
+  code to the *current* address before the new one is even mailed. Completing a
+  change sets `sessionsInvalidatedAt` and revokes every refresh family: all
+  sessions die, including the caller's. Confirm answers a uniform `OTP_INVALID`
+  for wrong/expired codes and missing/stale pendings; `EMAIL_TAKEN` (from the
+  registry insert at redemption) is the only distinct rejection. Start
+  reserves nothing, so abandoned changes cannot squat addresses.
 
 ### Account linking rule
 
@@ -237,11 +263,19 @@ independent counters.
 | Registration per IP | 10 / hour | Active |
 | OTP redemption per IP | 10 / hour | Active |
 | Google sign-in start per IP | 10 / hour | Active |
+| Email-change start per account | 3 / hour | Active |
+| Email-change confirm per IP | 10 / hour | Active |
+| Guardian-consent send per account | 3 / hour | Active |
+| Guardian-consent confirm per IP | 10 / hour | Active |
 
 Redemption is limited per IP rather than per email because the email in the body
 is attacker-chosen: keying on it would let one attacker cycle addresses to get an
 unlimited number of guesses. The per-account failure budget is the real defence;
 this limit only blunts the volume.
+
+Email-change start is keyed by the account, not the IP, because it is an
+authenticated owner action — the session is the identity, and a shared NAT must
+not starve one account's ability to start its own change.
 
 Single-process, in-memory. See
 [ADR-0004](docs/adr/0004-no-redis-phase-1.md) — running a second API instance

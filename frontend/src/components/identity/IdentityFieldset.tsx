@@ -36,7 +36,7 @@ export function IdentityFieldset({
       <FormField
         label="Date of birth"
         htmlFor="dob"
-        hint="Cairn is for candidates 18 or over."
+        hint="16-17 year olds can join with a guardian's OK, and apply to internships only."
         required={dobRequired}
       >
         <Input

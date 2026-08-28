@@ -1,4 +1,4 @@
-import type { OtpPurpose } from "../models/otpCode.model.js";
+import type { OtpPurpose, OtpStage } from "../models/otpCode.model.js";
 
 interface Rendered {
   subject: string;
@@ -12,7 +12,18 @@ const WRAPPER = (body: string): string =>
 const CODE = (code: string): string =>
   `<p style="font-size:2rem;letter-spacing:.35em;font-weight:600;margin:1.5rem 0">${code}</p>`;
 
-export function renderOtpEmail(code: string, purpose: OtpPurpose, minutes: number): Rendered {
+/**
+ * `stage` is meaningful only for `change_email`: it distinguishes the admin
+ * stage-1 code (prove the CURRENT mailbox) from the code every portal's final
+ * step uses (prove the NEW one). Every other purpose renders identically
+ * whatever is passed.
+ */
+export function renderOtpEmail(
+  code: string,
+  purpose: OtpPurpose,
+  minutes: number,
+  stage: OtpStage | null = null,
+): Rendered {
   if (purpose === "verify_email") {
     return {
       subject: "Confirm your email address",
@@ -20,10 +31,50 @@ export function renderOtpEmail(code: string, purpose: OtpPurpose, minutes: numbe
       text: `Confirm your email\n\nCode: ${code}\nExpires in ${minutes} minutes.\n\nIf you did not request this, ignore this email.`,
     };
   }
+  if (purpose === "change_email") {
+    if (stage === "confirm-current") {
+      return {
+        subject: "Confirm the change to your admin account's email",
+        html: WRAPPER(`<h1 style="font-size:1.25rem">A new email address was requested</h1><p>Someone — hopefully you — asked to change this admin account's email address. Enter this code to allow the change to continue. It expires in ${minutes} minutes.</p>${CODE(code)}<p style="font-size:.8125rem;color:#6b6b6b">If this was not you, your admin session may be compromised — change your password.</p>`),
+        text: `A new email address was requested\n\nEnter this code to allow the change to continue. It expires in ${minutes} minutes.\n\nCode: ${code}\n\nIf this was not you, your admin session may be compromised — change your password.`,
+      };
+    }
+    return {
+      subject: "Confirm your new email address",
+      html: WRAPPER(`<h1 style="font-size:1.25rem">Confirm your new email</h1><p>Enter this code to finish changing your account's email address. After it is confirmed, the new address is the one you sign in with. It expires in ${minutes} minutes.</p>${CODE(code)}`),
+      text: `Confirm your new email\n\nCode: ${code}\nExpires in ${minutes} minutes.\n\nAfter it is confirmed, the new address is the one you sign in with.`,
+    };
+  }
+  if (purpose === "guardian_consent") {
+    return {
+      subject: "Confirm guardian consent",
+      html: WRAPPER(`<h1 style="font-size:1.25rem">Confirm guardian consent</h1><p>A 16- or 17-year-old candidate named you as their guardian to join Cairn. Enter this code on their screen to allow the account. It expires in ${minutes} minutes.</p>${CODE(code)}<p style="font-size:.8125rem;color:#6b6b6b">Until the account turns 18, it can apply to internship roles only.</p>`),
+      text: `Confirm guardian consent\n\nA 16- or 17-year-old candidate named you as their guardian to join Cairn. Enter this code on their screen to allow the account. It expires in ${minutes} minutes.\n\nCode: ${code}\n\nUntil the account turns 18, it can apply to internship roles only.`,
+    };
+  }
   return {
     subject: "Reset your password",
     html: WRAPPER(`<h1 style="font-size:1.25rem">Reset your password</h1><p>Enter this code to choose a new password. It expires in ${minutes} minutes. Your current password stays active until you do.</p>${CODE(code)}`),
     text: `Reset your password\n\nCode: ${code}\nExpires in ${minutes} minutes.\n\nIf you did not request this, ignore this email — your password has not changed.`,
+  };
+}
+
+/**
+ * The warning a seeker/recruiter email-change START sends to the address being
+ * left. The code goes to the NEW address; the OLD one hears that a change was
+ * requested and what to do if it was not the owner asking — a stolen session
+ * must not silently redirect recovery mail to an attacker's mailbox.
+ *
+ * Admins need no separate warning: their stage-1 code IS mailed to the current
+ * address, so the mail that carries the code is the warning.
+ */
+export function renderEmailChangeWarningEmail(newEmail: string): Rendered {
+  return {
+    subject: "An email change was requested on your account",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">Email change requested</h1><p>Someone — hopefully you — asked to change this account's email address to <strong>${escapeHtml(newEmail)}</strong>. A confirmation code was sent to that address; nothing changes until it is entered.</p><p>If this was not you, your session may be compromised — change your password.</p>`,
+    ),
+    text: `Email change requested\n\nSomeone asked to change this account's email address to ${newEmail}. A confirmation code was sent to that address; nothing changes until it is entered.\n\nIf this was not you, your session may be compromised — change your password.`,
   };
 }
 
@@ -125,6 +176,34 @@ export function renderRecruiterDeniedEmail(reason: string): Rendered {
       `<h1 style="font-size:1.25rem">We could not approve your account</h1><p>An admin reviewed your recruiter account and could not approve it for now.</p><p style="padding:1rem;background:#f5f5f4;border-radius:.5rem"><strong>Reason:</strong> ${escapeHtml(reason)}</p><p>If you believe this is a mistake, reply to this email with more detail about your company.</p>`,
     ),
     text: `We could not approve your account\n\nAn admin reviewed your recruiter account and could not approve it for now.\n\nReason: ${reason}\n\nIf you believe this is a mistake, reply to this email with more detail about your company.`,
+  };
+}
+
+/**
+ * Project D: sent when an admin suspends an account (seeker or recruiter).
+ *
+ * The reason rides in the mail AND in the login refusal — the owner cannot
+ * sign in, so the mail is the channel that reaches them without a password,
+ * and the login answer is the one they see first if they try.
+ */
+export function renderAccountSuspendedEmail(reason: string): Rendered {
+  return {
+    subject: "Your Cairn account has been suspended",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">Your account has been suspended</h1><p>An admin has suspended your account, which means you cannot sign in for now.</p><p style="padding:1rem;background:#f5f5f4;border-radius:.5rem"><strong>Reason:</strong> ${escapeHtml(reason)}</p><p>If you believe this is a mistake, reply to this email.</p>`,
+    ),
+    text: `Your account has been suspended\n\nAn admin has suspended your account, which means you cannot sign in for now.\n\nReason: ${reason}\n\nIf you believe this is a mistake, reply to this email.`,
+  };
+}
+
+/** Project D: sent when an admin reinstates a suspended account. */
+export function renderAccountReinstatedEmail(): Rendered {
+  return {
+    subject: "Your Cairn account is active again",
+    html: WRAPPER(
+      `<h1 style="font-size:1.25rem">Your account is active again</h1><p>An admin has reinstated your account. You can sign in with your usual email and password.</p>`,
+    ),
+    text: `Your account is active again\n\nAn admin has reinstated your account. You can sign in with your usual email and password.`,
   };
 }
 

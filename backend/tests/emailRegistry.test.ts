@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { Types } from "mongoose";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import mongoose, { Types } from "mongoose";
 
 import { EmailRegistry } from "../src/models/emailRegistry.model.js";
 import { Seeker } from "../src/models/seeker.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
+import { Admin } from "../src/models/admin.model.js";
 import {
   registryDisagreements,
   releaseEmail,
@@ -11,21 +12,20 @@ import {
 } from "../src/services/emailRegistry.service.js";
 import { backfillEmailRegistry } from "../src/scripts/backfill-email-registry.js";
 import { reconcileEmailRegistry } from "../src/scripts/reconcile-email-registry.js";
+import { sweepUnverifiedAccounts } from "../src/lib/sweeper.js";
+import { seedAdmin } from "../src/scripts/seed-admin.js";
+import { seedDemoCatalog } from "../src/scripts/seed-demo-catalog.js";
+import { createAdmin } from "../src/services/adminProvisioning.service.js";
+import { env } from "../src/config/env.js";
+import { installCaptureMailer, outbox } from "./auth/helpers.js";
 
 beforeEach(async () => {
+  await installCaptureMailer();
   // The unique index must exist before the first duplicate insert, or the
   // index-is-the-guarantee tests race autoIndex.
   await EmailRegistry.init();
 });
 
-/**
- * Stage 1 of the two-push rollout (see the email-identity spec): the registry
- * exists, with its backfill and reconcile scripts, and NOTHING consults it.
- * These are the pure-registry tests — model, claim/release, the index under
- * concurrency, and both scripts. The creation-site and sweeper tests land
- * with stage 2, when the sites start writing rows; they assert behaviour
- * this commit deliberately does not have yet.
- */
 describe("email registry model", () => {
   it("refuses a second row for one address, across portals", async () => {
     await EmailRegistry.create({ email: "owner@x.test", portal: "seeker", subjectId: new Types.ObjectId() });
@@ -57,6 +57,90 @@ describe("email registry model", () => {
     await expect(reserveEmail("recruiter", "compensate@x.test")).resolves.toBeInstanceOf(
       Types.ObjectId,
     );
+  });
+});
+
+describe("registry write at the creation sites", () => {
+  it("register's compensating delete frees the row when account creation fails", async () => {
+    // Force the account create to fail AFTER the registry insert: the row
+    // must be freed or a half-failed registration squats the address.
+    const boom = new Error("boom");
+    const create = vi.spyOn(Seeker, "create").mockRejectedValueOnce(boom);
+    const { register } = await import("../src/services/auth.service.js");
+    await expect(
+      register("seeker", {
+        fullName: "Broken Create",
+        email: "broken-create@x.test",
+        password: "correct horse battery staple",
+      }),
+    ).rejects.toBe(boom);
+    create.mockRestore();
+
+    expect(await EmailRegistry.countDocuments({ email: "broken-create@x.test" })).toBe(0);
+    // And the address is free again.
+    const id = await reserveEmail("seeker", "broken-create@x.test");
+    expect(id).toBeTruthy();
+  });
+
+  it("the sweeper frees the address when it deletes the account", async () => {
+    // Created directly with an old `createdAt` (immutable after create, so an
+    // update would be silently dropped) plus its registry row — the exact
+    // state an abandoned unverified registration leaves behind.
+    const cutoff = new Date(Date.now() - (env().UNVERIFIED_ACCOUNT_TTL_HOURS + 1) * 3_600_000);
+    const doomed = await Seeker.create({
+      email: "swept@x.test",
+      fullName: "Sweep Me",
+      passwordHash: "x",
+      emailVerifiedAt: null,
+      createdAt: cutoff,
+    });
+    await EmailRegistry.create({ email: "swept@x.test", portal: "seeker", subjectId: doomed._id });
+
+    await sweepUnverifiedAccounts();
+
+    expect(await Seeker.countDocuments({ email: "swept@x.test" })).toBe(0);
+    expect(await EmailRegistry.countDocuments({ email: "swept@x.test" })).toBe(0);
+    // The address is registerable again the instant the sweep lands — on any
+    // portal, which is the whole point of the registry going with the account.
+    const { register } = await import("../src/services/auth.service.js");
+    await expect(
+      register("recruiter", {
+        fullName: "Recycler",
+        email: "swept@x.test",
+        password: "correct horse battery staple",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("seedAdmin refuses an address held on another portal", async () => {
+    await reserveEmail("seeker", "seed-taken@x.test");
+    await expect(
+      seedAdmin({ email: "seed-taken@x.test", fullName: "Too Late" }),
+    ).rejects.toMatchObject({ code: "EMAIL_TAKEN" });
+    expect(await Admin.countDocuments({ email: "seed-taken@x.test" })).toBe(0);
+    // The refusal squatted nothing: the seed can be re-run for another address.
+    await expect(seedAdmin({ email: "seed-free@x.test", fullName: "Fine" })).resolves.toEqual({
+      created: true,
+    });
+  });
+
+  it("createAdmin refuses an address held on another portal", async () => {
+    await reserveEmail("seeker", "provision-taken@x.test");
+    await expect(
+      createAdmin({
+        email: "provision-taken@x.test",
+        fullName: "Nope",
+        provisioningKey: env().ADMIN_PROVISIONING_SECRET,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409, code: "EMAIL_TAKEN" });
+    expect(await Admin.countDocuments({ email: "provision-taken@x.test" })).toBe(0);
+  });
+
+  it("seedDemoCatalog refuses when the reserved owner address is held elsewhere", async () => {
+    await reserveEmail("seeker", "catalog@demo.invalid");
+    await expect(seedDemoCatalog({})).rejects.toMatchObject({ code: "EMAIL_TAKEN" });
+    expect(await Recruiter.countDocuments({ email: "catalog@demo.invalid" })).toBe(0);
+    expect(outbox.length).toBe(0); // no code was minted for a catalogue owner
   });
 
   it("two portals racing one address produce exactly one winner", async () => {
@@ -140,5 +224,20 @@ describe("reconciliation", () => {
     expect(result.rowsRewritten).toBe(0);
     expect(result.orphansRemoved).toBe(0);
     expect(result.disagreementsRemaining).toBe(0);
+  });
+});
+
+describe("agreement invariant", () => {
+  it("holds after register through the real route", async () => {
+    const { buildApp } = await import("../src/app.js");
+    const request = (await import("supertest")).default;
+    const app = buildApp();
+    const res = await request(app).post("/api/v1/seeker/auth/register").send({
+      fullName: "Route Person",
+      email: "route@x.test",
+      password: "correct horse battery staple",
+    });
+    expect(res.status).toBe(201);
+    expect(await registryDisagreements()).toEqual([]);
   });
 });

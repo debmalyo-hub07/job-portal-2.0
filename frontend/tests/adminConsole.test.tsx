@@ -21,6 +21,9 @@ function storeWith(portal: Portal) {
       emailVerified: true,
       avatarUrl: null,
       profileComplete: true,
+      hasPassword: true,
+      isMinor: false,
+      pendingEmailChange: null,
       status: "active",
     }),
   );

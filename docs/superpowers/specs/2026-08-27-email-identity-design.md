@@ -1,11 +1,11 @@
 # Email Identity — Project B
 
-**Status:** Design agreed with the user 2026-08-27. Not yet implemented.
+**Status:** Implemented 2026-08-27. Design agreed with the user 2026-08-27.
 
 This is the second of the four projects decomposed on 2026-08-26. Project A
 (identity fields, completion gate, three profile surfaces) shipped 2026-08-26
-and is live. C (under-18 internships) and D (oversight queues) remain planned;
-both are named in **Non-goals**.
+and is live. C (under-18 internships) and D (oversight queues) shipped
+2026-08-27, each with its own spec in this directory.
 
 One spec covers both halves — cross-portal email uniqueness and OTP-verified
 email change — because the uniqueness rule *is* the "is this address free?"

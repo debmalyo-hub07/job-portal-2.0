@@ -26,6 +26,12 @@ export const getApplicants = async (req: Request, res: Response): Promise<void> 
   res.status(200).json({ success: true, ...result });
 };
 
+export const getQueue = async (req: Request, res: Response): Promise<void> => {
+  const query = parseBody(paginationQuerySchema, req.query);
+  const result = await applicationService.listApplicationQueue(req.auth!.id, query);
+  res.status(200).json({ success: true, ...result });
+};
+
 export const updateStatus = async (req: Request, res: Response): Promise<void> => {
   const applicationId = parseBody(objectIdSchema, req.params.id);
   const { status } = parseBody(applicationStatusBodySchema, req.body);

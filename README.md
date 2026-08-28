@@ -300,19 +300,33 @@ JSON), and `GET|POST /api/v1/admin/profile[/update]` — the same two controller
 mounted again under `authenticate("admin")`, JSON-only, because `authenticateAny`
 deliberately excludes admin.
 
-Every account must supply a date of birth before applying to a job or posting a
-role, and Cairn is for candidates **18 or over**. The refusal is
-**403 `PROFILE_INCOMPLETE`**, enforced server-side on all seven consequential
-writes; the client guard exists so that refusal is not the first the user hears of
-it. Admins are exempt: nothing reads an admin's date of birth.
+The email-change pair follows the same double-mount pattern:
+`POST /api/v1/user/email-change[/confirm]` behind `authenticateAny()` and
+`POST /api/v1/admin/email-change[/confirm]` behind `authenticate("admin")`,
+both with CSRF. Start is limited to 3/hour per account and requires the mailer;
+confirm to 10/hour per IP, like the other OTP redemptions. The admin mount runs
+a two-stage flow — a code to the current address, then a code to the new one.
 
-**The same email address may hold one seeker account and one recruiter
-account.** They are separate rows in separate collections with separate
-passwords, and signing into one grants nothing on the other. This is the single
-most surprising behaviour for a new reader, and it is deliberate — see
-[ADR-0001](docs/adr/0001-two-account-collections.md), extended to a third
-collection for admins in
-[ADR-0006](docs/adr/0006-three-account-collections.md).
+Every account must supply a date of birth before applying to a job or posting a
+role. The join floor is **16**: candidates aged 16-17 complete the identity step
+with **guardian consent** — a 6-digit code emailed to the guardian's address,
+entered on the candidate's screen — and their applications are
+**internships only** until they turn 18. Recruiters must be 18 or over. The
+refusal is **403 `PROFILE_INCOMPLETE`**, enforced server-side on all seven
+consequential writes; the client guard exists so that refusal is not the first
+the user hears of it. Admins are exempt: nothing reads an admin's date of birth.
+
+**One email address holds exactly one account, across all three portals.**
+*(Changed 2026-08-27 — this reverses the original rule, which allowed the same
+address to hold a seeker and a recruiter account.)* The guarantee is an
+`emailRegistry` collection whose unique email index spans seeker, recruiter and
+admin; the per-collection indexes remain as a same-portal backstop. The address
+can also be **changed** from any profile page: password accounts re-enter the
+password and confirm a code sent to the new address; admins confirm a code on
+the current address before the new one is even mailed. Completing a change
+ends every session, including the one that made it. See
+[ADR-0001](docs/adr/0001-two-account-collections.md) and its 2026-08-27
+amendment, plus [ADR-0006](docs/adr/0006-three-account-collections.md).
 
 The same browser may also hold seeker, recruiter, and admin sessions at once.
 Access, refresh, and CSRF cookies are named per portal
@@ -368,8 +382,9 @@ Public visitors can browse the landing page, job board, and job details. An
 anonymous Apply action navigates to `/login` and preserves the job detail URL so
 successful seeker authentication can return there; the API still independently
 requires a seeker-signed session before creating an application. A seeker
-session does not block `/hire/signup`, because one person may later create a
-separate recruiter account.
+session does not block `/hire/signup` — portal sessions are independent, so a
+browser can hold a seeker session on one address and later create a recruiter
+account on another.
 
 `/browse` was a second, weaker job board until Phase 2B-2 — keyword-only, with
 no facets, pagination or loading state — and it was where the hero search and
@@ -457,6 +472,8 @@ portals, plus the token bands and interaction ramps. It is DEV-only via
 | `npm run seed:admin --workspace @jobportal/api` | Create the first admin: `-- --email <address> --name "<name>"`. Mails a set-password code redeemable at `/admin/set-password`; refuses if an admin exists |
 | `npm run seed:catalog --workspace @jobportal/api` | Populate an empty marketplace with labelled demo companies/jobs. Requires `-- --confirm-database <name>`; idempotent and refuses a non-demo catalog by default |
 | `npm run migrate:phase3a --workspace @jobportal/api` | Grandfather existing recruiters to `active`. Run once per existing database |
+| `npm run registry:backfill --workspace @jobportal/api` | Write one `emailRegistry` row per existing account. Requires `-- --confirm-database <name>`; fails loudly on a cross-portal collision, which is the pre-flight check |
+| `npm run registry:reconcile --workspace @jobportal/api` | Repair registry drift (orphan or stale rows) back to one row per account. Requires `-- --confirm-database <name>`; exits non-zero if disagreements remain |
 
 ## Deployment
 
@@ -589,6 +606,18 @@ from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
 requires a reason and emails it. Moderation lists live under `/admin/review/*`
 — not `/admin/jobs`, which still redirects a pre-3A recruiter bookmark to
 `/hire/jobs`.
+
+**Oversight (2026-08-27)** extends the console past approval: `/admin/recruiters`
+shows every recruiter (pending rows keep Approve/Deny; active rows gain
+Suspend; suspended rows Reinstate), and `/admin/recruiters`'s sibling
+`/admin/seekers` lists every candidate with the same actions and a derived
+under-18 badge. Suspension requires a reason, kills every session, blocks
+applications to the suspended recruiter's still-live listings, and — after a
+correct password — the login refusal shows the owner that reason. Every
+decision lands in an append-only per-account history (approve, deny, suspend,
+reinstate, with the acting admin). On the workspace side, `/hire/applicants`
+is the recruiter's cross-job queue: every application on every owned role,
+newest first, backed by `GET /api/v1/application/queue`.
 
 The public informational surfaces are live: `/about`, `/contact`, `/help`,
 `/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries

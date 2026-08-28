@@ -62,7 +62,22 @@ describe("POST /user/profile/complete", () => {
       .use(asSession("seeker", session))
       .send({ dob: "2015-01-01" });
     expect(res.status).toBe(400);
-    expect(JSON.stringify(res.body)).toContain("18 or over");
+    // The floor is the JOIN floor (Project C), not the adult boundary: 16
+    // may join with guardian consent, under 16 may not at all.
+    expect(JSON.stringify(res.body)).toContain("16 or over");
+  });
+
+  it("accepts a 16-17 date of birth and reports the minor band", async () => {
+    const session = await incompleteSeeker("complete-sixteen@example.com");
+    const res = await request(app)
+      .post("/api/v1/user/profile/complete")
+      .use(asSession("seeker", session))
+      .send({ dob: "2010-01-01" });
+    expect(res.status).toBe(200);
+    expect(res.body.profile.minor).toBe(true);
+    expect(res.body.profile.guardianEmail).toBeNull();
+    // The gate's second exit: DOB alone does not complete a minor.
+    expect(res.body.profile.user.profileComplete).toBe(false);
   });
 
   it("leaves the date of birth untouched when validation fails", async () => {

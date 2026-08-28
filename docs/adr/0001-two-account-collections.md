@@ -1,6 +1,8 @@
 # ADR-0001: Two account collections
 
-**Status:** Accepted (2026-07-31) — implemented in Phase 1B
+**Status:** Accepted (2026-07-31) — implemented in Phase 1B; **email uniqueness
+reversed cross-portal 2026-08-27**, see
+[Amendment: one address, one account](#amendment-2026-08-27--one-address-one-account)
 
 ## Context
 
@@ -68,6 +70,9 @@ precisely the property that lets a client claim to be a recruiter. Rejected.
 context is needed. Rejected because it requires a cross-collection uniqueness
 check on every signup — a race condition unless carefully done — and it
 permanently prevents anyone from being both a seeker and a recruiter.
+*(Adopted 2026-08-27 — the race is resolved by the registry collection's unique
+index and the dual-account capability was given up deliberately; see the
+amendment below.)*
 
 ## Amendment (2026-08-04) — implemented in Phase 1B
 
@@ -94,3 +99,38 @@ auto-linkable by a Google sign-in claiming it, and the resend-code flow makes
 recovery a single click. `migratedFromLegacyAt` marks these rows so the
 unverified-account sweeper does not delete the entire inherited userbase on its
 first tick.
+
+## Amendment 2026-08-27 — one address, one account
+
+The decision this ADR records — email unique **within** a collection, so one
+address may hold a seeker and a recruiter account — is reversed. One email
+address now holds exactly one account across `seekers`, `recruiters` and
+`admins`. Registering an address that exists on any portal returns
+`EMAIL_TAKEN`.
+
+The reversal is a product decision, taken knowingly: the dual-account
+capability was the single most surprising behaviour for a new reader, the
+platform wants one person to be one login, and a scan at the moment of decision
+found zero cross-portal collisions in production or dev — so nobody loses an
+account and no data migration is needed beyond a backfill.
+
+The mechanism is an `emailRegistry` collection — one row per account
+`{ email, portal, subjectId }` with a unique index on `email` — rather than an
+application-level check across the three collections, because two concurrent
+registrations on different portals both pass such a check. The registry's
+unique index is the guarantee, the same doctrine `register()` already stated
+for its own index. The per-collection unique indexes stay as a backstop that
+makes registry drift fail loudly on the same portal. A backfill script writes
+one row per existing account (a collision during backfill fails loudly — that
+failure is the re-verification of zero collisions), a reconciliation script
+repairs the two crash shapes (an orphan row whose account create failed, a
+stale row left mid-email-change), and the unverified-account sweeper deletes a
+swept account's registry row so an abandoned registration gives the address
+back.
+
+What the split was actually for is untouched: the collection is still the role,
+`_id` preservation and the `ref` repointing above still hold, and every
+route still names its portal as a server-owned literal. The 2026-08-27 change
+concerns only who may hold an address — and adds the ability to change it,
+which the old model never had. See `docs/superpowers/specs/2026-08-27-email-identity-design.md`
+for the full design.
