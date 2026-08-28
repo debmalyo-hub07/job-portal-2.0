@@ -14,7 +14,9 @@
     "migrate:phase1c": "tsx src/scripts/migrate-phase1c.ts",
     "seed:admin": "tsx src/scripts/seed-admin.ts",
     "seed:catalog": "tsx src/scripts/seed-demo-catalog.ts",
-    "migrate:phase3a": "tsx src/scripts/migrate-phase3a.ts"
+    "migrate:phase3a": "tsx src/scripts/migrate-phase3a.ts",
+    "registry:backfill": "tsx src/scripts/backfill-email-registry.ts",
+    "registry:reconcile": "tsx src/scripts/reconcile-email-registry.ts"
   },
   "author": "",
   "license": "ISC",
