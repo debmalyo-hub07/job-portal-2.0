@@ -153,7 +153,10 @@ fresh deploy stops and asks rather than starting with blanks.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | the OAuth client from step 4 |
 | `TURNSTILE_SECRET_KEY` | Server secret for the production Cloudflare Turnstile widget |
 
-Deploy, and note the assigned URL (`https://jobportal-api.onrender.com`).
+Deploy, and note the assigned URL (`https://<your-api-host>.onrender.com` —
+Render derives it from the service name; verify it on the service page rather
+than trusting any example in this document, because `jobportal-api.onrender.com`
+is a live service belonging to someone else, as the OAuth section below warns).
 
 ### Two settings not to touch
 
@@ -177,9 +180,9 @@ costs" below.
    and finds no app.
 3. Framework preset auto-detects as **Vite**; build command and `dist` output
    are correct by default.
-4. Add `VITE_API_URL` = `https://jobportal-api.onrender.com/api/v1` — the
-   Render URL **including the `/api/v1` suffix**. Apply to Production, Preview
-   and Development.
+4. Add `VITE_API_URL` = `https://<your-api-host>.onrender.com/api/v1` — the
+   Render URL from step 3 **including the `/api/v1` suffix**. Apply to
+   Production, Preview and Development.
 5. Create a Cloudflare Turnstile widget for the Vercel hostname and add its
    **public site key** as `VITE_TURNSTILE_SITE_KEY` for Production, Preview, and
    Development. The build intentionally refuses to run without it. Keep the
@@ -402,9 +405,10 @@ disagreement remains. Both scripts refuse to run without the
 
 Four checks, in this order — each isolates a different layer.
 
-1. **API health.** `https://jobportal-api.onrender.com/health` must report
+1. **API health.** `https://<your-api-host>.onrender.com/health` must report
    `status: ok` **and** `db: connected`. Status alone passes with a dead
-   database.
+   database. Use the service's own hostname from the Render dashboard — the
+   placeholder rule from the OAuth section applies here too.
 2. **The bundle is real.** Load the Vercel URL. A blank page with a clean
    console means `VITE_API_URL` was missing at build time — check Vercel's build
    log for the guard's error.
