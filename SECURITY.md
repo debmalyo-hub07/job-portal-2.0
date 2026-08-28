@@ -209,7 +209,9 @@ subject to the per-account OTP failure budget.
 - **Google OAuth:** authorization-code flow with PKCE, portal bound into the
   signed transaction cookie and checked against the callback mount, `state`
   and nonce verified, and `email_verified` required. Seeker strangers start
-  active; recruiter strangers start pending; admin mounts no Google routes.
+  active; recruiter strangers start pending; admin mounts no Google routes,
+  and the callback refuses the admin portal independently of route mounting,
+  so a future remount cannot open the console to a third-party identity.
   Callback rejection reasons are logged as fixed internal labels without
   placing codes, tokens, or email addresses in the browser redirect. One
   exception: an address already holding an account on another portal answers

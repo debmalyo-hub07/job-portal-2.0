@@ -89,6 +89,16 @@ export async function handleGoogleCallback(
   req: Request,
   res: Response,
 ): Promise<CallbackOutcome> {
+  // Google is a seeker and recruiter credential, never an admin one. The
+  // admin router mounts no Google routes, and this is the second, independent
+  // refusal: the stranger branch writes `status: "active"` for every portal
+  // but recruiter, so a future remount of the Google routes under /admin
+  // would otherwise let any Gmail mint the highest-privilege account. The
+  // route comment in auth.route.ts once claimed this service refused admin
+  // creation "anyway" — it did not, between the recruiter-creation change and
+  // this guard.
+  if (portal === "admin") return googleCallbackFailed(portal, "admin-portal");
+
   clearGoogleTxnCookie(res); // single-use, success or failure
 
   const raw = req.cookies?.[googleTxnCookieName()] as string | undefined;

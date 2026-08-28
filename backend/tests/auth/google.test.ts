@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import type { Express } from "express";
+import express, { Router, type Express } from "express";
+import cookieParser from "cookie-parser";
 import type { Portal } from "@jobportal/shared";
 import { Seeker } from "../../src/models/seeker.model.js";
 import { Recruiter } from "../../src/models/recruiter.model.js";
+import { Admin } from "../../src/models/admin.model.js";
 import {
   resetGoogleOAuth,
   setGoogleOAuth,
@@ -267,6 +269,38 @@ describe("google oauth", () => {
       .query({ code: "fake-code", state: issued.state })
       .set("Cookie", [`jp_gtxn=${encodeURIComponent(txn ?? "")}`]);
     expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+  });
+
+  it("refuses the admin portal even with a fully valid flow", async () => {
+    // Defense in depth for the route-level gate: `buildAuthRouter` mounts no
+    // Google routes for admin, but the real router once carried a comment
+    // claiming the service would refuse admin creation "anyway" — stale since
+    // recruiter creation was allowed, because the stranger branch writes
+    // status "active" for every portal but recruiter. This test mounts the
+    // handlers directly, simulating a future remount, and asserts the service
+    // layer refuses on its own: no sign-in, no link-pending, and above all no
+    // admin row — a stranger's Gmail must not mint the highest-privilege
+    // account just because someone loosened the route guard.
+    const adminApp: Express = express();
+    adminApp.use(express.json());
+    adminApp.use(cookieParser());
+    const adminRouter = Router();
+    adminRouter.get("/google", googleStartHandler("admin"));
+    adminRouter.get("/google/callback", googleCallbackHandler("admin"));
+    adminApp.use("/api/v1/admin/auth", adminRouter);
+
+    installFakeGoogle();
+    const start = await request(adminApp).get("/api/v1/admin/auth/google");
+    expect(start.status).toBe(302);
+    const txn = cookieValue(start, "jp_gtxn");
+    const res = await request(adminApp)
+      .get("/api/v1/admin/auth/google/callback")
+      .query({ code: "fake-code", state: issued.state })
+      .set("Cookie", [`jp_gtxn=${encodeURIComponent(txn ?? "")}`]);
+
+    expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
+    expect(setCookieNames(res)).not.toEqual(expect.arrayContaining(["jp_admin_at"]));
+    expect(await Admin.countDocuments({})).toBe(0);
   });
 });
 

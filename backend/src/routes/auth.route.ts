@@ -92,9 +92,11 @@ export function buildAuthRouter(portal: Portal): Router {
   router.post("/logout", csrfProtection(portal), logoutHandler(portal));
 
   // No Google on the admin portal: the highest-privilege portal gains nothing
-  // from a third-party identity path, and `resolveIdentity` would refuse to
-  // create there anyway. The routes do not exist rather than existing and
-  // refusing — a 404 tells a prober less than a uniform failure redirect.
+  // from a third-party identity path. The routes do not exist rather than
+  // existing and refusing — a 404 tells a prober less than a uniform failure
+  // redirect — and `handleGoogleCallback` refuses the admin portal
+  // independently, so a future remount of these routes cannot quietly open
+  // the console to a stranger's Gmail.
   if (portal !== "admin") {
     router.get("/google", rlGoogle, googleStartHandler(portal));
     // No CSRF on the callback: a top-level GET navigation Google initiates, to
