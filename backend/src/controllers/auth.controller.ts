@@ -147,7 +147,11 @@ export function googleCallbackHandler(portal: Portal): RequestHandler {
       return;
     }
     if (outcome.kind === "link-pending") {
-      res.redirect(`${web}/auth/link-pending`);
+      // The portal rides this redirect like the two error ones below: the
+      // link-pending page renders portal chrome and a portal-correct
+      // "Back to sign in", and the SPA's portal fallback otherwise silently
+      // assumes seeker — right by accident there, wrong for every recruiter.
+      res.redirect(`${web}/auth/link-pending?portal=${portal}`);
       return;
     }
     if (outcome.kind === "address-taken") {

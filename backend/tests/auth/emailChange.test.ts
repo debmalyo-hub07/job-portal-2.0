@@ -248,6 +248,47 @@ describe("email change — confirm (seeker)", () => {
     expect(reReg.status).toBe(201);
   });
 
+  it("voids an outstanding Google link request, but keeps an existing link", async () => {
+    const session = await signedUpOn("seeker", "linker@x.test");
+    // Simulate the two Google states directly: a pending link mail is sitting
+    // in the OLD mailbox (branch 2b wrote it), and the account below also
+    // exercises the already-linked half. The swap must void the pending
+    // consent — its premise was that THIS mailbox owns the account — while
+    // the established link survives, because Google sign-in keys on Google's
+    // immutable `sub`, never on the email.
+    await Seeker.updateOne(
+      { email: "linker@x.test" },
+      {
+        $set: {
+          pendingGoogleLink: { googleId: "google-sub-pending", requestedAt: new Date() },
+        },
+      },
+    );
+    const linked = await signedUpOn("seeker", "linked@x.test");
+    await Seeker.updateOne(
+      { email: "linked@x.test" },
+      { $set: { googleId: "google-sub-linked" } },
+    );
+
+    await startChange(session, "linker-new@x.test", PASSWORD);
+    const code = await lastCodeFor("linker-new@x.test");
+    const res = await confirmChange(session, code);
+    expect(res.status).toBe(200);
+
+    const moved = await findAccountByEmail("seeker", "linker-new@x.test", { withSecret: true });
+    expect(moved?.pendingGoogleLink?.googleId ?? null).toBeNull();
+    expect(moved?.pendingGoogleLink?.requestedAt ?? null).toBeNull();
+
+    await startChange(linked, "linked-new@x.test", PASSWORD);
+    const linkedCode = await lastCodeFor("linked-new@x.test");
+    const linkedRes = await confirmChange(linked, linkedCode);
+    expect(linkedRes.status).toBe(200);
+    const movedLinked = await findAccountByEmail("seeker", "linked-new@x.test", {
+      withSecret: true,
+    });
+    expect(movedLinked?.googleId).toBe("google-sub-linked");
+  });
+
   it("answers no-pending, wrong code, expired code and stale pending uniformly", async () => {
     // No pending at all.
     const fresh = await signedUpOn("seeker", "nopending@x.test");

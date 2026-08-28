@@ -10,8 +10,8 @@ import { usePortalParam } from "@/hooks/usePortalParam";
  * deliberately nothing to submit here — the whole point is that the browser
  * cannot complete this step.
  *
- * The backend redirects here without a ?portal=, so usePortalParam falls back to
- * seeker — matching PortalScope's own default for an unprefixed route.
+ * The backend redirects here with ?portal=, so the chrome and the "Back to
+ * sign in" link land on the portal the flow started from.
  */
 const LinkPending = () => {
   const portal = usePortalParam();

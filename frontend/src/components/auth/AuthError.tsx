@@ -8,11 +8,17 @@ import { usePortalParam } from "@/hooks/usePortalParam";
 const MESSAGES: Record<string, string> = {
   GOOGLE_AUTH_FAILED: "Google sign-in could not be completed.",
   // The Google callback's cross-portal refusal: the address already holds an
-  // account, so Google cannot mint a second one. The sentence matches
-  // register()'s EMAIL_TAKEN answer, which requires no proof at all to
-  // receive — naming it here discloses nothing and gives the owner a next
-  // step instead of a dead end.
-  EMAIL_TAKEN: "An account already exists for this email address. Sign in with your password instead.",
+  // account somewhere, so Google cannot mint a second one. The first sentence
+  // matches register()'s EMAIL_TAKEN answer, which requires no proof at all to
+  // receive — naming it here discloses nothing. The second sentence deliberately
+  // does NOT say which portal holds the address (that is not ours to disclose)
+  // and does NOT say "sign in with your password" unqualified: for the Google
+  // flow this refusal is structurally cross-portal — a same-portal account
+  // would have been found and sent to the linking step instead — so the
+  // password, if any, belongs to the portal where the account was made, and
+  // pointing at THIS portal's login is advice the owner cannot follow.
+  EMAIL_TAKEN:
+    "An account already exists for this email address — possibly on another portal. Sign in there with your password, or use another address.",
   GOOGLE_LINK_INVALID: "That confirmation link is invalid or has expired.",
 };
 

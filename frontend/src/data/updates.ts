@@ -35,11 +35,24 @@ export const PLATFORM_UPDATES: PlatformUpdate[] = [
     kind: "Fix",
     title: "Signing in with Google now says when an address already has an account",
     summary:
-      "Trying Google sign-in with an address that already holds an account used to end on the same unexplained failure as a security check refusing you. It now says the address is taken and to sign in with your password.",
+      "Trying Google sign-in with an address that already holds an account used to end on the same unexplained failure as a security check refusing you. It now says the address is taken and where that leaves you.",
     details: [
       "One address holds exactly one account across the candidate, employer and administrator portals — Google cannot create a second, so it is refused.",
       "Until now that refusal was indistinguishable from any other failed Google flow, leaving the address's owner with a dead end.",
-      "The message matches what sign-up already answers for the same situation, so nothing new is revealed by saying it here.",
+      "The message matches what sign-up already answers for the same situation, so nothing new is revealed by saying it here. It also notes the existing account may be on another portal, because for Google sign-in that is the only way this refusal happens — and advises signing in there rather than on the page you are already on.",
+    ],
+  },
+  {
+    id: "google-link-flow-tidy",
+    date: "2026-08-28",
+    kind: "Fix",
+    title: "The Google linking flow now stays on its own portal and respects email changes",
+    summary:
+      "Small corrections to the mailbox-confirmation step that connects Google sign-in to an existing password account.",
+    details: [
+      "Employers who confirm-link Google now land back on the hiring sign-in page, not the candidate one — the confirmation screen previously fell back to candidate styling and links for every portal.",
+      "Changing your account's email now voids any outstanding Google link confirmation mailed to the old address: the link asked the old mailbox for consent, and the change moved that consent to the new one.",
+      "A Google sign-in already connected to the account keeps working across an email change — it is tied to the Google identity, not the address.",
     ],
   },
   {

@@ -241,6 +241,13 @@ export async function confirmEmailChange(
           // Kills outstanding ACCESS tokens too, not just refresh families:
           // every session is dead by design, including the caller's.
           sessionsInvalidatedAt: new Date(),
+          // An outstanding Google link mail went to the OLD mailbox, and its
+          // consent premise — THIS mailbox owns the account — is exactly what
+          // the change just revoked. Void it (the confirm's guarded lookup
+          // then refuses the stale token). A LINKED Google id is NOT touched:
+          // Google sign-in keys on Google's immutable `sub`, never on the
+          // email, so an established link follows the account across changes.
+          pendingGoogleLink: { googleId: null, requestedAt: null },
         },
         $unset: { pendingEmailChange: "" },
       },

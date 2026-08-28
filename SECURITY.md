@@ -252,7 +252,10 @@ would let anyone who controls a Google account with a matching address walk into
 it. Instead the flow stops and emails a single-use confirmation link to the
 address; only following that link connects the two. The browser is told nothing
 except "check your email", so the branch is not an oracle for which addresses
-are registered.
+are registered. Completing an email change voids any outstanding link
+confirmation: the link asked the *old* mailbox for consent, and the change
+moved that consent to the new address. An already-linked Google identity is
+keyed on Google's immutable `sub`, so it survives email changes untouched.
 
 **Amendment (2026-08-01, implemented).** This section previously said an
 unverified password account is *deleted and recreated* from the Google identity.

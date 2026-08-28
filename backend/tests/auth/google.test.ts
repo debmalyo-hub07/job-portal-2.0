@@ -186,7 +186,11 @@ describe("google oauth", () => {
     });
 
     const res = await completeFlow("seeker");
-    expect(res.headers.location).toContain("/auth/link-pending");
+    // The portal rides the redirect like the error outcomes do: the
+    // link-pending page renders portal chrome and a portal-correct
+    // "Back to sign in", and without the param it falls back to seeker —
+    // right by accident here, wrong for every recruiter flow.
+    expect(res.headers.location).toContain("/auth/link-pending?portal=seeker");
     // NOT signed in.
     expect(setCookieNames(res)).not.toEqual(expect.arrayContaining(["jp_seeker_at"]));
 
