@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "account-menu-closes",
+    date: "2026-08-28",
+    kind: "Fix",
+    title: "The account menu no longer lingers over the page it sent you to",
+    summary:
+      "Opening the avatar menu and clicking View profile used to leave the menu floating over the profile page until you clicked somewhere else. It now closes as soon as you navigate.",
+    details: [
+      "Affected every portal — the account menu is how each of the three profiles is reached — and was easiest to hit as a candidate, where the top bar stays mounted across pages.",
+      "The menu now closes on the click itself, the same behaviour the mobile menu already had.",
+    ],
+  },
+  {
     id: "oversight-and-queues",
     date: "2026-08-27",
     kind: "Trust",

@@ -447,6 +447,12 @@ renders two headers and gives two layouts responsibility for the same surface.
 Leaf pages such as `CompleteProfile` remain chrome-free and rely on their route
 layout instead of mounting `Navbar` themselves.
 
+Because that navbar stays mounted across seeker route changes, its account
+popover must be closed by the click that navigates: Radix dismisses a popover
+on *outside* interactions only, so the panel would otherwise stay floating over
+the page it sent the user to. The workbench shells remount per route and never
+had the problem — which is why it surfaced as a seeker-only bug.
+
 Wrong-role sessions never satisfy a destination guard. The redirect goes to the
 destination portal's login, not the current user's home. This is navigation
 behavior, not the security boundary: every API route still authenticates its

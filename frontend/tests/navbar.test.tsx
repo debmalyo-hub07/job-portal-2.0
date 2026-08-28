@@ -142,4 +142,15 @@ describe("the profile entry point", () => {
     const link = await screen.findByRole("link", { name: /view profile/i });
     expect(link.getAttribute("href")).toBe(href);
   });
+
+  // Regression: the account popover is a Radix Popover, which dismisses on
+  // outside interactions only. The navbar survives seeker route changes, so a
+  // plain Link left the panel floating over the profile page it had just
+  // navigated to until the user clicked elsewhere.
+  it("closes the account menu when View profile is clicked", async () => {
+    const view = renderNavbar(storeWithUser("seeker"));
+    await userEvent.click(view.getByRole("button", { name: /account/i }));
+    await userEvent.click(await screen.findByRole("link", { name: /view profile/i }));
+    expect(screen.queryByRole("link", { name: /view profile/i })).not.toBeInTheDocument();
+  });
 });

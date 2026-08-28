@@ -35,6 +35,7 @@ const Navbar = () => {
   useAuthBootstrap(routePortal);
   const user = useAppSelector((state) => userForPortal(state.auth, routePortal));
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   const isHeroRoute = pathname === "/" || pathname === "/hire";
@@ -178,7 +179,7 @@ const Navbar = () => {
               </Button>
             </div>
           ) : (
-            <Popover>
+            <Popover open={accountOpen} onOpenChange={setAccountOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
@@ -213,9 +214,15 @@ const Navbar = () => {
                       with no route to their own account at all. Still not in
                       `navLinksFor`: the popover is present at every breakpoint, so
                       a primary link would duplicate the only path and spend a slot
-                      in a five-item bar. */}
+                      in a five-item bar.
+
+                      The click closes the popover: Radix only dismisses on
+                      *outside* interactions, and the navbar survives seeker
+                      route changes, so without this the panel stays open over
+                      the profile page until something else is clicked. */}
                   <Link
                     to={profilePathFor(user.portal)}
+                    onClick={() => setAccountOpen(false)}
                     className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"
                   >
                     <User2 className="size-4" />
