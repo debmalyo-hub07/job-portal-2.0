@@ -137,10 +137,10 @@ Google identity resolution is portal-scoped and ordered: match the stable Google
 subject id first, then the portal account email, then create a stranger only if
 the cross-portal email registry permits it. Stranger seekers are active;
 stranger recruiters are pending and pass through the same approval middleware
-as password registrations; admins have no Google routes. A verified password
-account receives a mailbox-confirmation link before `googleId` is attached,
-while subsequent sign-ins resolve by Google subject id rather than by the
-account's possibly changed email address.
+as password registrations; admins have no Google routes. A verified account
+auto-links Google when the verified email matches, while preserving any
+existing password, and subsequent sign-ins resolve by Google subject id rather
+than by the account's possibly changed email address.
 
 Beyond the accounts sit two 2026-08-27 additions. `accountEvents` is the
 append-only oversight history — approve, deny, suspend, reinstate per subject,

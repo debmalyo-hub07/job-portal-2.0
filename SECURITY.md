@@ -237,25 +237,23 @@ subject to the per-account OTP failure budget.
 ### Account linking rule
 
 When a Google sign-in matches an existing account by email, a passwordless
-account may link immediately. An unverified password account is taken over in
-place with its planted password removed. A verified password account requires
-mailbox confirmation before the Google identity is linked.
+account links immediately. An unverified password account is taken over in
+place with its planted password removed. A verified account auto-links Google
+to the existing account while preserving the password.
 
 This closes a takeover path: an attacker registers `victim@gmail.com` with a
 password of their choosing and never verifies it. If the victim later signs in
-with real Google and we linked unconditionally, the victim would land in an
-account whose password the attacker knows. Since the attacker never proved
-control of the mailbox, that credential is discarded rather than honoured.
+with real Google, the unverified account is taken over in place with the
+attacker's unverified password cleared and `emailVerifiedAt` set. Since the
+attacker never proved control of the mailbox, that credential is discarded
+rather than honoured.
 
-A **verified** account with a password is not linked silently either — that
-would let anyone who controls a Google account with a matching address walk into
-it. Instead the flow stops and emails a single-use confirmation link to the
-address; only following that link connects the two. The browser is told nothing
-except "check your email", so the branch is not an oracle for which addresses
-are registered. Completing an email change voids any outstanding link
-confirmation: the link asked the *old* mailbox for consent, and the change
-moved that consent to the new address. An already-linked Google identity is
-keyed on Google's immutable `sub`, so it survives email changes untouched.
+For a verified account, the owner already proved control of the mailbox via OTP
+during registration, and Google independently attests the matching address. The
+Google identity (`googleId`) is linked in place and the existing password is
+preserved, allowing the user to sign in via either method. An already-linked
+Google identity is keyed on Google's immutable `sub`, so it survives email changes
+untouched.
 
 **Amendment (2026-08-01, implemented).** This section previously said an
 unverified password account is *deleted and recreated* from the Google identity.

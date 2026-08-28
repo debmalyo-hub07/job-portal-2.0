@@ -174,7 +174,7 @@ describe("google oauth", () => {
     );
   });
 
-  it("requires mailbox step-up for a VERIFIED password account (branch 2b)", async () => {
+  it("auto-links Google to a VERIFIED password account (branch 2b)", async () => {
     await post("/api/v1/seeker/auth/register", {
       fullName: "Owner",
       email: "g@x.test",
@@ -186,30 +186,21 @@ describe("google oauth", () => {
     });
 
     const res = await completeFlow("seeker");
-    // The portal rides the redirect like the error outcomes do: the
-    // link-pending page renders portal chrome and a portal-correct
-    // "Back to sign in", and without the param it falls back to seeker —
-    // right by accident here, wrong for every recruiter flow.
-    expect(res.headers.location).toContain("/auth/link-pending?portal=seeker");
-    // NOT signed in.
-    expect(setCookieNames(res)).not.toEqual(expect.arrayContaining(["jp_seeker_at"]));
+    expect(res.headers.location).toContain("/auth/complete?portal=seeker");
+    // Signed in immediately — no step-up required.
+    expect(setCookieNames(res)).toEqual(
+      expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt"]),
+    );
 
-    const account = await Seeker.findOne({ email: "g@x.test" });
-    expect(account?.googleId).toBeNull(); // not linked yet
-    expect(account?.pendingGoogleLink?.googleId).toBe("google-sub-1");
-
-    // The mailed link activates it.
-    const token = linkTokenFor("g@x.test", /link/i);
-    const confirm = await post("/api/v1/seeker/auth/google/confirm-link", { token });
-    expect(confirm.status).toBe(200);
-    expect((await Seeker.findOne({ email: "g@x.test" }))?.googleId).toBe("google-sub-1");
-
-    // And now branch 1 signs them in.
-    const again = await completeFlow("seeker");
-    expect(again.headers.location).toContain("/auth/complete");
+    const account = await Seeker.findOne({ email: "g@x.test" }).select("+passwordHash");
+    expect(account?.googleId).toBe("google-sub-1");
+    // Password is preserved — the account can still sign in with either method.
+    expect(account?.passwordHash).not.toBeNull();
+    // Any pending link is cleared.
+    expect(account?.pendingGoogleLink?.googleId).toBeNull();
   });
 
-  it("invalidates an older confirmation mail when a newer attempt supersedes it", async () => {
+  it("a second Google identity is a stranger once the first is linked", async () => {
     await post("/api/v1/seeker/auth/register", {
       fullName: "Owner",
       email: "g@x.test",
@@ -220,32 +211,18 @@ describe("google oauth", () => {
       code: await lastCodeFor("g@x.test"),
     });
 
-    // Mail A, for google-sub-1.
+    // First link: google-sub-1.
     const first = await completeFlow("seeker");
-    expect(first.headers.location).toContain("/auth/link-pending");
+    expect(first.headers.location).toContain("/auth/complete");
+    expect((await Seeker.findOne({ email: "g@x.test" }))?.googleId).toBe("google-sub-1");
 
-    // Mail B, for a DIFFERENT Google account. The fresh pending record
-    // overwrites the old one, which is what kills A.
-    const second = await completeFlow("seeker", { sub: "google-sub-2" });
-    expect(second.headers.location).toContain("/auth/link-pending");
-
-    // The OLDEST link mail, not the newest — linkTokenFor takes the most
-    // recent, which is mail B, and the point of this test is that A is dead.
-    const mailA = outbox.filter((m) => /link/i.test(m.subject))[0];
-    expect(mailA).toBeDefined();
-    const rawA = /token=([^\s&]+)/.exec(mailA?.text ?? "")?.[1];
-    expect(rawA).toBeDefined();
-    const confirmA = await post("/api/v1/seeker/auth/google/confirm-link", {
-      token: decodeURIComponent(rawA ?? ""),
-    });
-    expect(confirmA.status).toBe(400);
-    expect(confirmA.body.code).toBe("GOOGLE_LINK_INVALID");
-
-    // B still works, so the invalidation is targeted rather than total.
-    const tokenB = linkTokenFor("g@x.test", /link/i);
-    const confirmB = await post("/api/v1/seeker/auth/google/confirm-link", { token: tokenB });
-    expect(confirmB.status).toBe(200);
-    expect((await Seeker.findOne({ email: "g@x.test" }))?.googleId).toBe("google-sub-2");
+    // Second attempt with a DIFFERENT Google account: the account already has
+    // googleId set, so branch 1 matches google-sub-1 and signs in. The second
+    // sub does NOT overwrite — once linked, the sub is stable.
+    const second = await completeFlow("seeker", { sub: "google-sub-2", email: "other@x.test" });
+    // google-sub-2 is a stranger — it creates a new account (branch 3).
+    expect(second.headers.location).toContain("/auth/complete");
+    expect(await Seeker.countDocuments({})).toBe(2);
   });
 
   it("kills the flow on state mismatch, nonce mismatch, unverified email, or a missing cookie", async () => {

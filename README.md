@@ -350,11 +350,11 @@ Google starts as `pending`, can sign in, and remains behind `requireApproved`
 until an admin approves the account. Google is offered on both public signup
 pages; admin accounts remain invitation-only and password-only.
 
-When Google matches an existing verified password account by email, it does not
-silently replace the password identity. Cairn emails a confirmation link first;
-after confirmation, either credential may sign in to the same account. A linked
-Google identity is keyed by Google's stable subject id, so a later Cairn email
-change does not detach it.
+When Google matches an existing verified account by email, it automatically links
+the Google identity to the account while preserving the existing password. Either
+credential may subsequently sign in to the same account. A linked Google identity
+is keyed by Google's stable subject id, so a later Cairn email change does not
+detach it.
 
 An address that already holds an account on another portal cannot start a
 second one through Google — one address holds exactly one account — and that

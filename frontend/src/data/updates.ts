@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "google-auth-seamless-linking",
+    date: "2026-08-28",
+    kind: "Improvement",
+    title: "Continue with Google now signs in directly to verified password accounts",
+    summary:
+      "Signing in with Google on an existing verified candidate or employer account now links and opens the account directly without an extra email step.",
+    details: [
+      "If you registered with an email and password and verified your mailbox via the verification code, using Continue with Google with the same email now connects Google sign-in and logs you straight in.",
+      "Your existing password is preserved, allowing sign-in with either password or Google going forward.",
+      "Google authentication remains strictly isolated to candidate and employer portals and is not available on the admin portal.",
+    ],
+  },
+  {
     id: "google-address-taken",
     date: "2026-08-28",
     kind: "Fix",

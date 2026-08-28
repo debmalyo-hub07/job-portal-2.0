@@ -38,7 +38,7 @@ const AuthComplete = () => {
         // first thing it heard about the gate would be a 403 on an application.
         navigate(landingAfterAuth(res.data.user), { replace: true });
       })
-      .catch(() => navigate("/auth/error?code=GOOGLE_AUTH_FAILED", { replace: true }));
+      .catch(() => navigate(`/auth/error?code=GOOGLE_AUTH_FAILED&portal=${portal}`, { replace: true }));
   }, [portal, dispatch, navigate]);
 
   return (

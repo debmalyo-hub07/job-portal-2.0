@@ -430,10 +430,9 @@ Six checks, in this order — each isolates a different layer.
 6. **Google creation and linking.** Start from both `/signup` and
    `/hire/signup`. A new seeker should complete as active; a new recruiter
    should sign in but remain pending until admin approval. For a verified
-   password account using the same Google address, the callback should land on
-   the link-pending page and the emailed confirmation should make the next
-   Google attempt sign in to that existing account. Admin login must offer no
-   Google control.
+   password account using the same Google address, the callback auto-links
+   Google and signs in directly while preserving the password. Admin login
+   must offer no Google control.
 
 Every refused callback deliberately returns the same `GOOGLE_AUTH_FAILED` page,
 with one carve-out: an address that already holds an account on another portal

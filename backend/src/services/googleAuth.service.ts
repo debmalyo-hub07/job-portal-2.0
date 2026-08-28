@@ -16,7 +16,7 @@ import {
 } from "./emailRegistry.service.js";
 import { OtpCode } from "../models/otpCode.model.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
-import { renderAccountClaimedEmail, renderGoogleLinkEmail } from "../lib/emailTemplates.js";
+import { renderAccountClaimedEmail } from "../lib/emailTemplates.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/AppError.js";
 
@@ -70,7 +70,6 @@ export function startGoogleFlow(portal: Portal, res: Response): string {
 
 export type CallbackOutcome =
   | { kind: "signed-in"; account: AccountDoc }
-  | { kind: "link-pending" }
   | { kind: "address-taken" }
   | { kind: "failed" };
 
@@ -269,29 +268,24 @@ async function resolveIdentity(
     return { kind: "signed-in", account: taken };
   }
 
-  // Branch 2b: password + verified → STEP-UP, never auto-link. Google's
-  // email_verified attests the domain's CURRENT operator, not this human's
-  // history with the mailbox (lapsed-and-re-registered domains, malicious
-  // Workspace admins). The link activates only from the mailbox. Latest
-  // attempt wins; the fresh pending record invalidates any older mail.
-  await model.updateOne(
-    { _id: byEmail._id },
-    { $set: { pendingGoogleLink: { googleId: identity.sub, requestedAt: new Date() } } },
+  // Branch 2b: password + verified → auto-link. The account owner already
+  // proved mailbox control during registration (OTP verification), and
+  // Google independently attests the same address. Guarded update so a
+  // raced link loses; password is preserved so the user can continue
+  // signing in with either password or Google.
+  const linked = await model.findOneAndUpdate(
+    { _id: byEmail._id, googleId: null },
+    {
+      $set: {
+        googleId: identity.sub,
+        pendingGoogleLink: { googleId: null, requestedAt: null },
+      },
+    },
+    { new: true },
   );
-  const token = jwt.sign(
-    { purpose: "google-link", portal, sub: String(byEmail._id), googleId: identity.sub },
-    googleTxnKey(),
-    { expiresIn: `${env().GOOGLE_LINK_CONFIRM_TTL_HOURS}h` },
-  );
-  const confirmUrl = `${env().WEB_BASE_URL}/auth/confirm-google-link?portal=${portal}&token=${encodeURIComponent(token)}`;
-  dispatch(
-    sendRendered(
-      byEmail.email,
-      renderGoogleLinkEmail(confirmUrl, env().GOOGLE_LINK_CONFIRM_TTL_HOURS),
-    ),
-  );
-  logger.info({ accountId: String(byEmail._id), portal }, "google link step-up required");
-  return { kind: "link-pending" };
+  if (!linked) return { kind: "failed" };
+  logger.info({ accountId: String(linked._id), portal }, "google linked to verified account");
+  return { kind: "signed-in", account: linked };
 }
 
 /**
