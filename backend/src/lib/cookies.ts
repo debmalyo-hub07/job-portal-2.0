@@ -109,7 +109,7 @@ export function setGoogleTxnCookie(res: Response, token: string): void {
   res.cookie(googleTxnCookieName(), token, {
     httpOnly: true,
     secure: isSecure(),
-    sameSite: "lax",
+    sameSite: isSecure() ? "none" : "lax",
     path: "/",
     maxAge: 10 * 60_000,
   });
@@ -119,7 +119,7 @@ export function clearGoogleTxnCookie(res: Response): void {
   res.clearCookie(googleTxnCookieName(), {
     httpOnly: true,
     secure: isSecure(),
-    sameSite: "lax",
+    sameSite: isSecure() ? "none" : "lax",
     path: "/",
   });
 }
