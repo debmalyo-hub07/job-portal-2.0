@@ -73,6 +73,11 @@ export type CallbackOutcome =
   | { kind: "link-pending" }
   | { kind: "failed" };
 
+function googleCallbackFailed(portal: Portal, reason: string): CallbackOutcome {
+  logger.warn({ portal, reason }, "google callback rejected");
+  return { kind: "failed" };
+}
+
 /**
  * Every failure collapses to one outcome. Which check tripped — state, nonce,
  * portal, exchange, verification — is for the server log, never for the URL:
@@ -87,24 +92,25 @@ export async function handleGoogleCallback(
 
   const raw = req.cookies?.[googleTxnCookieName()] as string | undefined;
   const query = googleCallbackQuerySchema.safeParse(req.query);
-  if (!query.success) return { kind: "failed" };
+  if (!query.success) return googleCallbackFailed(portal, "invalid-query");
   const { code, state } = query.data;
-  if (!raw || !code || !state) return { kind: "failed" };
+  if (!raw) return googleCallbackFailed(portal, "missing-transaction-cookie");
+  if (!code || !state) return googleCallbackFailed(portal, "missing-code-or-state");
 
   let txn: TxnClaims;
   try {
     txn = jwt.verify(raw, googleTxnKey()) as TxnClaims;
   } catch {
-    return { kind: "failed" };
+    return googleCallbackFailed(portal, "invalid-transaction-cookie");
   }
-  if (txn.purpose !== "google-txn") return { kind: "failed" };
+  if (txn.purpose !== "google-txn") return googleCallbackFailed(portal, "wrong-purpose");
   // The mount is the truth and the cookie must AGREE with it: a transaction
   // started on the seeker portal presented to the recruiter callback dies
   // here, portal-pinned server-side (amendment, medium finding 3).
-  if (txn.portal !== portal) return { kind: "failed" };
+  if (txn.portal !== portal) return googleCallbackFailed(portal, "portal-mismatch");
   // Login-CSRF: an attacker-initiated flow completing in the victim's browser
   // carries the attacker's state but the victim's cookie. Mismatch → dead.
-  if (txn.state !== state) return { kind: "failed" };
+  if (txn.state !== state) return googleCallbackFailed(portal, "state-mismatch");
 
   let identity: GoogleIdentity;
   try {
@@ -115,13 +121,15 @@ export async function handleGoogleCallback(
     });
   } catch (error) {
     logger.warn({ err: error, portal }, "google token exchange failed");
-    return { kind: "failed" };
+    return googleCallbackFailed(portal, "token-exchange");
   }
 
   // The library checked signature, expiry and (because we passed it) aud.
   // nonce and email_verified are OURS to check — it does neither.
-  if (!identity.nonce || identity.nonce !== txn.nonce) return { kind: "failed" };
-  if (!identity.emailVerified) return { kind: "failed" };
+  if (!identity.nonce || identity.nonce !== txn.nonce) {
+    return googleCallbackFailed(portal, "nonce-mismatch");
+  }
+  if (!identity.emailVerified) return googleCallbackFailed(portal, "email-unverified");
 
   return resolveIdentity(portal, identity);
 }
@@ -147,16 +155,10 @@ async function resolveIdentity(
   // password at all.
   const byEmail = await findAccountByEmail(portal, identity.email, { withSecret: true });
 
-  // Branch 3 is account CREATION, and only the seeker portal may reach it.
-  // Recruiter access is granted by an admin, never by arriving with a Google
-  // identity — otherwise "Continue with Google" on /hire/signup is a
-  // self-service recruiter factory that bypasses both the register route and
-  // the approval gate. Existing recruiters are unaffected: branches 1, 2a, 2b
-  // and 2c above already handled every account that exists, so sign-in and
-  // linking still work. Admins never reach here at all — the admin router
-  // mounts no Google routes.
-  if (!byEmail && portal !== "seeker") return { kind: "failed" };
-
+  // Branch 3 is account creation for either public portal. Recruiters enter
+  // the same pending-approval state as password registration, so Google changes
+  // the credential only; it never bypasses portal authorization. Admins never
+  // reach here because their router mounts no Google routes.
   // Branch 3: complete stranger → create, already verified (Google attested
   // the mailbox and we independently required email_verified above).
   if (!byEmail) {
@@ -183,6 +185,7 @@ async function resolveIdentity(
           passwordHash: null,
           emailVerifiedAt: new Date(),
           avatarUrl: identity.avatarUrl,
+          status: portal === "recruiter" ? "pending" : "active",
         });
       } catch (error) {
         // The account never took the address: give it back before failing.

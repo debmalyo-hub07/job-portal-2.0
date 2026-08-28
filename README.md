@@ -345,9 +345,16 @@ approves the account. Signing in is deliberately allowed while pending: it is
 what lets them reach `/me` and be told why they are blocked rather than
 bouncing off a login that refuses them for no stated reason.
 
-Google sign-in may sign in an existing recruiter but never creates one, so
-registration is the only way a recruiter account can begin — and therefore the
-only state it can begin in is `pending`.
+Google signup follows the same authorization path: a new recruiter created from
+Google starts as `pending`, can sign in, and remains behind `requireApproved`
+until an admin approves the account. Google is offered on both public signup
+pages; admin accounts remain invitation-only and password-only.
+
+When Google matches an existing verified password account by email, it does not
+silently replace the password identity. Cairn emails a confirmation link first;
+after confirmation, either credential may sign in to the same account. A linked
+Google identity is keyed by Google's stable subject id, so a later Cairn email
+change does not detach it.
 
 ## Web app
 

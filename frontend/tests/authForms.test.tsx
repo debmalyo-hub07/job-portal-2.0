@@ -28,6 +28,16 @@ function renderLogin(portal: Portal) {
   );
 }
 
+function renderSignup(portal: Exclude<Portal, "admin">) {
+  return render(
+    <Provider store={makeStore()}>
+      <MemoryRouter>
+        <Signup portal={portal} />
+      </MemoryRouter>
+    </Provider>,
+  );
+}
+
 describe("Login", () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -162,4 +172,12 @@ describe("Signup", () => {
     );
     expect(screen.queryByLabelText(/^phone/i)).toBeNull();
   });
+
+  it.each(["seeker", "recruiter"] satisfies Array<Exclude<Portal, "admin">>)(
+    "offers Google signup to a %s",
+    (portal) => {
+      renderSignup(portal);
+      expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
+    },
+  );
 });

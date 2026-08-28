@@ -403,7 +403,7 @@ disagreement remains. Both scripts refuse to run without the
 
 ## 7. Verify
 
-Four checks, in this order — each isolates a different layer.
+Six checks, in this order — each isolates a different layer.
 
 1. **API health.** `https://<your-api-host>.onrender.com/health` must report
    `status: ok` **and** `db: connected`. Status alone passes with a dead
@@ -427,6 +427,19 @@ Four checks, in this order — each isolates a different layer.
    Both sessions must survive reloads. Typing an admin workspace URL must show
    admin login rather than either existing workspace, and signing out of one
    portal must leave the other session intact.
+6. **Google creation and linking.** Start from both `/signup` and
+   `/hire/signup`. A new seeker should complete as active; a new recruiter
+   should sign in but remain pending until admin approval. For a verified
+   password account using the same Google address, the callback should land on
+   the link-pending page and the emailed confirmation should make the next
+   Google attempt sign in to that existing account. Admin login must offer no
+   Google control.
+
+Every refused callback deliberately returns the same `GOOGLE_AUTH_FAILED` page.
+Use the Render application log to distinguish fixed internal reasons such as
+`missing-transaction-cookie`, `state-mismatch`, `nonce-mismatch`, and
+`token-exchange`; those labels contain no OAuth code, token, email address, or
+account-existence result.
 
 Render's free plan sleeps after inactivity: the first request after an idle
 period takes 30–60 seconds and looks like a hang. That is not a fault.

@@ -30,6 +30,20 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "google-signup-and-linking",
+    date: "2026-08-28",
+    kind: "Fix",
+    title: "Google signup now follows the same account rules as password signup",
+    summary:
+      "Candidates and employers can now start with Google directly from signup, while existing password accounts can securely connect the same Google address.",
+    details: [
+      "Google is available on both candidate and employer signup pages; administrator accounts remain password-only.",
+      "A new employer created with Google enters the normal pending-approval state and cannot bypass administrator approval.",
+      "An existing verified password account still confirms a mailbox link before Google is attached, preventing silent account takeover.",
+      "The one-address-one-account rule continues to apply across candidate, employer and administrator portals.",
+    ],
+  },
+  {
     id: "account-menu-closes",
     date: "2026-08-28",
     kind: "Fix",

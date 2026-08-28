@@ -16,6 +16,7 @@ import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { TurnstileChallenge } from "./TurnstileChallenge";
+import { GoogleButton } from "./GoogleButton";
 
 /**
  * Portal comes from the route. The inherited form asked for it in a radio pair
@@ -30,6 +31,7 @@ const Signup = ({ portal }: { portal: Portal }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const copy = AUTH_COPY[portal];
+  const googleStartPath = copy.googleStartPath;
 
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });
@@ -130,6 +132,17 @@ const Signup = ({ portal }: { portal: Portal }) => {
           {loading ? <Loader2 className="animate-spin" data-icon="inline-start" /> : null}
           {loading ? "Creating account..." : "Create account"}
         </Button>
+
+        {googleStartPath ? (
+          <>
+            <div className="my-5 flex items-center gap-3">
+              <span aria-hidden="true" className="h-px flex-1 bg-line" />
+              <span className="font-mono text-[0.68rem] uppercase text-ink-muted">or</span>
+              <span aria-hidden="true" className="h-px flex-1 bg-line" />
+            </div>
+            <GoogleButton startPath={googleStartPath} />
+          </>
+        ) : null}
 
         <p className="mt-6 text-sm text-ink-muted">
           Already have an account?{" "}

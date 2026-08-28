@@ -102,7 +102,7 @@ list endpoint, and the legacy `users` collection dropped.
 | Defect | How it is closed |
 |---|---|
 | **Anyone could self-register as a recruiter** and immediately post jobs, edit companies and read applicant PII — name, email, phone and a signed resume link for every applicant to a job they invented | Recruiter registration now lands `pending`. `requireApproved` gates every recruiter-owned mutation (job posting, both company mutations, both applicant routes) with 403 `RECRUITER_PENDING_APPROVAL` until an admin approves the account |
-| **Google sign-in self-provisioned a recruiter**, routing around registration entirely | The stranger branch is portal-aware: Google may sign in an existing recruiter but never create one. A recruiter account can only begin at `/recruiter/auth/register`, and therefore only as `pending` |
+| **Google sign-in self-provisioned an approved recruiter**, routing around the approval boundary | Google may create a recruiter identity, but the account is explicitly written as `pending`; `requireApproved` applies identically regardless of whether the credential is Google or a password |
 
 `requireApproved` re-reads the account rather than trusting a claim in the access
 token: approval happens while the recruiter is signed in, and a status baked into
@@ -207,7 +207,12 @@ subject to the per-account OTP failure budget.
   records the guardian's address and the timestamp; minor status itself is
   derived from DOB, never stored.
 - **Google OAuth:** authorization-code flow with PKCE, portal bound into the
-  `state` parameter, `email_verified` required.
+  signed transaction cookie and checked against the callback mount, `state`
+  and nonce verified, and `email_verified` required. Seeker strangers start
+  active; recruiter strangers start pending; admin mounts no Google routes.
+  Callback rejection reasons are logged as fixed internal labels without
+  placing codes, tokens, email addresses, or account-existence details in the
+  browser redirect.
 - **Cross-portal email uniqueness (2026-08-27):** an `emailRegistry` collection
   holds one row per account with a unique index on the email — the only
   cross-collection guarantee MongoDB can express. Every account-creation site
@@ -226,8 +231,10 @@ subject to the per-account OTP failure budget.
 
 ### Account linking rule
 
-When a Google sign-in matches an existing account by email, link **only if**
-that account is already email-verified or has no password.
+When a Google sign-in matches an existing account by email, a passwordless
+account may link immediately. An unverified password account is taken over in
+place with its planted password removed. A verified password account requires
+mailbox confirmation before the Google identity is linked.
 
 This closes a takeover path: an attacker registers `victim@gmail.com` with a
 password of their choosing and never verifies it. If the victim later signs in

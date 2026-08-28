@@ -106,6 +106,18 @@ describe("google oauth", () => {
     expect(account?.passwordHash).toBeNull();
   });
 
+  it("creates a pending recruiter for a stranger instead of bypassing approval", async () => {
+    const res = await completeFlow("recruiter");
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain("/auth/complete?portal=recruiter");
+
+    const account = await Recruiter.findOne({ email: "g@x.test" }).select("+passwordHash");
+    expect(account?.googleId).toBe("google-sub-1");
+    expect(account?.emailVerifiedAt).not.toBeNull();
+    expect(account?.passwordHash).toBeNull();
+    expect(account?.status).toBe("pending");
+  });
+
   it("signs a known googleId straight in without touching email matching (branch 1)", async () => {
     await completeFlow("seeker");
     // Same sub, DIFFERENT email — the account keys on sub, so this is the same
@@ -258,33 +270,8 @@ describe("google oauth", () => {
   });
 });
 
-/**
- * The second self-provisioning hole. Branch 3 of `resolveIdentity` creates an
- * account for an unknown Google identity, and it ran on whichever portal the
- * callback was mounted at — so "Continue with Google" on /hire/signup was a
- * self-service recruiter factory, bypassing both the register route and the
- * approval gate.
- *
- * Creation is now seeker-only. Sign-in and linking for accounts that already
- * exist are untouched, which is what the last two cases pin.
- */
-describe("google cannot create a recruiter", () => {
-  it("refuses an unknown identity on the recruiter portal and creates no row", async () => {
-    const before = await Recruiter.countDocuments({});
-
-    const res = await completeFlow("recruiter", {
-      sub: "google-stranger-1",
-      email: "stranger@x.test",
-    });
-
-    // Uniform failure landing — never a distinct code that maps the defences.
-    expect(res.headers.location).toContain("GOOGLE_AUTH_FAILED");
-    expect(setCookieNames(res)).not.toEqual(
-      expect.arrayContaining(["jp_recruiter_at", "jp_recruiter_rt"]),
-    );
-    expect(await Recruiter.countDocuments({})).toBe(before);
-  });
-
+/** Google credentials follow the same portal and approval rules as passwords. */
+describe("google creation and recruiter linking", () => {
   it("still creates a seeker for an unknown identity", async () => {
     const before = await Seeker.countDocuments({});
     const res = await completeFlow("seeker", {
