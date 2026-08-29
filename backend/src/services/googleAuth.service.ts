@@ -4,10 +4,15 @@ import mongoose, { type HydratedDocument } from "mongoose";
 import type { Request, Response } from "express";
 import { googleCallbackQuerySchema, type Portal } from "@jobportal/shared";
 import { env, googleRedirectUri } from "../config/env.js";
-import { googleTxnKey } from "../lib/keys.js";
+import { googleTxnKey, hashGoogleHandoff } from "../lib/keys.js";
 import { googleOAuth, type GoogleIdentity } from "../lib/googleOAuth.js";
 import { clearGoogleTxnCookie, googleTxnCookieName, setGoogleTxnCookie } from "../lib/cookies.js";
-import { accountModel, findAccountByEmail, type AccountDocument } from "./account.service.js";
+import {
+  accountModel,
+  findAccountByEmail,
+  findAccountById,
+  type AccountDocument,
+} from "./account.service.js";
 import { revokeAllForSubject } from "./session.service.js";
 import {
   isDuplicateKeyError,
@@ -15,6 +20,7 @@ import {
   reserveEmail,
 } from "./emailRegistry.service.js";
 import { OtpCode } from "../models/otpCode.model.js";
+import { GoogleHandoff } from "../models/googleHandoff.model.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
 import { renderAccountClaimedEmail } from "../lib/emailTemplates.js";
 import { logger } from "../lib/logger.js";
@@ -339,4 +345,76 @@ export async function confirmGoogleLink(portal: Portal, token: string): Promise<
     if ((error as { code?: number }).code === 11000) throw invalid;
     throw error;
   }
+}
+
+/**
+ * Seconds, not minutes. The code exists only to survive one redirect into the
+ * SPA, which redeems it in its first effect — so the window in which a code
+ * leaked through browser history, a Referer header or a proxy log is still
+ * worth anything to an attacker is about as short as a usable flow allows.
+ */
+const HANDOFF_TTL_MS = 60_000;
+
+/**
+ * Mints the one-time code the callback hands to the SPA in place of cookies.
+ *
+ * The account is resolved and authorized BEFORE this is called; the code is
+ * only a pointer to that decision, and it carries no claims of its own. That
+ * is deliberate — a signed self-describing token would be replayable for its
+ * whole lifetime, whereas this row can be spent exactly once (see
+ * `redeemGoogleHandoff`).
+ */
+export async function createGoogleHandoff(
+  portal: Portal,
+  subjectId: AccountDoc["_id"],
+): Promise<string> {
+  const code = randomBytes(32).toString("base64url");
+  await GoogleHandoff.create({
+    tokenHash: hashGoogleHandoff(code),
+    subjectId,
+    subjectType: portal,
+    expiresAt: new Date(Date.now() + HANDOFF_TTL_MS),
+  });
+  return code;
+}
+
+/**
+ * Spends a handoff code and returns the account it was minted for.
+ *
+ * One uniform refusal for every reason — unknown code, already spent, expired,
+ * wrong portal, account gone or suspended. The caller is the SPA acting on a
+ * code it was just handed, so a specific reason helps nobody who is entitled to
+ * one and hands a prober a map of the check order. Same reasoning as the
+ * callback's single `GOOGLE_AUTH_FAILED`.
+ *
+ * `findOneAndUpdate` matching `consumedAt: null` and setting it in the same
+ * write is what makes the code single-use: two tabs racing the same code
+ * produce one winner and one uniform refusal, with no read-then-write window
+ * between them. `withSecret` because `toSessionUser` answers `hasPassword`,
+ * which the email-change dialog depends on.
+ */
+export async function redeemGoogleHandoff(portal: Portal, code: string): Promise<AccountDoc> {
+  const invalid = AppError.unauthorized(
+    "GOOGLE_HANDOFF_INVALID",
+    "That sign-in could not be completed. Please sign in again.",
+  );
+
+  const row = await GoogleHandoff.findOneAndUpdate(
+    {
+      tokenHash: hashGoogleHandoff(code),
+      subjectType: portal,
+      consumedAt: null,
+      expiresAt: mongoose.trusted({ $gt: new Date() }),
+    },
+    { $set: { consumedAt: new Date() } },
+  );
+  if (!row) throw invalid;
+
+  const account = await findAccountById(portal, String(row.subjectId), { withSecret: true });
+  // Suspended re-checked here, not only at the callback: the code is valid for
+  // a minute, and an admin suspending the account inside that minute must not
+  // be beaten by a redemption. Pending recruiters still pass — approval is
+  // enforced at the routes that matter, exactly as on the password path.
+  if (!account || account.status === "suspended") throw invalid;
+  return account;
 }

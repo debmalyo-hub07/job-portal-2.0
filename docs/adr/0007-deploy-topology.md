@@ -104,3 +104,46 @@ Restoring the gate requires both halves in one change: add the two hook secrets
 this amendment is correcting. `backend/tests/deployConfig.test.ts` asserts
 whichever value is current, so the blueprint and the intent cannot drift apart
 silently.
+
+## Amendment (2026-08-29): two registrable domains cost us the Google sign-in
+
+`COOKIE_SAMESITE=none` above makes cross-site cookies *possible*. It does not
+make every way of setting them work, and this ADR previously read as though it
+did.
+
+Production evidence, from the database alone. The Google callback signed one
+seeker in three times on 2026-08-29 — `refreshtokens` rows at 10:05, 15:20 and
+15:26, minted by `issueSession`, which the callback reaches only on a resolved
+identity. The account document's `updatedAt` never moved between them, and a
+password login writes to it on every outcome (counters reset on success,
+incremented on a wrong password), so those three sessions cannot have come from
+`/login`. Every one of them was followed by "Sign-in failed" in the browser, and
+by `401 SESSION_MISSING` on `/me` — a code `authenticate()` returns *only* when
+the access cookie is absent from the request.
+
+Ten seconds apart in the same window: a callback session at 15:46:26 that the
+SPA could not see, a password login at 15:46:36 that worked, and a logout at
+15:47:29 that revoked it — and a logout needs the refresh cookie *and* the CSRF
+header sent cross-site. So the browser stores and sends this API's cookies on
+cross-site requests perfectly well. What it will not do is hand the SPA cookies
+that were set on the **callback's own top-level navigation** to the API host:
+those are stored against the API host as a first party, where the web app's
+requests cannot reach them.
+
+The mechanism is the browser's, and it is not ours to fix. The dependency was
+ours: one flow in the app established its session on a response to a navigation
+rather than to a request the client made. **That flow now hands the session over
+as a single-use code the client redeems itself** (see SECURITY.md, "Google
+session handoff"), so every session in the app is now established on the one
+delivery path this topology has ever supported.
+
+The deeper trade in this ADR stands, but its cost is now itemised. Two
+registrable domains also force `SameSite=none` and force the CSRF token to
+travel in the response body, because `document.cookie` is empty cross-site even
+for a non-httpOnly cookie. Collapsing to one registrable domain — a Vercel proxy
+for `/api/*`, or `app.example.com` plus `api.example.com` — would retire all
+three workarounds at once. It was not taken here because it needs both Google
+redirect URIs re-registered by hand and puts every API request through an extra
+hop, and because the handoff is correct on its own terms rather than a patch
+over the topology. Anyone revisiting the topology should read these three
+symptoms as one cause.

@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import {
   confirmGoogleLinkBodySchema,
   forgotPasswordBodySchema,
+  googleExchangeBodySchema,
   loginBodySchema,
   registerBodySchema,
   resendVerificationBodySchema,
@@ -18,7 +19,9 @@ import { endSession, issueSession, rotateSession } from "../services/session.ser
 import { findAccountById } from "../services/account.service.js";
 import {
   confirmGoogleLink,
+  createGoogleHandoff,
   handleGoogleCallback,
+  redeemGoogleHandoff,
   startGoogleFlow,
 } from "../services/googleAuth.service.js";
 import * as auth from "../services/auth.service.js";
@@ -140,10 +143,23 @@ export function googleCallbackHandler(portal: Portal): RequestHandler {
     const outcome = await handleGoogleCallback(portal, req, res);
     const web = env().WEB_BASE_URL;
     if (outcome.kind === "signed-in") {
-      await issueSession(res, req, outcome.account._id, portal);
-      // The portal in the query is a bootstrap hint for the SPA's /me call,
-      // nothing more — the session's real portal is enforced by the cookies.
-      res.redirect(`${web}/auth/complete?portal=${portal}`);
+      // NOT issueSession. This response is a top-level navigation to the API
+      // host, and the web app is on another registrable domain: a session
+      // cookie set here is stored against the API host as a first party and is
+      // then NOT presented on the SPA's cross-site XHR. Measured in production
+      // — the callback signed a seeker in three times in one day and every
+      // following `/me` arrived with no cookie at all, while password logins in
+      // the same browser stored and sent theirs normally, because those are set
+      // on a request the SPA itself made.
+      //
+      // So the session is handed over as a one-time code the SPA redeems on a
+      // request of its own, where the cookies land on the only path this
+      // deployment has ever delivered them on. `portal` stays a bootstrap hint;
+      // the code is what carries the authorization.
+      const code = await createGoogleHandoff(portal, outcome.account._id);
+      res.redirect(
+        `${web}/auth/complete?portal=${portal}&code=${encodeURIComponent(code)}`,
+      );
       return;
     }
     if (outcome.kind === "address-taken") {
@@ -159,6 +175,31 @@ export function confirmGoogleLinkHandler(portal: Portal): RequestHandler {
     const { token } = parseBody(confirmGoogleLinkBodySchema, req.body);
     await confirmGoogleLink(portal, token);
     res.json({ success: true, message: "Google sign-in is now linked. Use it to sign in." });
+  };
+}
+
+/**
+ * Redeems the callback's one-time code and issues the session HERE, on a
+ * request the client made itself — the whole point of the handoff. See the
+ * comment in `googleCallbackHandler` for why the callback cannot do it.
+ *
+ * No CSRF protection, deliberately, and for the same reason `/login` has none:
+ * this endpoint *establishes* the session, so there is no prior token to
+ * double-submit. The exposure that leaves is login-CSRF — forcing a victim's
+ * browser to redeem a code the attacker obtained from their own Google flow,
+ * signing the victim into the attacker's account. It is bounded to a single use
+ * inside a 60-second window, and it is the exposure `/login` already carries
+ * for anyone willing to spend their own credentials.
+ *
+ * Returns the same envelope as `/login`, so the client needs no follow-up
+ * `/me`: one request, session established, user and CSRF token in hand.
+ */
+export function googleExchangeHandler(portal: Portal): RequestHandler {
+  return async (req, res) => {
+    const { code } = parseBody(googleExchangeBodySchema, req.body);
+    const account = await redeemGoogleHandoff(portal, code);
+    const { csrfToken } = await issueSession(res, req, account._id, portal);
+    res.json({ success: true, user: auth.toSessionUser(portal, account), csrfToken });
   };
 }
 

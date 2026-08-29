@@ -16,6 +16,10 @@ describe("admin auth router", () => {
     await request(app).get("/api/v1/admin/auth/google").expect(404);
     await request(app).get("/api/v1/admin/auth/google/callback").expect(404);
     await request(app).post("/api/v1/admin/auth/google/confirm-link").send({ token: "x" }).expect(404);
+    // The handoff exchange is a session-issuing endpoint with no CSRF token and
+    // no password, so it is the one Google route whose accidental mounting on
+    // the admin portal would matter most.
+    await request(app).post("/api/v1/admin/auth/google/exchange").send({ code: "x" }).expect(404);
   });
 
   it("does expose login", async () => {

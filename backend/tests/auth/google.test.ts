@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
+import type { Response as SupertestResponse } from "supertest";
 import express, { Router, type Express } from "express";
 import cookieParser from "cookie-parser";
 import type { Portal } from "@jobportal/shared";
 import { Seeker } from "../../src/models/seeker.model.js";
 import { Recruiter } from "../../src/models/recruiter.model.js";
 import { Admin } from "../../src/models/admin.model.js";
+import { GoogleHandoff } from "../../src/models/googleHandoff.model.js";
 import {
   resetGoogleOAuth,
   setGoogleOAuth,
@@ -14,6 +16,7 @@ import {
 import {
   confirmGoogleLinkHandler,
   googleCallbackHandler,
+  googleExchangeHandler,
   googleStartHandler,
   loginHandler,
   registerHandler,
@@ -35,6 +38,7 @@ const app: Express = authTestApp((portal, r) => {
   r.post("/login", loginHandler(portal));
   r.get("/google", googleStartHandler(portal));
   r.get("/google/callback", googleCallbackHandler(portal));
+  r.post("/google/exchange", googleExchangeHandler(portal));
   r.post("/google/confirm-link", confirmGoogleLinkHandler(portal));
 });
 
@@ -94,14 +98,35 @@ async function completeFlow(
   return call;
 }
 
+/**
+ * The one-time handoff code the callback puts in its redirect.
+ *
+ * The callback deliberately sets NO session cookies: cross-site, a cookie set
+ * on this top-level navigation is not presented on the SPA's later XHR, so the
+ * session is handed over as a code the SPA redeems on a request of its own.
+ */
+function handoffCodeFrom(res: SupertestResponse): string {
+  const location = String(res.headers.location ?? "");
+  const code = new URL(location, "http://web.test").searchParams.get("code");
+  if (!code) throw new Error(`callback redirect carries no handoff code: ${location}`);
+  return code;
+}
+
+/** No session cookie may ride the callback's redirect, for any portal. */
+function expectNoSessionCookies(res: SupertestResponse, portal: Portal): void {
+  const names = setCookieNames(res);
+  for (const suffix of ["at", "rt", "csrf"]) {
+    expect(names).not.toContain(`jp_${portal}_${suffix}`);
+  }
+}
+
 describe("google oauth", () => {
   it("creates a verified account for a stranger and signs them in (branch 3)", async () => {
     const res = await completeFlow("seeker");
     expect(res.status).toBe(302);
     expect(res.headers.location).toContain("/auth/complete?portal=seeker");
-    expect(setCookieNames(res)).toEqual(
-      expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt"]),
-    );
+    expect(handoffCodeFrom(res)).toBeTruthy();
+    expectNoSessionCookies(res, "seeker");
     const account = await Seeker.findOne({ email: "g@x.test" }).select("+passwordHash");
     expect(account?.googleId).toBe("google-sub-1");
     expect(account?.emailVerifiedAt).not.toBeNull();
@@ -188,9 +213,7 @@ describe("google oauth", () => {
     const res = await completeFlow("seeker");
     expect(res.headers.location).toContain("/auth/complete?portal=seeker");
     // Signed in immediately — no step-up required.
-    expect(setCookieNames(res)).toEqual(
-      expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt"]),
-    );
+    expect(handoffCodeFrom(res)).toBeTruthy();
 
     const account = await Seeker.findOne({ email: "g@x.test" }).select("+passwordHash");
     expect(account?.googleId).toBe("google-sub-1");
@@ -354,9 +377,8 @@ describe("google creation and recruiter linking", () => {
       email: "known@x.test",
     });
     expect(res.headers.location).toContain("/auth/complete?portal=recruiter");
-    expect(setCookieNames(res)).toEqual(
-      expect.arrayContaining(["jp_recruiter_at", "jp_recruiter_rt"]),
-    );
+    expect(handoffCodeFrom(res)).toBeTruthy();
+    expectNoSessionCookies(res, "recruiter");
   });
 
   it("still links Google to an existing passwordless recruiter (branch 2a)", async () => {
@@ -375,5 +397,82 @@ describe("google creation and recruiter linking", () => {
     });
     expect(res.headers.location).toContain("/auth/complete?portal=recruiter");
     expect((await Recruiter.findById(rec._id))?.googleId).toBe("google-link-1");
+  });
+});
+
+/**
+ * The handoff is the whole reason production showed "Sign-in failed" on a
+ * sign-in that had already succeeded: the callback set the cookies on its own
+ * top-level navigation, and the browser would not present them to the SPA.
+ * These cases pin the replacement — a code that is single-use, short-lived and
+ * pinned to one portal, redeemed on a request the SPA makes itself.
+ */
+describe("google session handoff", () => {
+  const exchange = (portal: Portal, code: string) =>
+    post(`/api/v1/${portal}/auth/google/exchange`, { code });
+
+  it("exchanges the code for a session on the SPA's own request", async () => {
+    const code = handoffCodeFrom(await completeFlow("seeker"));
+
+    const res = await exchange("seeker", code);
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe("g@x.test");
+    expect(res.body.csrfToken).toBeTruthy();
+    // The cookies now ride a response to a request the SPA itself made, which
+    // is the path password login has always used successfully.
+    expect(setCookieNames(res)).toEqual(
+      expect.arrayContaining(["jp_seeker_at", "jp_seeker_rt", "jp_seeker_csrf"]),
+    );
+  });
+
+  it("spends the code exactly once", async () => {
+    const code = handoffCodeFrom(await completeFlow("seeker"));
+    expect((await exchange("seeker", code)).status).toBe(200);
+
+    // A code left in browser history or a Referer header is worthless the
+    // moment the SPA has used it.
+    const replay = await exchange("seeker", code);
+    expect(replay.status).toBe(401);
+    expect(setCookieNames(replay)).toEqual([]);
+  });
+
+  it("refuses a seeker's code presented to the recruiter exchange", async () => {
+    const code = handoffCodeFrom(await completeFlow("seeker"));
+
+    const res = await exchange("recruiter", code);
+
+    expect(res.status).toBe(401);
+    expect(setCookieNames(res)).toEqual([]);
+    // And the code survives for its real portal — the wrong door does not
+    // burn it.
+    expect((await exchange("seeker", code)).status).toBe(200);
+  });
+
+  it("refuses an expired code", async () => {
+    const code = handoffCodeFrom(await completeFlow("seeker"));
+    await GoogleHandoff.updateMany({}, { $set: { expiresAt: new Date(Date.now() - 1000) } });
+
+    const res = await exchange("seeker", code);
+
+    expect(res.status).toBe(401);
+    expect(setCookieNames(res)).toEqual([]);
+  });
+
+  it("refuses a code whose account was suspended after the callback", async () => {
+    const code = handoffCodeFrom(await completeFlow("seeker"));
+    await Seeker.updateOne({ email: "g@x.test" }, { $set: { status: "suspended" } });
+
+    const res = await exchange("seeker", code);
+
+    expect(res.status).toBe(401);
+    expect(setCookieNames(res)).toEqual([]);
+  });
+
+  it("refuses a code that was never minted", async () => {
+    const res = await exchange("seeker", "not-a-real-handoff-code");
+
+    expect(res.status).toBe(401);
+    expect(setCookieNames(res)).toEqual([]);
   });
 });

@@ -32,3 +32,19 @@ export function googleTxnKey(): Buffer {
 export function hashRefreshToken(token: string): string {
   return createHmac("sha256", env().JWT_REFRESH_PEPPER).update(token).digest("hex");
 }
+
+/**
+ * Keyed hash of a one-time Google handoff code, for the same reason as
+ * `hashRefreshToken`: the row is a bearer credential for a session, so a read
+ * of the collection must not be replayable on its own.
+ *
+ * Its own derived key rather than a sixth env secret, and its own info string
+ * so it can never collide with `googleTxnKey` — the two protect different
+ * things at different moments of the same flow.
+ */
+export function hashGoogleHandoff(code: string): string {
+  const key = Buffer.from(
+    hkdfSync("sha256", env().JWT_ACCESS_SECRET, "", "google-handoff", 32),
+  );
+  return createHmac("sha256", key).update(code).digest("hex");
+}

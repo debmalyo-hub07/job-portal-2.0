@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "google-signin-completes",
+    date: "2026-08-29",
+    kind: "Fix",
+    title: "Continue with Google now finishes signing you in",
+    summary:
+      "Google sign-in could report “Sign-in failed” on an attempt that had actually succeeded. The session is now handed to the app in a way your browser keeps.",
+    details: [
+      "Candidate and employer accounts were being signed in correctly, but the browser did not carry the new session back to the app, so the last screen of the flow reported a failure and left you signed out.",
+      "The final step now completes the sign-in over the app's own connection — the same one email-and-password sign-in has always used — using a single-use code that expires in a minute.",
+      "Nothing about your account changed, and Continue with Google still works alongside your password if you have one.",
+    ],
+  },
+  {
     id: "google-auth-seamless-linking",
     date: "2026-08-28",
     kind: "Improvement",

@@ -187,6 +187,17 @@ export const confirmGoogleLinkBodySchema = z.object({
   token: z.string().min(1).max(2048),
 }).strict();
 
+/**
+ * The one-time code the Google callback puts in its redirect, which the client
+ * redeems for a session on a request of its own.
+ *
+ * Bounded tightly because the mint is 32 random bytes base64url-encoded — 43
+ * characters. Anything materially longer is not one of ours.
+ */
+export const googleExchangeBodySchema = z.object({
+  code: z.string().min(1).max(256),
+}).strict();
+
 /** Google may add harmless fields; only these two security inputs are consumed. */
 export const googleCallbackQuerySchema = z
   .object({
@@ -197,6 +208,7 @@ export const googleCallbackQuerySchema = z
 
 export type RegisterBody = z.infer<typeof registerBodySchema>;
 export type ConfirmGoogleLinkBody = z.infer<typeof confirmGoogleLinkBodySchema>;
+export type GoogleExchangeBody = z.infer<typeof googleExchangeBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type VerifyEmailBody = z.infer<typeof verifyEmailBodySchema>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;

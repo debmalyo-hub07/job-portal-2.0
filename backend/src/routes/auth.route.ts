@@ -9,6 +9,7 @@ import {
   confirmGoogleLinkHandler,
   forgotPasswordHandler,
   googleCallbackHandler,
+  googleExchangeHandler,
   googleStartHandler,
   loginHandler,
   logoutHandler,
@@ -103,6 +104,10 @@ export function buildAuthRouter(portal: Portal): Router {
     // which no header can be attached. Its protections are the signed lax
     // transaction cookie, state, and nonce (Task 9).
     router.get("/google/callback", googleCallbackHandler(portal));
+    // Redeems the callback's one-time handoff code. No csrfProtection, exactly
+    // like /login: this is what ESTABLISHES the session, so there is no prior
+    // token to double-submit. Rate-limited with the other redemption endpoints.
+    router.post("/google/exchange", rlRedeem, googleExchangeHandler(portal));
     router.post("/google/confirm-link", rlRedeem, confirmGoogleLinkHandler(portal));
   }
 
