@@ -218,6 +218,27 @@ subject to the per-account OTP failure budget.
   `EMAIL_TAKEN` in the redirect — that viewer proved mailbox control to
   Google, and `register` answers the same sentence to anyone with no proof at
   all, so the distinction is not a new oracle.
+- **Google session handoff (2026-08-29):** the callback does **not** set session
+  cookies. It writes a `googleHandoff` row — 32 random bytes, stored as a keyed
+  HMAC, pinned to one portal, valid 60 seconds, spendable exactly once — and
+  puts the code in its redirect. `POST /:portal/auth/google/exchange` spends it
+  in a single `findOneAndUpdate` matching `consumedAt: null` and issues the
+  session there, so the cookies land on a response to a request the client made
+  itself. Every rejection (unknown, spent, expired, wrong portal, account gone
+  or suspended) answers one uniform `GOOGLE_HANDOFF_INVALID`, and suspension is
+  re-checked at redemption so an admin acting inside that minute is not beaten
+  by it. The exchange carries no CSRF token for the same reason `/login` does
+  not — it establishes the session — leaving the login-CSRF exposure `/login`
+  already has, bounded to one use inside 60 seconds.
+
+  This is a *correctness* fix with a security consequence worth stating: the
+  reason the callback cannot set the session is that the API and web app are on
+  different registrable domains (ADR 0007), so a cookie set on the callback's
+  top-level navigation is stored against the API host as a first party and is
+  not presented on the SPA's cross-site request. In production that silently
+  turned three successful sign-ins into "Sign-in failed" while leaving three
+  usable sessions minted and unclaimed. Session cookies set on the client's own
+  requests — password login, refresh rotation — were unaffected throughout.
 - **Cross-portal email uniqueness (2026-08-27):** an `emailRegistry` collection
   holds one row per account with a unique index on the email — the only
   cross-collection guarantee MongoDB can express. Every account-creation site
@@ -263,6 +284,36 @@ credential is destroyed — but deletion would orphan every `Application`, `Job`
 and `Company` pointing at that `_id`. The account owner is emailed when this
 happens.
 
+### Cross-method login behaviour
+
+There is no `authProvider` enum. An account's available sign-in methods are
+determined by field presence: `passwordHash` (nullable) and `googleId`
+(nullable, partial unique index). An account may have both, either, or —
+transiently — neither.
+
+**Google-only account → password login.** `login()` finds the account;
+`verifyPassword(password, null)` runs a dummy Argon2 verify to burn the same
+CPU time as a real check and returns `false`. The response is the uniform
+`INVALID_CREDENTIALS` at the same latency, so neither the error nor the timing
+leaks that the account is Google-only. The escape hatch is forgot-password:
+`forgotPassword()` issues a `reset_password` OTP to the address, and
+`resetPassword()` sets `passwordHash` — the account becomes dual-method.
+Failed-password lockout (`lockedUntil`) does not affect Google sign-in, which
+resolves by `googleId` and checks only `status`.
+
+**Password account → Google login.** Covered by the linking rule above. A
+verified account auto-links and preserves the password; an unverified one is
+taken over (anti-plant). After linking, either method works.
+
+**Post-email-change continuity.** An established `googleId` is keyed on
+Google's immutable `sub`, never the account email, so it survives an email
+change untouched — only an outstanding `pendingGoogleLink` is voided, because
+its consent premise (this mailbox owns the account) no longer holds. Password
+login works at the new address with the existing hash. Google-only accounts
+skip the password step-up at email-change start (there is no credential to
+re-enter); the OTP to the new address and the warning to the old one are the
+proof and the alert.
+
 ## Rate limits
 
 All of these are mounted per portal, so the seeker and recruiter endpoints hold
@@ -276,6 +327,7 @@ independent counters.
 | Registration per IP | 10 / hour | Active |
 | OTP redemption per IP | 10 / hour | Active |
 | Google sign-in start per IP | 10 / hour | Active |
+| Google handoff exchange per IP | 10 / hour | Active |
 | Email-change start per account | 3 / hour | Active |
 | Email-change confirm per IP | 10 / hour | Active |
 | Guardian-consent send per account | 3 / hour | Active |

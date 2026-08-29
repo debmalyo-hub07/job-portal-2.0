@@ -140,7 +140,23 @@ stranger recruiters are pending and pass through the same approval middleware
 as password registrations; admins have no Google routes. A verified account
 auto-links Google when the verified email matches, while preserving any
 existing password, and subsequent sign-ins resolve by Google subject id rather
-than by the account's possibly changed email address.
+than by the account's possibly changed email address. Conversely, a Google-only
+account (`passwordHash: null`) that attempts a password login fails with the
+uniform `INVALID_CREDENTIALS` at the same Argon2 timing as a wrong password —
+no oracle leaks the credential type. The account can add a password through
+forgot-password, becoming dual-method; see SECURITY.md's cross-method section.
+
+The Google callback does not issue the session it just authorized. It mints a
+single-use `googleHandoff` code (60 seconds, one portal) and redirects to
+`/auth/complete?portal=…&code=…`; the client posts the code to
+`/:portal/auth/google/exchange`, and *that* response carries the session
+cookies. The reason is [ADR-0007](docs/adr/0007-deploy-topology.md): the API and
+the web app are on different registrable domains, so cookies set on the
+callback's own top-level navigation are stored against the API host as a first
+party and never presented on the client's cross-site request — a sign-in that
+succeeded server-side three times in one day and reported "Sign-in failed" every
+time. This is the one flow whose session was not established on a request the
+client made itself; now none of them are.
 
 Beyond the accounts sit two 2026-08-27 additions. `accountEvents` is the
 append-only oversight history — approve, deny, suspend, reinstate per subject,
