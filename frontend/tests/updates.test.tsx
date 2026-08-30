@@ -27,20 +27,18 @@ describe("product updates", () => {
     expect(dates.every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))).toBe(true);
   });
 
-  it("publishes nothing dated in the future", () => {
+  it("publishes nothing dated more than a day ahead of UTC", () => {
     // The hero labels the newest entry "Shipped and available". A mistyped year
     // sorts to the top and makes that label a promise instead of a record —
     // and it would sit there until the date arrived.
     //
-    // Local time, not UTC: entries are dated by the day the release ships for
-    // the maintainer writing them, and the operator runs at UTC+5:30 — an
-    // entry published on the evening of the 31st is dated the 31st, and a UTC
-    // comparison calls that "the future" for five and a half hours.
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-      now.getDate(),
-    ).padStart(2, "0")}`;
-    expect(PLATFORM_UPDATES.filter((update) => update.date > today)).toEqual([]);
+    // The horizon is TOMORROW, not today: the maintainer is at UTC+5:30 and CI
+    // runs at UTC, so an entry published on the maintainer's evening carries
+    // tomorrow's date from the runner's clock — entries dated 2026-08-31
+    // failed CI at 2026-08-30T20:40Z exactly this way. One day of tolerance
+    // covers every offset on earth; a mistyped year still fails loudly.
+    const horizon = new Date(Date.now() + 24 * 3_600_000).toISOString().slice(0, 10);
+    expect(PLATFORM_UPDATES.filter((update) => update.date > horizon)).toEqual([]);
   });
 
   it("filters the archive through a shareable category URL", async () => {
