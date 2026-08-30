@@ -516,8 +516,14 @@ Build:  npm ci && npm run build -w @jobportal/shared && npm run build -w @jobpor
 Output: dist
 Env:    VITE_API_URL=/api/v1
         API_PROXY_ORIGIN=https://<your-api-host>
+        PROXY_SHARED_SECRET=<the same value as Render's>
         VITE_TURNSTILE_SITE_KEY=<Cloudflare public site key>
 ```
+
+`PROXY_SHARED_SECRET` is the one non-obvious entry: browser requests reach the
+API through Vercel's `/api` proxy, and the secret is how the API tells the
+proxy's claim about the browser's address from a forged one. Without it every
+per-IP rate limit becomes one shared bucket and Turnstile rejects every login.
 
 ### The SPA fallback is not optional
 

@@ -152,6 +152,7 @@ fresh deploy stops and asks rather than starting with blanks.
 | `BREVO_API_KEY` / `BREVO_SENDER_EMAIL` | Brevo → SMTP & API → API Keys; sender must be verified |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | the OAuth client from step 4 |
 | `TURNSTILE_SECRET_KEY` | Server secret for the production Cloudflare Turnstile widget |
+| `PROXY_SHARED_SECRET` | `openssl rand -base64 48`; the SAME value as Vercel's `PROXY_SHARED_SECRET` — the browser reaches the API through the web origin's proxy, and without it every per-IP rate limit collapses into one shared bucket and Turnstile is sent an address that never solved its challenge, which fails every login. See the `/api` proxy note in step 2 |
 
 Deploy, and note the assigned URL (`https://<your-api-host>.onrender.com` —
 Render derives it from the service name; verify it on the service page rather
@@ -184,6 +185,13 @@ costs" below.
    `https://<your-api-host>.onrender.com` (with no path). Apply both to
    Production, Preview and Development. The first keeps browser requests on
    the Vercel origin; the second is read only by Vercel's server-side proxy.
+   Add `PROXY_SHARED_SECRET` with the SAME value set on Render in step 1: a
+   proxied request crosses two hops, `trust proxy` covers one, and this secret
+   is how the API tells the proxy's claim about the browser's address from a
+   forged one. Without it the API attributes the whole platform to the
+   proxy's own address — one shared rate-limit bucket, and every
+   Turnstile-gated login fails because siteverify receives an IP that never
+   solved the challenge.
 5. Create a Cloudflare Turnstile widget for the Vercel hostname and add its
    **public site key** as `VITE_TURNSTILE_SITE_KEY` for Production, Preview, and
    Development. The build intentionally refuses to run without it. Keep the
@@ -222,6 +230,14 @@ be half-built: `autoDeploy: false` shipped, but the `RENDER_DEPLOY_HOOK_URL`
 secret it depended on never did, so `cd.yml` skipped its deploy step with a
 `::notice::` on every run and every deploy was manual. The gate was not gating —
 it was only blocking.
+
+That trade's inverse bites just as hard and did on 2026-08-30: `d161881`
+shipped half of the same-origin pair and took sign-in down on every device, the
+corrective commit landed locally an hour later — and was never pushed, so
+**both hosts kept serving the broken state for three more hours while the fix
+sat on a laptop**. A commit that fixes production fixes nothing until it is
+pushed; when this repository's `main` breaks in production, the first question
+is always what `origin/main` actually points at, not what the local log shows.
 
 To restore CI-as-gate, both halves have to be present at once:
 
@@ -452,7 +468,8 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 3. Create the Turnstile widget for the Vercel hostname; put the public site key
    in Vercel and the matching server secret in Render
 4. Vercel project → root `frontend`, `VITE_API_URL=/api/v1`, and
-   `API_PROXY_ORIGIN=https://<your-render-host>`
+   `API_PROXY_ORIGIN=https://<your-render-host>`, plus `PROXY_SHARED_SECRET`
+   matching Render's
 5. Back to Render → set `API_BASE_URL`, `WEB_BASE_URL`, and `CLIENT_URLS` to
    the Vercel origin
 6. Google redirect URIs, both portals, no JS origins
