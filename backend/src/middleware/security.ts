@@ -24,6 +24,14 @@ export function applySecurity(app: Express): void {
   // Required for req.ip to hold the real client address behind a reverse proxy.
   // Without it every request appears to come from the proxy and rate limiting
   // throttles all users as one.
+  //
+  // ONE hop, and deliberately not two. The host's edge is the hop being trusted
+  // here. When the browser arrives through the web origin's /api proxy there is
+  // a second one, and this number cannot be raised to cover it: the API stays
+  // publicly reachable, so trusting two hops would also believe a handwritten
+  // X-Forwarded-For on a request sent straight here, which is a rate-limit
+  // bypass. middleware/clientIp.ts carries the real address across that second
+  // hop with a shared secret instead.
   app.set("trust proxy", 1);
 
   // buildApp() is imported by the test harness before MONGO_URI is assigned;

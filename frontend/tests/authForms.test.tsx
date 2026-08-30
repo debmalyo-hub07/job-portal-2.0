@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter } from "react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 
@@ -40,6 +40,10 @@ function renderSignup(portal: Exclude<Portal, "admin">) {
 
 describe("Login", () => {
   beforeEach(() => vi.restoreAllMocks());
+  // The transport tests below stub VITE_API_URL per test; never let one leak
+  // into the next, where it would silently flip which start path every later
+  // assertion exercises.
+  afterEach(() => vi.unstubAllEnvs());
 
   it("has no portal selector", () => {
     // Regression, bug 1. The native radio was unstylable (Chrome's
@@ -157,6 +161,93 @@ describe("Login", () => {
     );
     expect(signalButtons).toHaveLength(1);
   });
+
+  /**
+   * A sign-in page is one click from a session-creating request, and on a
+   * free-tier host that request can meet an instance that has to boot first —
+   * 30–60 seconds that read as a hang. The wake fires at VIEW time so the
+   * click usually finds the instance already up. Its response is never read;
+   * the assertion is that the request happens, not that anything comes back.
+   */
+  it("wakes the API once when the login page is viewed", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
+    renderLogin("seeker");
+    await waitFor(() => expect(get).toHaveBeenCalledWith("/health"));
+  });
+
+  /**
+   * Same-origin deployments (VITE_API_URL = "/api/v1") fetch the Google start
+   * and navigate only once the consent URL is in hand, so the button — not the
+   * host's cold-start page — owns the wait. Cross-site deployments keep the
+   * navigation (the test above covers that path with the config's absolute
+   * URL): the transaction cookie set on a fetched cross-site response would be
+   * third-party, and the callback would arrive looking for it as a first
+   * party and miss.
+   */
+  it("fetches the Google start when the API is same-origin, and navigates to the URL it answers", async () => {
+    const url = "https://accounts.google.com/o/oauth2/v2/auth?client_id=abc";
+    const post = vi
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { success: true, url } } as never);
+    vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, assign },
+    });
+    vi.stubEnv("VITE_API_URL", "/api/v1");
+
+    renderLogin("seeker");
+    await userEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+
+    expect(post).toHaveBeenCalledWith("/seeker/auth/google/start");
+    const pending = screen.getByRole("button", { name: /taking you to google/i });
+    expect(pending).toBeDisabled();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith(url));
+  });
+
+  it("refuses to navigate to a start URL that is not absolute https", async () => {
+    // The URL comes from our API, but the navigation is top-level and the
+    // value is server-controlled text; "//evil.test" or "javascript:" must
+    // read as a failed start, never as somewhere to send the browser.
+    vi.spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { success: true, url: "//evil.test/consent" } } as never);
+    vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, assign },
+    });
+    vi.stubEnv("VITE_API_URL", "/api/v1");
+
+    renderLogin("seeker");
+    await userEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+
+    await screen.findByRole("alert");
+    expect(assign).not.toHaveBeenCalled();
+    // The failure is recoverable where the person is: the button takes clicks
+    // again, and a retry goes through the same fetched start.
+    expect(screen.getByRole("button", { name: /continue with google/i })).toBeEnabled();
+  });
+
+  it("keeps the page and says what to do when the fetched start itself fails", async () => {
+    vi.spyOn(apiClient, "post").mockRejectedValue(new Error("wake lost") as never);
+    vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, assign },
+    });
+    vi.stubEnv("VITE_API_URL", "/api/v1");
+
+    renderLogin("seeker");
+    await userEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/couldn't reach google sign-in/i);
+    expect(screen.getByRole("button", { name: /continue with google/i })).toBeEnabled();
+    expect(assign).not.toHaveBeenCalled();
+  });
 });
 
 describe("Signup", () => {
@@ -180,4 +271,13 @@ describe("Signup", () => {
       expect(screen.getByRole("button", { name: /continue with google/i })).toBeInTheDocument();
     },
   );
+
+  it("wakes the API once when the signup page is viewed", async () => {
+    // Same reason as the login screen: the register POST — or the fetched
+    // Google start beside it — is the request most likely to meet a sleeping
+    // instance.
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
+    renderSignup("seeker");
+    await waitFor(() => expect(get).toHaveBeenCalledWith("/health"));
+  });
 });

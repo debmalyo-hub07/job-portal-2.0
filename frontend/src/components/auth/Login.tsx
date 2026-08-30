@@ -13,6 +13,7 @@ import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import { apiClient, setCsrfToken } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
+import { useApiWake } from "@/hooks/useApiWake";
 import { setLoading, setUser } from "@/redux/authSlice";
 import { setPortalHint } from "@/lib/portal";
 import { loginDestination } from "@/lib/portalHome";
@@ -37,6 +38,9 @@ const Login = ({ portal }: { portal: Portal }) => {
   const location = useLocation();
   const dispatch = useAppDispatch();
   const copy = AUTH_COPY[portal];
+  // Someone viewing this page is one click from a session-creating request;
+  // start waking a sleeping API instance now, before the click pays for it.
+  useApiWake();
   // A local const so the narrowing below survives into the onClick closure.
   const googleStartPath = copy.googleStartPath;
   // Set by the email-change flow's landing here — see where it renders below.

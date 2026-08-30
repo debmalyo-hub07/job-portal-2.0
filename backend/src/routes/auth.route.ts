@@ -11,6 +11,7 @@ import {
   googleCallbackHandler,
   googleExchangeHandler,
   googleStartHandler,
+  googleStartUrlHandler,
   loginHandler,
   logoutHandler,
   meHandler,
@@ -100,6 +101,12 @@ export function buildAuthRouter(portal: Portal): Router {
   // the console to a stranger's Gmail.
   if (portal !== "admin") {
     router.get("/google", rlGoogle, googleStartHandler(portal));
+    // The same start, fetched rather than navigated to, so the sign-in page can
+    // own the cold-start wait. No csrfProtection: like /login and /google itself
+    // it runs before any session exists, so there is no token to double-submit.
+    // Its own bucket — the rate-limit key includes the method and route path, so
+    // this does not share rlGoogle's allowance with the redirect above.
+    router.post("/google/start", rlGoogle, googleStartUrlHandler(portal));
     // No CSRF on the callback: a top-level GET navigation Google initiates, to
     // which no header can be attached. Its protections are the signed lax
     // transaction cookie, state, and nonce (Task 9).

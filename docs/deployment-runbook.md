@@ -464,6 +464,97 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 9. Brevo API unknown-IP blocking deactivated; `npm run check:mail` passes
 10. Seed the admin, once mail works
 
+## Cutover from the cross-site configuration
+
+The same-origin topology shipped in two stages on purpose. Stage one — the
+`/api` proxy, the client-IP middleware, the JSON Google start, the
+`/api/v1/health` wake endpoint — is topology-neutral: it changes nothing about
+a deployment that still calls the API cross-site, because `COOKIE_SAMESITE` is
+still `none`, the CSP still allows the API origin, and `VITE_API_URL` still
+names it. Stage two is one push that flips `render.yaml` and the CSP together.
+
+**That push is the switch.** With auto-deploy on in both hosts, it deploys the
+moment it lands. Twice before, half of this pair shipped alone and took
+production down on every device — the CSP stopped allowing an origin the
+bundle still called, and the cookie setting stopped matching the topology the
+bundle still used. So the dashboard steps below come FIRST, and the push LAST.
+
+### The checklist, in order
+
+1. **Google Cloud Console** → APIs & Services → Credentials → the Web
+   application client → Authorised redirect URIs → **add** the two
+   Vercel-hosted callbacks (keep the Render ones until the cutover is verified):
+
+   ```
+   https://<project>.vercel.app/api/v1/seeker/auth/google/callback
+   https://<project>.vercel.app/api/v1/recruiter/auth/google/callback
+   ```
+
+   Both redirect URIs are derived from `API_BASE_URL`, so they only become the
+   ones the API uses when step 3 changes that variable.
+
+2. **Generate the proxy shared secret** — `openssl rand -base64 48`. It must be
+   at least 32 characters and must differ from the five signing secrets (the
+   API refuses to boot otherwise). Unlike those, this one is presented on the
+   wire in a header on every proxied request, which is exactly why it must not
+   be one of them.
+
+3. **Render** → Environment:
+
+   | Variable | Value |
+   |---|---|
+   | `PROXY_SHARED_SECRET` | the generated secret |
+   | `API_BASE_URL` | `https://<project>.vercel.app` |
+
+   `WEB_BASE_URL` and `CLIENT_URLS` already point at Vercel. After this save
+   there is a **short window in which Google sign-in fails** — the API now
+   builds its consent URLs and redirect URIs against the Vercel origin, whose
+   `/api` proxy exists but whose cookies are still cross-site until the stage
+   two push. Password login is unaffected. Keep the window short: push stage
+   two immediately after step 4.
+
+4. **Vercel** → Settings → Environment Variables (Production, Preview and
+   Development):
+
+   | Variable | Value |
+   |---|---|
+   | `VITE_API_URL` | `/api/v1` |
+   | `API_PROXY_ORIGIN` | `https://<your-render-host>` — no path |
+   | `PROXY_SHARED_SECRET` | the same secret as Render |
+
+5. **Push stage two** — the commit flipping `COOKIE_SAMESITE` to `strict` in
+   `render.yaml` and narrowing the CSP's `connect-src` to `'self'`. Both hosts
+   deploy; from that moment every browser request is same-origin.
+
+### After the push, verify
+
+1. **Desktop password login**: sign in, hard-reload, still signed in. Perform a
+   write (post a job, update a profile) — that exercises the CSRF path through
+   the proxy, which a read never does.
+2. **Mobile** (the reason for all of this): sign in on a phone, switch to
+   another tab or app, come back, reload — still signed in.
+3. **Google sign-in** end-to-end, on mobile and desktop: the button should hold
+   its pending state through any cold start ("Taking you to Google...") rather
+   than showing the host's page, then land signed-in.
+4. **Rate limits are still per-client**: the first login attempts after the
+   cutover should not trip any limiter. A quick check is two different
+   browsers each making a few failed logins — each should be judged
+   independently (lockout at 5 for the same email), not as one shared bucket.
+5. **Rollback path**: if sessions fail where they worked before (desktop), set
+   `VITE_API_URL` back to the Render URL on Vercel and `API_BASE_URL` back to
+   the Render host on Render, and revert the stage-two commit. That restores
+   the cross-site configuration — desktop working, mobile still broken — while
+   the failure is investigated. A `Set-Cookie` header mangled by the proxy
+   function is the first suspect; check the browser's network tab for whether
+   the login response arrives with all three cookies (`__Host-jp_<portal>_at`,
+   `_rt`, `_csrf`).
+
+One expected consequence, worth knowing rather than fixing: existing desktop
+sessions die at the cutover. Their cookies live on the Render origin, which the
+browser no longer talks to, and they do not transfer. Everyone signs in once
+more — the first sign-in on the new topology sets first-party cookies that
+survive.
+
 ## What a green deploy does not prove
 
 A deploy hook answers `202` once the deploy is *queued* and says nothing about

@@ -106,6 +106,12 @@ services:
       # Cloudflare Turnstile server secret. Production auth fails closed without it.
       - key: TURNSTILE_SECRET_KEY
         sync: false
+      # Presented by the Vercel /api proxy with the real client address, which
+      # `trust proxy` cannot recover on its own across two hops. Set it on both
+      # hosts to the same value or every per-IP limit becomes one global bucket
+      # — see backend/src/middleware/clientIp.ts.
+      - key: PROXY_SHARED_SECRET
+        sync: false
       # Both Google redirect URIs are derived from API_BASE_URL, and Google
       # matches redirect_uri byte-for-byte — so this must be the public Render
       # URL, with both derived URIs registered on the OAuth client.

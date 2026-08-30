@@ -81,6 +81,18 @@ export const envSchema = z.object({
 
   /** Required by parseEnv in production; optional for local development/tests. */
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
+
+  /**
+   * Shared with the web origin's `/api` proxy so it can name the real client
+   * address on a request it forwards. Optional here: with it unset the claim is
+   * ignored and a proxied request is attributed to the proxy, which is safe and
+   * costly — see middleware/clientIp.ts for exactly what it costs.
+   *
+   * Unlike the five signing secrets this one is a bearer credential: it travels
+   * in a header on every proxied request. That is why it must not be one of
+   * them, and why the rule below takes it in when it is present.
+   */
+  PROXY_SHARED_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -137,19 +149,25 @@ export function parseEnv(raw: NodeJS.ProcessEnv | Record<string, unknown>): Env 
     }
   }
 
-  // Reusing one value across five purposes means a leak of any one compromises
-  // all five, and it defeats the point of deriving per-portal keys from a
-  // dedicated secret.
-  const secrets = [
-    parsed.JWT_ACCESS_SECRET,
-    parsed.JWT_REFRESH_PEPPER,
-    parsed.OTP_PEPPER,
-    parsed.CSRF_SECRET,
-    parsed.ADMIN_PROVISIONING_SECRET,
-  ];
-  if (new Set(secrets).size !== secrets.length) {
+  // Reusing one value across these purposes means a leak of any one compromises
+  // all of them, and it defeats the point of deriving per-portal keys from a
+  // dedicated secret. PROXY_SHARED_SECRET joins the rule whenever it is set,
+  // and it is the one that most needs to: the others only ever sign locally,
+  // while that one is presented in a header on every proxied request.
+  const secrets: Record<string, string> = {
+    JWT_ACCESS_SECRET: parsed.JWT_ACCESS_SECRET,
+    JWT_REFRESH_PEPPER: parsed.JWT_REFRESH_PEPPER,
+    OTP_PEPPER: parsed.OTP_PEPPER,
+    CSRF_SECRET: parsed.CSRF_SECRET,
+    ADMIN_PROVISIONING_SECRET: parsed.ADMIN_PROVISIONING_SECRET,
+    ...(parsed.PROXY_SHARED_SECRET
+      ? { PROXY_SHARED_SECRET: parsed.PROXY_SHARED_SECRET }
+      : {}),
+  };
+  const values = Object.values(secrets);
+  if (new Set(values).size !== values.length) {
     throw new Error(
-      "Invalid environment configuration:\n  JWT_ACCESS_SECRET, JWT_REFRESH_PEPPER, OTP_PEPPER, CSRF_SECRET and ADMIN_PROVISIONING_SECRET must all differ",
+      `Invalid environment configuration:\n  ${Object.keys(secrets).join(", ")} must all differ`,
     );
   }
 

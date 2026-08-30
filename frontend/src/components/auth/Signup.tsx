@@ -12,6 +12,7 @@ import { PasswordInput } from "../ui/password-input";
 import { Button } from "../ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { useApiWake } from "@/hooks/useApiWake";
 import { turnstileEnabled, turnstileRequestConfig } from "@/lib/turnstile";
 import { setLoading } from "@/redux/authSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
@@ -32,6 +33,9 @@ const Signup = ({ portal }: { portal: Portal }) => {
   const navigate = useNavigate();
   const copy = AUTH_COPY[portal];
   const googleStartPath = copy.googleStartPath;
+  // Same reason as the login screen: the register POST (or the fetched Google
+  // start below) is the request most likely to meet a sleeping instance.
+  useApiWake();
 
   const changeEventHandler = (e: ChangeEvent<HTMLInputElement>) => {
     setInput({ ...input, [e.target.name]: e.target.value });

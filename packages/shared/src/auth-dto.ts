@@ -78,6 +78,26 @@ export interface AuthResponse {
 }
 
 /**
+ * The fetched Google start: the consent URL the client navigates to, with the
+ * PKCE transaction cookie riding the same response.
+ *
+ * `POST /{portal}/auth/google/start`, the JSON twin of the redirect endpoint
+ * `GET /{portal}/auth/google`. Same transaction either way; only the transport
+ * differs, and the client picks it by deployment topology — see
+ * GoogleButton for why the fetched start is sound only while the API is
+ * same-origin with the page.
+ */
+export interface GoogleStartResponse {
+  success: true;
+  /**
+   * Absolute `https://accounts.google.com/...` consent URL. The client performs
+   * a top-level navigation here itself; a client should treat any non-absolute
+   * value as a failed start rather than navigating.
+   */
+  url: string;
+}
+
+/**
  * Exactly the codes the API emits — nothing aspirational. A locked account
  * and an expired OTP deliberately do NOT get their own codes: the lock hides
  * behind INVALID_CREDENTIALS (a distinct code would be an existence-and-state

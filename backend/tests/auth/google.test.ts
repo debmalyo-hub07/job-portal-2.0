@@ -18,6 +18,7 @@ import {
   googleCallbackHandler,
   googleExchangeHandler,
   googleStartHandler,
+  googleStartUrlHandler,
   loginHandler,
   registerHandler,
   verifyEmailHandler,
@@ -37,6 +38,7 @@ const app: Express = authTestApp((portal, r) => {
   r.post("/verify-email", verifyEmailHandler(portal));
   r.post("/login", loginHandler(portal));
   r.get("/google", googleStartHandler(portal));
+  r.post("/google/start", googleStartUrlHandler(portal));
   r.get("/google/callback", googleCallbackHandler(portal));
   r.post("/google/exchange", googleExchangeHandler(portal));
   r.post("/google/confirm-link", confirmGoogleLinkHandler(portal));
@@ -121,6 +123,36 @@ function expectNoSessionCookies(res: SupertestResponse, portal: Portal): void {
 }
 
 describe("google oauth", () => {
+  /**
+   * The fetched start — the JSON twin of the redirect above, built so the
+   * sign-in page can hold its pending state through a free-tier cold start
+   * instead of navigating at a sleeping instance. Same transaction either way:
+   * same cookie, same state, same callback. These two tests are the whole
+   * contract; everything below exercises the flow through the redirect start
+   * and shares the machinery they prove equivalent.
+   */
+  it("answers the fetched start as JSON with the consent URL and a transaction cookie", async () => {
+    installFakeGoogle();
+    const res = await request(app).post("/api/v1/seeker/auth/google/start");
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.url).toMatch(/^https:\/\/accounts\.google\.example\/consent\?state=/);
+    expect(cookieValue(res, "jp_gtxn")).toBeTruthy();
+  });
+
+  it("completes a sign-in begun through the fetched start, not only the redirect", async () => {
+    installFakeGoogle();
+    const start = await request(app).post("/api/v1/seeker/auth/google/start");
+    const txn = cookieValue(start, "jp_gtxn");
+    const res = await request(app)
+      .get("/api/v1/seeker/auth/google/callback")
+      .query({ code: "fake-code", state: issued.state })
+      .set("Cookie", [`jp_gtxn=${encodeURIComponent(txn ?? "")}`]);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain("/auth/complete?portal=seeker");
+    expect(handoffCodeFrom(res)).toBeTruthy();
+  });
+
   it("creates a verified account for a stranger and signs them in (branch 3)", async () => {
     const res = await completeFlow("seeker");
     expect(res.status).toBe(302);

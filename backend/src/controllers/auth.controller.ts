@@ -125,6 +125,33 @@ export function googleStartHandler(portal: Portal): RequestHandler {
 }
 
 /**
+ * The same flow, answered as JSON so the page can stay on screen through it.
+ *
+ * The redirect above is why a free-tier cold start is so visible. It is a
+ * top-level navigation, so the browser abandons our document to ask a sleeping
+ * instance for a `Location` header, and for the thirty to sixty seconds that
+ * wake takes it paints whatever the host offers instead — nothing of ours. The
+ * SPA cannot report progress on it, because by then the SPA is gone. The button
+ * even has a pending state; the person never sees it survive the click.
+ *
+ * Fetched, the wait happens inside a request the page made. The button holds its
+ * own pending state for the whole cold start, and the navigation that follows
+ * goes straight to accounts.google.com, which is never asleep.
+ *
+ * The transaction cookie is set on THIS response instead of on a redirect, and
+ * that is only sound while the API is same-origin with the page. Cross-site it
+ * would be stored in a third-party context, and the callback — a top-level
+ * navigation to the API host — would look for it as a first party and miss. So
+ * the client picks its transport on exactly that basis rather than preferring
+ * this one unconditionally; see GoogleButton.
+ */
+export function googleStartUrlHandler(portal: Portal): RequestHandler {
+  return (_req, res) => {
+    res.json({ success: true, url: startGoogleFlow(portal, res) });
+  };
+}
+
+/**
  * DELIBERATE exception to the "failures throw AppError" convention, and the
  * only one in the phase: this endpoint is a top-level browser navigation from
  * Google, not an XHR. A JSON envelope strands a human on a wall of JSON, so
