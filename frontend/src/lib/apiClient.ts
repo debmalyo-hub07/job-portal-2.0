@@ -9,9 +9,14 @@ import { getActivePortal } from "./portal";
  * returns it in the body, and the client keeps it here rather than reading the
  * cookie back.
  *
- * The response body is authoritative even though production now uses a
- * same-origin API proxy. It keeps session bootstrapping independent of browser
- * cookie visibility and avoids coupling mutations to `document.cookie`.
+ * The response body is authoritative under either deployment topology below. It
+ * keeps session bootstrapping independent of browser cookie visibility, which
+ * cross-site is not merely a nicety: Chrome stores this cookie and sends it on
+ * requests while withholding it from `document.cookie` entirely. Measured
+ * against production — three cookies stored, `document.cookie` empty. Every
+ * mutation then goes out with no `X-CSRF-Token` and 403s, which surfaces as the
+ * session dropping itself about 15 minutes in: reads are fine until the access
+ * token expires, then `/refresh` (a POST) 403s and cannot recover.
  *
  * In memory is also strictly stronger than the cookie. A non-httpOnly cookie is
  * readable by every script on the page; a module variable is readable by none.
@@ -72,10 +77,33 @@ export const apiClient = axios.create({
 });
 
 /**
- * Production sets this base to `/api/v1`. Vercel proxies that path to Render so
- * the browser sees first-party cookies on the web origin; direct cross-site API
- * URLs are not a supported production session transport because mobile privacy
- * controls may block or partition those cookies.
+ * DEPLOYMENT NOTE — this base URL is one end of a five-part decision.
+ *
+ * `SameSite` compares *sites* (registrable domains), not origins, so where the
+ * API lives decides how the session travels. Two configurations are coherent,
+ * and every piece of each has to be in place at once:
+ *
+ *   cross-site   `VITE_API_URL` = the Render URL
+ *                COOKIE_SAMESITE=none, CSP connect-src allows that origin,
+ *                CLIENT_URLS allows the web origin, Google's redirect URIs
+ *                point at the API host.
+ *                Works on desktop. Mobile Safari blocks the third-party cookie
+ *                and Chrome partitions it, so a reload or a tab switch arrives
+ *                with no session — the reported "instant logout".
+ *
+ *   same-origin  `VITE_API_URL` = `/api/v1`
+ *                API_PROXY_ORIGIN set on Vercel so proxy.js can forward,
+ *                COOKIE_SAMESITE=strict, CSP connect-src 'self', API_BASE_URL
+ *                the web origin, Google's redirect URIs re-registered there.
+ *                The cookie is first-party, so mobile keeps it.
+ *
+ * Mixing them is worse than either. Shipping the CSP and the cookie setting of
+ * the second while the built bundle still held the first blocked every request
+ * in the browser, on every device — a total outage from two lines that both read
+ * like hardening. `app.example.com` → `api.example.com` is a third coherent
+ * option: same site, different origin, cookie sent under `strict`, no proxy —
+ * but it needs a registrable domain both hosts serve, and `__Host-` has to
+ * become `__Secure-` because a shared-domain cookie needs `Domain`.
  */
 apiClient.interceptors.request.use((config) => {
   const request = config as PortalConfig;

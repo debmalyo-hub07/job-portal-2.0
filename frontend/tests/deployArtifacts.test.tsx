@@ -102,6 +102,44 @@ describe("SPA fallback config", () => {
     );
   });
 
+  /**
+   * The directive that took production down, and the one this file did not look
+   * at. It asserted script-src, frame-src and img-src, so tightening connect-src
+   * was invisible here.
+   *
+   * `connect-src` was narrowed to `'self'` on the assumption that browser
+   * traffic had moved to the same-origin /api proxy. It had not — the deployed
+   * bundle still called the API host directly, so every XHR was refused before
+   * it left the page. Measured in Chromium against production: the job board
+   * painted its shell, its filters and no data, `GET /api/v1/job/get` failed
+   * with `:: csp`, and sign-in could not reach the API at all. On every device,
+   * which is what distinguished it from the cross-site cookie bug underneath.
+   *
+   * So: whatever origin `VITE_API_URL` names on the host must be reachable from
+   * this policy. While that is the Render URL, this directive has to permit it.
+   * Narrowing it to `'self'` is correct only *after* the deployed bundle asks
+   * for `/api/v1` — and then it is one change among five, not a tidy-up. The
+   * assertion exists so that move is deliberate and visible rather than a side
+   * effect of editing something else in the same file.
+   */
+  it("permits XHR to the API origin the deployed bundle calls", () => {
+    const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
+    const config = JSON.parse(raw) as {
+      headers?: { source: string; headers: { key: string; value: string }[] }[];
+    };
+    const csp = new Map(
+      config.headers?.[0]?.headers.map(({ key, value }) => [key, value]),
+    ).get("Content-Security-Policy");
+
+    // Read the directive rather than the whole policy: `toContain` on the
+    // policy string would also pass on an origin allowed under img-src or
+    // script-src, which does not let a single XHR through.
+    const connect = /connect-src ([^;]*)/.exec(csp ?? "")?.[1] ?? "";
+    expect(connect).not.toBe("");
+    expect(connect).toContain("'self'");
+    expect(connect).toContain("https://*.onrender.com");
+  });
+
   it("public/_redirects serves Netlify and Cloudflare with a 200, not a redirect", () => {
     // In public/ so Vite copies it into dist verbatim — no build step, and it
     // cannot drift from the output directory.
