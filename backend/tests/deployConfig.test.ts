@@ -125,12 +125,14 @@ describe("deploy config", () => {
     expect(declared.get("NODE_ENV")).toEqual({ key: "NODE_ENV", value: "production" });
   });
 
-  it("pins COOKIE_SAMESITE to none while the browser calls the API cross-site", () => {
-    // vercel.app and onrender.com are different sites, so a `strict` cookie is
-    // never sent on the request that follows sign-in. Paired with the CSP
-    // connect-src in frontend/vercel.json — see the comment in render.yaml for
-    // the two coherent configurations and why a half-move breaks everything.
-    expect(declared.get("COOKIE_SAMESITE")).toEqual({ key: "COOKIE_SAMESITE", value: "none" });
+  it("pins COOKIE_SAMESITE to strict now that the browser reaches the API same-origin", () => {
+    // First-party through the web origin's /api proxy, so `strict` is both
+    // possible and the right default — and the cross-site `none` it replaces
+    // is the configuration mobile browsers punished by dropping every session
+    // on a tab switch or reload. Paired with the CSP connect-src in
+    // frontend/vercel.json; see the comment in render.yaml for the two
+    // coherent configurations and why a half-move breaks everything.
+    expect(declared.get("COOKIE_SAMESITE")).toEqual({ key: "COOKIE_SAMESITE", value: "strict" });
   });
 
   it("runs a single instance", () => {

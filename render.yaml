@@ -68,10 +68,13 @@ services:
       - key: NODE_ENV
         value: production
 
-      # api.onrender.com and the web app on Vercel are different *sites*, not
-      # merely different origins, and SameSite compares sites. Under `strict`
-      # the session cookie is never sent on the request after login: sign-in
-      # succeeds, the next request is anonymous, and nothing is logged anywhere.
+      # The browser reaches the API same-origin, through the web app's /api
+      # proxy, so the session cookies are first-party and `strict` is both
+      # possible and correct. The cross-site `none` this replaced was the
+      # documented failure on mobile: SameSite=None permits third-party
+      # cookies, it cannot require a browser to accept them, and mobile Safari
+      # blocks them while Chrome partitions them — every portal session died
+      # on a tab switch or reload (ADR-0007, amendment 2026-08-30).
       #
       # This value and the CSP `connect-src` in frontend/vercel.json are one
       # decision recorded in two files. Exactly two settings are coherent:
@@ -79,13 +82,15 @@ services:
       #   cross-site   VITE_API_URL = the Render URL  -> `none`, CSP allows it
       #   same-origin  VITE_API_URL = /api/v1         -> `strict`, CSP 'self'
       #
-      # Shipping half of the second one took production down on every device:
-      # the CSP stopped allowing the origin the deployed bundle still called, so
-      # every browser request was blocked before it left the page. This value,
-      # that directive, the two Vercel variables and API_BASE_URL move together
-      # or not at all.
+      # Each half has been one push away from taking production down. `strict`
+      # reaching a bundle that still called the API cross-site would sign
+      # people in and make every following request anonymous; a narrowed CSP
+      # reaching that same bundle blocked every request before it left the
+      # page, which is the outage that was actually measured. This value, that
+      # directive, the two Vercel variables and API_BASE_URL move together or
+      # not at all — the deployment runbook's cutover section holds the order.
       - key: COOKIE_SAMESITE
-        value: none
+        value: strict
 
       # Names in git, values never. `sync: false` also makes a fresh deploy stop
       # and ask rather than start with a blank value — matching how env() already

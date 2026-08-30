@@ -31,7 +31,15 @@ describe("product updates", () => {
     // The hero labels the newest entry "Shipped and available". A mistyped year
     // sorts to the top and makes that label a promise instead of a record —
     // and it would sit there until the date arrived.
-    const today = new Date().toISOString().slice(0, 10);
+    //
+    // Local time, not UTC: entries are dated by the day the release ships for
+    // the maintainer writing them, and the operator runs at UTC+5:30 — an
+    // entry published on the evening of the 31st is dated the 31st, and a UTC
+    // comparison calls that "the future" for five and a half hours.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate(),
+    ).padStart(2, "0")}`;
     expect(PLATFORM_UPDATES.filter((update) => update.date > today)).toEqual([]);
   });
 

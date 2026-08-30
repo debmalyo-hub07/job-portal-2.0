@@ -115,14 +115,14 @@ describe("SPA fallback config", () => {
    * with `:: csp`, and sign-in could not reach the API at all. On every device,
    * which is what distinguished it from the cross-site cookie bug underneath.
    *
-   * So: whatever origin `VITE_API_URL` names on the host must be reachable from
-   * this policy. While that is the Render URL, this directive has to permit it.
-   * Narrowing it to `'self'` is correct only *after* the deployed bundle asks
-   * for `/api/v1` — and then it is one change among five, not a tidy-up. The
-   * assertion exists so that move is deliberate and visible rather than a side
-   * effect of editing something else in the same file.
+   * The cutover (2026-08-31) completed the move: the deployed bundle calls
+   * `/api/v1` on the web origin, so the API host is no longer a connect-src
+   * destination — and must not become one again. A policy that re-admits it
+   * would let a future bundle call the API directly, putting the session
+   * cookie back in the third-party context mobile browsers drop. The
+   * deployment runbook's cutover section holds the order everything moved in.
    */
-  it("permits XHR to the API origin the deployed bundle calls", () => {
+  it("permits XHR only to the web origin the deployed bundle calls", () => {
     const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
     const config = JSON.parse(raw) as {
       headers?: { source: string; headers: { key: string; value: string }[] }[];
@@ -137,7 +137,8 @@ describe("SPA fallback config", () => {
     const connect = /connect-src ([^;]*)/.exec(csp ?? "")?.[1] ?? "";
     expect(connect).not.toBe("");
     expect(connect).toContain("'self'");
-    expect(connect).toContain("https://*.onrender.com");
+    expect(connect).toContain("https://challenges.cloudflare.com");
+    expect(connect).not.toContain("onrender.com");
   });
 
   it("public/_redirects serves Netlify and Cloudflare with a 200, not a redirect", () => {

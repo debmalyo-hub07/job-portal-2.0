@@ -30,8 +30,21 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "google-start-loading-state",
+    date: "2026-08-31",
+    kind: "Improvement",
+    title: "Continue with Google now shows it is working",
+    summary:
+      "Choosing Continue with Google keeps you on the page with a clear pending state while the sign-in service wakes up, instead of a blank or foreign loading screen.",
+    details: [
+      "The sign-in service rests when idle, and waking it can take up to a minute. The Google button used to navigate away immediately, so that wait showed whatever the hosting platform painted — never anything of ours.",
+      "The button now collects the sign-in start first, holds its own spinner for the whole wake-up, and only then takes you to Google. If the start cannot be reached, it says so beside the button and lets you try again.",
+      "Opening a sign-in page now also nudges the service awake in the background, so most clicks never wait at all.",
+    ],
+  },
+  {
     id: "mobile-session-persistence",
-    date: "2026-08-30",
+    date: "2026-08-31",
     kind: "Fix",
     title: "Sessions survive switching tabs on mobile",
     summary:

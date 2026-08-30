@@ -235,13 +235,24 @@ subject to the per-account OTP failure budget.
   already has, bounded to one use inside 60 seconds.
 
   This is a *correctness* fix with a security consequence worth stating: the
-  reason the callback cannot set the session is that the API and web app are on
-  different registrable domains (ADR 0007), so a cookie set on the callback's
-  top-level navigation is stored against the API host as a first party and is
-  not presented on the SPA's cross-site request. In production that silently
-  turned three successful sign-ins into "Sign-in failed" while leaving three
-  usable sessions minted and unclaimed. Session cookies set on the client's own
-  requests — password login, refresh rotation — were unaffected throughout.
+  reason the callback cannot set the session is that the API and web app were
+  on different registrable domains (ADR 0007), so a cookie set on the
+  callback's top-level navigation was stored against the API host as a first
+  party and was not presented on the SPA's cross-site request. In production
+  that silently turned three successful sign-ins into "Sign-in failed" while
+  leaving three usable sessions minted and unclaimed. Session cookies set on
+  the client's own requests — password login, refresh rotation — were
+  unaffected throughout.
+
+  The topology changed on 2026-08-31 — browser API traffic is now same-origin
+  through the web origin's `/api` proxy — and the handoff stays, for reasons
+  that survive the topology: a one-time code bounds what a leaked or replayed
+  redirect URL can grant, where a cookie minted by a navigation cannot be
+  un-minted; every session continues to be established on the one delivery
+  path proven across both topologies; and SameSite rules the *sending* of
+  cookies, not their setting, so a same-origin deployment makes the
+  callback's top-level navigation no sounder a place to mint a session than
+  it was.
 - **Cross-portal email uniqueness (2026-08-27):** an `emailRegistry` collection
   holds one row per account with a unique index on the email — the only
   cross-collection guarantee MongoDB can express. Every account-creation site
@@ -344,6 +355,19 @@ this limit only blunts the volume.
 Email-change start is keyed by the account, not the IP, because it is an
 authenticated owner action — the session is the identity, and a shared NAT must
 not starve one account's ability to start its own change.
+
+Through the web origin's `/api` proxy a request crosses **two** hops, and
+`trust proxy` deliberately covers one (raising it would believe a handwritten
+`X-Forwarded-For` on any request sent straight to the API, which is a
+rate-limit bypass). Without more, the second hop would attribute every request
+on the platform to the proxy's own address and collapse every per-IP row above
+into one shared bucket. `middleware/clientIp.ts` restores the real address from
+a header pair presented with `PROXY_SHARED_SECRET` — a bearer credential held
+by the proxy and the API alone, and never one of the five signing secrets,
+because this one travels on the wire. A claim without the key, under a wrong
+key, or naming a non-address is dropped, and both headers are stripped on
+every path so nothing downstream can read a rejected claim as the client's own
+words.
 
 Single-process, in-memory. See
 [ADR-0004](docs/adr/0004-no-redis-phase-1.md) — running a second API instance

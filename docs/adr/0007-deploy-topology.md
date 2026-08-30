@@ -163,3 +163,15 @@ while Render remains the application server. Production uses
 `COOKIE_SAMESITE=strict`, and `API_BASE_URL` is the Vercel origin so Google
 callbacks traverse the same proxy. The registered Google redirect URIs must be
 updated to those Vercel `/api/v1/.../callback` URLs when this amendment deploys.
+
+Activated 2026-08-31, in two stages, because every push deploys. The
+topology-neutral half — the fetched Google start, the client-IP middleware
+with `PROXY_SHARED_SECRET`, the `/api/v1/health` wake — shipped first: none of
+it changes the behaviour of a deployment still calling the API cross-site.
+The flip (`COOKIE_SAMESITE=strict` and a CSP narrowed to `'self'`) landed only
+after the host variables moved, in the order the deployment runbook's
+cutover section records: Google redirect URIs, the shared secret on both
+hosts, `API_BASE_URL`, then the push. Between the `API_BASE_URL` change and
+the flip's deploy there is an unavoidable window in which Google sign-in
+fails — the transaction cookie and the redirect URI disagree about which
+origin the flow lives on — while password login is unaffected throughout.
