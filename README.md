@@ -504,7 +504,7 @@ this repository and it reads the build command, start command, health check,
 instance count and the full list of required variables from that file. Every
 operator-supplied value is `sync: false`, so Render prompts for it and the
 repository never carries a secret. `NODE_ENV=production` and
-`COOKIE_SAMESITE=none` are pinned as reviewed literals; see
+`COOKIE_SAMESITE=strict` are pinned as reviewed literals; see
 [ADR-0007](docs/adr/0007-deploy-topology.md) for why `NODE_ENV=production` and
 `numInstances: 1` are not cosmetic.
 
@@ -514,7 +514,8 @@ variables:
 ```
 Build:  npm ci && npm run build -w @jobportal/shared && npm run build -w @jobportal/web
 Output: dist
-Env:    VITE_API_URL=https://<your-api-host>/api/v1
+Env:    VITE_API_URL=/api/v1
+        API_PROXY_ORIGIN=https://<your-api-host>
         VITE_TURNSTILE_SITE_KEY=<Cloudflare public site key>
 ```
 
@@ -529,7 +530,7 @@ Both files ship, so any of the three named hosts works out of the box:
 
 | Host | File | Rule |
 |---|---|---|
-| Vercel | `frontend/vercel.json` | `/(.*)` → `/index.html` |
+| Vercel | `frontend/vercel.json` | `/api/*` → same-origin proxy; remaining paths → `/index.html` |
 | Netlify, Cloudflare Pages | `frontend/public/_redirects` | `/* /index.html 200` |
 
 The status is **200, not 302**. The router reads the original path off
@@ -577,13 +578,13 @@ that is anonymous — with no error anywhere.
 
 | Setup | Same site? | What to do |
 |---|---|---|
-| Both behind one proxy on one origin | Yes | Nothing |
+| Both behind one proxy on one origin | Yes | Use `COOKIE_SAMESITE=strict` |
 | `app.example.com` → `api.example.com` | Yes — different origin, same site | Nothing. Cookies are sent under `strict`; just allowlist the exact origin in `CLIENT_URLS` |
-| `app.vercel.app` → `api.onrender.com` | **No** | Set `COOKIE_SAMESITE=none`, and serve both over HTTPS |
+| Browser calls `api.onrender.com` directly | **No** | Unsupported for cookie sessions on mobile; proxy `/api` through the web origin |
 
-Only the third case needs the variable. Setting `none` when you did not need it
-weakens CSRF defence in depth for no benefit; leaving it `strict` when you did
-need it withholds every session cookie.
+Production uses the first case. Keep `COOKIE_SAMESITE=strict`; `none` does not
+make a mobile browser accept third-party cookies and weakens CSRF defence in
+depth without fixing the deployment.
 
 `__Host-` prefixed cookies work in all three cases: the prefix forbids a
 `Domain` attribute, so each origin sets its own cookie rather than one cookie

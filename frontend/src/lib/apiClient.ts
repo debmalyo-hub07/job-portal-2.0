@@ -9,15 +9,9 @@ import { getActivePortal } from "./portal";
  * returns it in the body, and the client keeps it here rather than reading the
  * cookie back.
  *
- * Reading `document.cookie` is what the previous version did, and it is broken
- * cross-site. The cookie is deliberately not `httpOnly`, but that is not the
- * only thing that governs script access: with the app on `*.vercel.app` and the
- * API on `*.onrender.com`, Chrome stores the cookie and sends it on requests
- * while withholding it from `document.cookie` entirely. Measured against
- * production — three cookies stored, `document.cookie` empty. So every mutation
- * went out with no `X-CSRF-Token` and 403'd, which surfaced as the session
- * dropping itself roughly 15 minutes in: reads were fine until the access token
- * expired, then `/refresh` (a POST) 403'd and could not recover.
+ * The response body is authoritative even though production now uses a
+ * same-origin API proxy. It keeps session bootstrapping independent of browser
+ * cookie visibility and avoids coupling mutations to `document.cookie`.
  *
  * In memory is also strictly stronger than the cookie. A non-httpOnly cookie is
  * readable by every script on the page; a module variable is readable by none.
@@ -78,25 +72,10 @@ export const apiClient = axios.create({
 });
 
 /**
- * DEPLOYMENT NOTE — read before deciding where to host these two apps.
- *
- * `COOKIE_SAMESITE` defaults to `strict`, and SameSite compares *sites*
- * (registrable domains), not origins. So:
- *
- *   - Same origin behind one proxy: works.
- *   - `app.example.com` → `api.example.com`: same site, different origin. The
- *     cookie IS sent under `strict`; CORS needs the exact origin allowlisted
- *     (`CLIENT_URLS`) and this file's `withCredentials`. Works unchanged.
- *   - `app.vercel.app` → `api.onrender.com`: different registrable domains,
- *     genuinely cross-site. `strict` withholds every session cookie and nothing
- *     in this file can fix it — set `COOKIE_SAMESITE=none` (HTTPS on both,
- *     which `__Host-` requires anyway). That is what the variable is for, and
- *     using it is not the "weaken a cookie flag" the guardrail forbids; editing
- *     the default in code would be.
- *
- * `__Host-` is compatible with all three: it forbids a `Domain` attribute, so
- * each origin sets its own cookie rather than one cookie spanning both. See
- * ADR-0005.
+ * Production sets this base to `/api/v1`. Vercel proxies that path to Render so
+ * the browser sees first-party cookies on the web origin; direct cross-site API
+ * URLs are not a supported production session transport because mobile privacy
+ * controls may block or partition those cookies.
  */
 apiClient.interceptors.request.use((config) => {
   const request = config as PortalConfig;

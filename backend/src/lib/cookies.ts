@@ -71,14 +71,8 @@ export function setRefreshCookie(res: Response, portal: Portal, token: string): 
 /**
  * Readable by design — the client must echo it in a header.
  *
- * `maxAge` matches the refresh token: the cookie must survive as long as a
- * session can be refreshed. Without it the cookie is a *session cookie*, and
- * mobile browsers (Safari/WebKit, Chrome for Android) purge session cookies
- * when the tab is backgrounded or the browser is swapped out. That kills the
- * CSRF double-submit on `/refresh`, which 403s, and the interceptor treats it
- * as a dead session — so the user is logged out simply for switching tabs.
- * Desktop browsers keep session cookies until the process exits, which is why
- * the bug was mobile-only.
+ * `maxAge` matches the refresh token: the integrity token must remain available
+ * for every rotation the refresh session can perform.
  */
 export function setCsrfCookie(res: Response, portal: Portal, token: string): void {
   res.cookie(csrfCookieName(portal), token, {

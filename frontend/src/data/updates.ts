@@ -37,8 +37,8 @@ export const PLATFORM_UPDATES: PlatformUpdate[] = [
     summary:
       "Signing in on a phone or tablet and then switching to another tab or app could silently sign you out. Sessions now persist across tab switches and reloads on every mobile browser.",
     details: [
-      "The session-integrity cookie was stored without a lifetime, which let mobile browsers discard it when the tab was backgrounded or the browser was swapped out. Desktop browsers kept it until the browser closed, which is why the problem appeared only on phones and tablets.",
-      "The cookie now carries the same lifetime as the session itself, so it survives exactly as long as the session does.",
+      "The web app and API previously lived on different sites, so phones treated every session cookie as third-party data and could block or partition it when the page reloaded or moved into the background.",
+      "API requests now pass through the web app's own origin, making the secure session cookies first-party without exposing them to JavaScript.",
       "Affected all three portals — candidate, employer, and administrator — equally.",
     ],
   },
@@ -371,4 +371,3 @@ export const PLATFORM_UPDATES: PlatformUpdate[] = [
     ],
   },
 ];
-

@@ -147,3 +147,19 @@ redirect URIs re-registered by hand and puts every API request through an extra
 hop, and because the handoff is correct on its own terms rather than a patch
 over the topology. Anyone revisiting the topology should read these three
 symptoms as one cause.
+
+## Amendment (2026-08-30): browser API traffic is now same-origin
+
+Mobile browsers made the remaining cost decisive: Safari and privacy-hardened
+Chrome installations block or partition third-party cookies, so password,
+Google and admin sessions established against the Render origin disappeared on
+reload or after backgrounding the tab. `SameSite=None` permits cross-site
+cookies; it cannot require a browser to accept them.
+
+Vercel now proxies `/api/*` to Render. The browser therefore stores the
+`__Host-` session cookies against the web origin and sends them first-party,
+while Render remains the application server. Production uses
+`VITE_API_URL=/api/v1`, Vercel receives `API_PROXY_ORIGIN`, Render pins
+`COOKIE_SAMESITE=strict`, and `API_BASE_URL` is the Vercel origin so Google
+callbacks traverse the same proxy. The registered Google redirect URIs must be
+updated to those Vercel `/api/v1/.../callback` URLs when this amendment deploys.

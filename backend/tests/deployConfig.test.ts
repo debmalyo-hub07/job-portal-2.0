@@ -125,11 +125,10 @@ describe("deploy config", () => {
     expect(declared.get("NODE_ENV")).toEqual({ key: "NODE_ENV", value: "production" });
   });
 
-  it("pins COOKIE_SAMESITE to none for a cross-site deployment", () => {
-    // Render and Vercel are different registrable domains. Under `strict` the
-    // cookie is never sent on the request after login: sign-in succeeds, the
-    // next request is anonymous, and nothing is logged.
-    expect(declared.get("COOKIE_SAMESITE")).toEqual({ key: "COOKIE_SAMESITE", value: "none" });
+  it("pins COOKIE_SAMESITE to strict behind the same-origin web proxy", () => {
+    // The browser talks to Vercel's /api proxy, so the cookie is first-party
+    // even though Render remains the upstream application server.
+    expect(declared.get("COOKIE_SAMESITE")).toEqual({ key: "COOKIE_SAMESITE", value: "strict" });
   });
 
   it("runs a single instance", () => {

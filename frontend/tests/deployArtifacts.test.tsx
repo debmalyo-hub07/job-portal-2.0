@@ -67,6 +67,19 @@ describe("SPA fallback config", () => {
     expect(config.rewrites).toContainEqual({ source: "/(.*)", destination: "/index.html" });
   });
 
+  it("proxies API requests on the web origin before the SPA fallback", () => {
+    const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
+    const config = JSON.parse(raw) as {
+      proxy?: { entrypoint?: string; matcher?: string };
+    };
+
+    expect(config.proxy).toEqual({ entrypoint: "proxy.js", matcher: "/api/:path*" });
+
+    const proxy = readFileSync(join(FRONTEND, "proxy.js"), "utf8");
+    expect(proxy).toMatch(/process\.env\.API_PROXY_ORIGIN/);
+    expect(proxy).toMatch(/redirect:\s*["']manual["']/);
+  });
+
   it("vercel.json sends browser security headers without blocking Turnstile", () => {
     const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
     const config = JSON.parse(raw) as {

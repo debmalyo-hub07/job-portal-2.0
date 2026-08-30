@@ -160,7 +160,7 @@ is a live service belonging to someone else, as the OAuth section below warns).
 
 ### Two settings not to touch
 
-`NODE_ENV=production` and `COOKIE_SAMESITE=none` are pinned literals in the
+`NODE_ENV=production` and `COOKIE_SAMESITE=strict` are pinned literals in the
 blueprint. `numInstances: 1` is equally load-bearing:
 
 - **`numInstances` is a security parameter.** `rateLimitStore.ts` is a
@@ -180,9 +180,10 @@ costs" below.
    and finds no app.
 3. Framework preset auto-detects as **Vite**; build command and `dist` output
    are correct by default.
-4. Add `VITE_API_URL` = `https://<your-api-host>.onrender.com/api/v1` — the
-   Render URL from step 3 **including the `/api/v1` suffix**. Apply to
-   Production, Preview and Development.
+4. Add `VITE_API_URL` = `/api/v1` and `API_PROXY_ORIGIN` =
+   `https://<your-api-host>.onrender.com` (with no path). Apply both to
+   Production, Preview and Development. The first keeps browser requests on
+   the Vercel origin; the second is read only by Vercel's server-side proxy.
 5. Create a Cloudflare Turnstile widget for the Vercel hostname and add its
    **public site key** as `VITE_TURNSTILE_SITE_KEY` for Production, Preview, and
    Development. The build intentionally refuses to run without it. Keep the
@@ -238,26 +239,24 @@ Return to Render → Environment and replace the placeholders:
 
 | Variable | Set to |
 |---|---|
+| `API_BASE_URL` | `https://<project>.vercel.app` — Google callbacks enter through the same-origin `/api` proxy |
 | `WEB_BASE_URL` | `https://<project>.vercel.app` — where auth redirects land, and the origin of the admin set-password link in an invite email |
 | `CLIENT_URLS` | `https://<project>.vercel.app` — the CORS allowlist |
 
 Save and redeploy. Until this is right, sign-in redirects go to the wrong host
 and every browser request is blocked by CORS.
 
-### Cross-site means `document.cookie` is empty
+### The browser must use the same-origin API path
 
-Vercel and Render are different registrable domains, so the browser treats every
-API call as cross-site. `COOKIE_SAMESITE=none` handles whether cookies are
-*sent*. It does not make them *readable*.
+The browser calls `/api/v1` on Vercel, and `proxy.js` forwards that request to
+Render using `API_PROXY_ORIGIN`. Do not put the Render URL back into
+`VITE_API_URL`: mobile browsers may block or partition those third-party
+cookies, which makes a successful sign-in disappear on reload or after a tab
+switch.
 
-`__Host-jp_<portal>_csrf` is set `httpOnly: false` precisely so the client can echo it in
-`X-CSRF-Token` — and cross-site the browser withholds it from `document.cookie`
-anyway. Partitioning, not `httpOnly`. Measured against production:
-
-```
-cookies stored by browser: __Host-jp_admin_at, __Host-jp_admin_rt, __Host-jp_admin_csrf
-document.cookie (JS-visible): (EMPTY)
-```
+`__Host-jp_<portal>_csrf` remains readable by design, but the response body is
+the authoritative delivery path for the CSRF token so bootstrap does not depend
+on JavaScript cookie visibility.
 
 So the token travels in the **response body** of `/login`, `/verify-email`,
 `/refresh` and `/me`, and `apiClient.ts` keeps it in memory. Do not "simplify"
@@ -277,14 +276,13 @@ client → **Authorised redirect URIs**. Add exactly these two — they are matc
 byte-for-byte, so a trailing slash is a different URI:
 
 ```
-https://<your-api-host>.onrender.com/api/v1/seeker/auth/google/callback
-https://<your-api-host>.onrender.com/api/v1/recruiter/auth/google/callback
+https://<project>.vercel.app/api/v1/seeker/auth/google/callback
+https://<project>.vercel.app/api/v1/recruiter/auth/google/callback
 ```
 
-Substitute the API service's own hostname from step 3 — deliberately a placeholder
-rather than a worked example, because `jobportal-api.onrender.com` is a *live
-service belonging to someone else*. Registering it here would authorise a stranger's
-domain to receive your OAuth codes.
+Substitute the Vercel production hostname from step 2. The callback must enter
+through the same-origin proxy so Google's transaction cookie belongs to the
+same browser origin as the rest of the session.
 
 For local development, add the loopback pair to the **same** client, matching
 `API_BASE_URL` in `backend/.env` exactly. Google exempts localhost from the HTTPS
@@ -421,8 +419,9 @@ Six checks, in this order — each isolates a different layer.
    receive the OTP, verify, and confirm you are still signed in after a reload.
    A missing widget usually means `VITE_TURNSTILE_SITE_KEY` was not present at
    build time or the deployed hostname is absent from the Turnstile widget.
-   Sign-in succeeding but the next request arriving anonymous means
-   `COOKIE_SAMESITE` is not `none`.
+   Sign-in succeeding but the next request arriving anonymous usually means
+   `VITE_API_URL` still points directly at Render or the proxy is missing
+   `API_PROXY_ORIGIN`.
 5. **Portal isolation.** Sign into seeker and recruiter in the same browser.
    Both sessions must survive reloads. Typing an admin workspace URL must show
    admin login rather than either existing workspace, and signing out of one
@@ -452,8 +451,10 @@ period takes 30–60 seconds and looks like a hang. That is not a fault.
 2. Render blueprint deploy → gives the API URL
 3. Create the Turnstile widget for the Vercel hostname; put the public site key
    in Vercel and the matching server secret in Render
-4. Vercel project → root `frontend`, `VITE_API_URL` ending in `/api/v1`
-5. Back to Render → fix `WEB_BASE_URL` and `CLIENT_URLS`
+4. Vercel project → root `frontend`, `VITE_API_URL=/api/v1`, and
+   `API_PROXY_ORIGIN=https://<your-render-host>`
+5. Back to Render → set `API_BASE_URL`, `WEB_BASE_URL`, and `CLIENT_URLS` to
+   the Vercel origin
 6. Google redirect URIs, both portals, no JS origins
 7. Auto-deploy on in both hosts (the default; `autoDeploy: true` in
    `render.yaml`, Vercel's left at its default)

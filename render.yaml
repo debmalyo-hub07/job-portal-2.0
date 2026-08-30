@@ -68,13 +68,11 @@ services:
       - key: NODE_ENV
         value: production
 
-      # api.onrender.com and the web app on Vercel are different *sites*, not
-      # merely different origins, and SameSite compares sites. Under `strict`
-      # the session cookie is never sent on the request after login: sign-in
-      # succeeds, the next request is anonymous, and nothing is logged anywhere.
-      # Change to `strict` only if both apps move under one registrable domain.
+      # Browser requests use the Vercel /api proxy, so session cookies are
+      # first-party on the web origin even though Render remains the upstream.
+      # Strict is therefore both compatible and the strongest useful setting.
       - key: COOKIE_SAMESITE
-        value: none
+        value: strict
 
       # Names in git, values never. `sync: false` also makes a fresh deploy stop
       # and ask rather than start with a blank value — matching how env() already
