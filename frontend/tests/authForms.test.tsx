@@ -166,13 +166,36 @@ describe("Login", () => {
    * A sign-in page is one click from a session-creating request, and on a
    * free-tier host that request can meet an instance that has to boot first —
    * 30–60 seconds that read as a hang. The wake fires at VIEW time so the
-   * click usually finds the instance already up. Its response is never read;
-   * the assertion is that the request happens, not that anything comes back.
+   * click usually finds the instance already up, and keeps retrying until the
+   * API answers, because the proxy gives up on a sleeping instance long before
+   * the boot completes and one failed attempt does not repeat itself.
    */
-  it("wakes the API once when the login page is viewed", async () => {
+  it("wakes the API when the login page is viewed, and stops once it answers", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
     renderLogin("seeker");
     await waitFor(() => expect(get).toHaveBeenCalledWith("/health"));
+    // Give any stray retry timer room to fire and prove none does.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps knocking at a sleeping API until it answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const get = vi
+        .spyOn(apiClient, "get")
+        .mockRejectedValueOnce(new Error("proxy gave up") as never)
+        .mockRejectedValueOnce(new Error("proxy gave up") as never)
+        .mockResolvedValue({ data: {} } as never);
+
+      renderLogin("seeker");
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      // First knock on mount, second at +12s, third at +24s — which answers.
+      expect(get).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   /**
@@ -272,12 +295,14 @@ describe("Signup", () => {
     },
   );
 
-  it("wakes the API once when the signup page is viewed", async () => {
+  it("wakes the API when the signup page is viewed, and stops once it answers", async () => {
     // Same reason as the login screen: the register POST — or the fetched
     // Google start beside it — is the request most likely to meet a sleeping
     // instance.
     const get = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as never);
     renderSignup("seeker");
     await waitFor(() => expect(get).toHaveBeenCalledWith("/health"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(get).toHaveBeenCalledTimes(1);
   });
 });
