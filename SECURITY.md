@@ -184,7 +184,10 @@ subject to the per-account OTP failure budget.
   token means theft, so the whole family is revoked and the session ends.
 - **CSRF:** double-submit token, since auth rides in cookies. The token is
   **MAC-bound**, not a bare random value, and its cookie is named per portal so
-  concurrent sessions cannot overwrite one another. See ADR-0005 and ADR-0008.
+  concurrent sessions cannot overwrite one another. The cookie carries the same
+  `maxAge` as the refresh token — without it mobile browsers treat it as a
+  session cookie and purge it when the tab is backgrounded, which kills
+  `/refresh` and signs the user out. See ADR-0005 and ADR-0008.
 - **Email verification:** 6-digit OTP via Brevo, hashed at rest, 10-minute TTL,
   5 attempts. Codes are stored as
   `HMAC-SHA256(OTP_PEPPER, "<subjectId>:<code>")` — bound to the subject, not

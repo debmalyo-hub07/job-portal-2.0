@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "mobile-session-persistence",
+    date: "2026-08-30",
+    kind: "Fix",
+    title: "Sessions survive switching tabs on mobile",
+    summary:
+      "Signing in on a phone or tablet and then switching to another tab or app could silently sign you out. Sessions now persist across tab switches and reloads on every mobile browser.",
+    details: [
+      "The session-integrity cookie was stored without a lifetime, which let mobile browsers discard it when the tab was backgrounded or the browser was swapped out. Desktop browsers kept it until the browser closed, which is why the problem appeared only on phones and tablets.",
+      "The cookie now carries the same lifetime as the session itself, so it survives exactly as long as the session does.",
+      "Affected all three portals — candidate, employer, and administrator — equally.",
+    ],
+  },
+  {
     id: "google-signin-completes",
     date: "2026-08-29",
     kind: "Fix",

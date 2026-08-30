@@ -50,7 +50,10 @@ never reach *either* portal's refresh endpoint, breaking login for everyone.
 **CSRF**: double-submit token. A random value is set in a readable (non-`httpOnly`)
 cookie; the client echoes it in an `X-CSRF-Token` header; the server compares the
 two. An attacker's site can cause the browser to send the cookie but cannot read
-it to construct the matching header.
+it to construct the matching header. The cookie carries `maxAge` equal to the
+refresh token TTL — without it the cookie is a session cookie, and mobile browsers
+purge session cookies when the tab is backgrounded, which breaks the double-submit
+on `/refresh` and silently signs the user out.
 
 Additionally, `GET /apply/:id` becomes `POST`. A GET that mutates state can be
 triggered by an `<img src>` on any page, and `sameSite` is the only thing
