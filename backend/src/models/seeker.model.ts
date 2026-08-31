@@ -25,6 +25,28 @@ const seekerSchema = new Schema(
       sizeBytes: { type: Number, default: null },
       uploadedAt: { type: Date, default: null },
     },
+    /**
+     * P2 of the location-aware phase: the consented device location, from a
+     * one-time browser geolocation the reverse endpoint normalized. City-level
+     * only — coordinates are used transiently by that endpoint and never
+     * stored. `updatedAt` records when the consent last ran, so a stale city
+     * is at least a dated one.
+     *
+     * Top-level, not inside `profile`: the profile block is the seeker's
+     * self-description (typed), this is a device observation (consented) —
+     * different provenance, different lifetime.
+     */
+    geoLocation: {
+      type: new Schema(
+        {
+          city: { type: String, required: true },
+          country: { type: String, required: true },
+          updatedAt: { type: Date, default: Date.now },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
   },
   { timestamps: true },
 );

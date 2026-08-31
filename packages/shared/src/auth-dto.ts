@@ -152,6 +152,13 @@ export interface ProfileView {
     skills: string[];
     experienceYears: number | null;
     location: string | null;
+    /**
+     * The consented device location (P2), city-level only. Distinct from the
+     * self-reported free-text `location` above: that is what the seeker typed,
+     * this is where a consented browser lookup said they are. `null` until the
+     * profile's "Use my location" flow has run and saved.
+     */
+    geoLocation: { city: string; country: string } | null;
     /** 4A.3: self-reported salary band; feeds the fit pipeline's salary factor. */
     salaryMin: number | null;
     salaryMax: number | null;

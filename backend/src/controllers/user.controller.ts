@@ -44,6 +44,10 @@ function toProfileView(
       skills: seeker.profile!.skills ?? [],
       experienceYears: seeker.profile!.experienceYears ?? null,
       location: seeker.profile!.location ?? null,
+      // City and country only — `updatedAt` stays server-side.
+      geoLocation: seeker.geoLocation
+        ? { city: seeker.geoLocation.city, country: seeker.geoLocation.country }
+        : null,
       salaryMin: seeker.profile!.salaryMin ?? null,
       salaryMax: seeker.profile!.salaryMax ?? null,
       openToRemote: seeker.profile!.openToRemote ?? null,
@@ -128,6 +132,11 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
     if (body.salaryMin !== undefined) seeker.profile!.salaryMin = body.salaryMin;
     if (body.salaryMax !== undefined) seeker.profile!.salaryMax = body.salaryMax;
     if (body.openToRemote !== undefined) seeker.profile!.openToRemote = body.openToRemote;
+    // P2: the consented device location — top-level (device observation), not
+    // the self-reported `profile.location` above. Absent means "leave alone".
+    if (body.geoLocation !== undefined) {
+      seeker.geoLocation = { ...body.geoLocation, updatedAt: new Date() };
+    }
 
     const file = req.file as Express.Multer.File | undefined;
     if (file) {
