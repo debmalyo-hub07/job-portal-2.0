@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "hero-pointer-tracking",
+    date: "2026-08-31",
+    kind: "Fix",
+    title: "The landing pages' hover motion keeps up with the cursor",
+    summary:
+      "The focus reticle and light wash that follow your cursor over the opening photo of the candidate and employer landing pages could stutter behind it. They now track smoothly.",
+    details: [
+      "The hero was redrawing for every pointer event — several per frame on a precise mouse — and each redraw re-laid-out the layered image under it. The tracking now lands once per frame and moves the reticle without touching layout, so nothing stutters.",
+      "The background photo still settles gently behind the cursor as before; only the stutter is gone. Readers who prefer reduced motion keep seeing no reticle at all.",
+    ],
+  },
+  {
     id: "recruiter-decision-refresh",
     date: "2026-08-31",
     kind: "Fix",

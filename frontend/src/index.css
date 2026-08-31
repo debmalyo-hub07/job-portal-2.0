@@ -776,16 +776,24 @@
   }
 
   .hero-media__cursor {
+    /* Positioned by `translate`, not `top`/`left`: the custom properties move
+       at pointer rate, and layout properties there would invalidate layout
+       under the hero's blend-mode layers on every frame. `translate` is its
+       own property so the `transform` transition below still animates only the
+       reticle's scale/rotation — the position itself tracks the pointer
+       exactly, with no transition to make it trail. */
     position: absolute;
-    top: var(--hero-pointer-y);
-    left: var(--hero-pointer-x);
+    top: 0;
+    left: 0;
     z-index: 30;
     width: 2.75rem;
     height: 2.75rem;
     pointer-events: none;
     border: 1px solid color-mix(in oklab, var(--signal) 72%, var(--media-copy));
     opacity: 0;
+    translate: var(--hero-cursor-x, 0px) var(--hero-cursor-y, 0px);
     transform: translate(-50%, -50%) rotate(45deg) scale(0.545);
+    will-change: translate;
     transition: transform var(--dur-base) var(--ease-out-quint), opacity var(--dur-base) ease;
   }
 

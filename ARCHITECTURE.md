@@ -599,6 +599,15 @@ Motion goes through `src/lib/motion.tsx`. Each composable short-circuits to a
 plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 `framer-motion` directly.
 
+Pointer tracking is not framer-motion either, and for the same reason it is not
+per-event: `pointermove` fires several times per frame on a fine mouse, so the
+hero's handler (`ImageHero`) records the latest position and writes the custom
+properties once per frame from `requestAnimationFrame`, with the element's box
+measured only when a scroll or resize has invalidated it. Elements that follow
+the pointer are positioned through `translate`/`transform`, never `top`/`left` —
+layout properties updated at pointer rate invalidate layout under the hero's
+blend-mode layers, which is the stutter the reticle showed before this rule.
+
 Public release notes live at `/updates`. `src/data/updates.ts` is the canonical
 registry: entries have a stable id, ISO date, category, user-facing summary and
 detail list, and are kept newest first — asserted by test rather than sorted at
