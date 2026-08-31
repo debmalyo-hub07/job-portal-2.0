@@ -127,6 +127,23 @@ openssl rand -base64 48   # CSRF_SECRET
 openssl rand -base64 48   # ADMIN_PROVISIONING_SECRET
 ```
 
+## Activating phone verification (dormant, P3)
+
+The phone-verification flow ships complete but **unmounted**: the OTP purpose,
+budget, redemption, and routes all exist, and `GET /api/v1/user/phone-verification/*`
+answers 404 until `SMS_PROVIDER_KEY` is set. Activation is deliberately a
+decision, not a default — every carrier-grade SMS channel charges per message,
+and India requires DLT registration (TRAI) for transactional senders.
+
+1. Choose a provider (MSG91, Twilio, etc.), complete their registration
+   including DLT for India, and obtain an API key.
+2. Implement the one function in `backend/src/services/smsTransport.ts`
+   (`sendSms`) against the provider — it is the only file activation touches.
+3. Set `SMS_PROVIDER_KEY` in Render's environment. The routes mount on the
+   next deploy; nothing else changes.
+4. Verify: `POST /api/v1/user/phone-verification/send` with a session that
+   has a phone returns 200, and the phone receives the code.
+
 ## 1. Render — the API
 
 **New → Blueprint**, not "New Web Service". Render reads

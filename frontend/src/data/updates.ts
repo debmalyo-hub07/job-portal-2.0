@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "phone-country-codes",
+    date: "2026-09-01",
+    kind: "Improvement",
+    title: "Phone numbers now pick their country for you",
+    summary:
+      "Entering or changing a phone number, on any portal, offers a country picker preselected for where you are — and checks the number against that country's actual rules instead of just its shape.",
+    details: [
+      "The country is preselected from the platform's own location signal, so your first keystroke is usually just your number.",
+      "Numbers are validated per country — the right length, the right prefix, and mobiles only: landlines are refused, because a verification text is where this is heading.",
+      "You can still type or paste a full international number; the picker follows it.",
+    ],
+  },
+  {
     id: "seeker-location",
     date: "2026-09-01",
     kind: "Feature",

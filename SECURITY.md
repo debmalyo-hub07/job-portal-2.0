@@ -347,6 +347,8 @@ independent counters.
 | Guardian-consent send per account | 3 / hour | Active |
 | Guardian-consent confirm per IP | 10 / hour | Active |
 | Reverse geocoding per IP | 10 / min | Active |
+| Phone-verification send per account | 3 / hour | Dormant — the route is unmounted until an SMS provider key exists |
+| Phone-verification confirm per IP | 10 / hour | Dormant — same mount gate |
 
 ## Location data (P2, 2026-09-01)
 

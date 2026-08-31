@@ -727,6 +727,17 @@ which the same-origin proxy forwards verbatim, with a timezone fallback) for
 the phone dial-code default P3 preselects. No location signal reaches an
 authentication or authorization decision anywhere.
 
+Phone numbers (P3) are validated by **libphonenumber through the shared
+`phoneSchema`** — valid-for-country, mobile-or-unknown line type, canonical
+E.164 out — so the client's `PhoneInput` (country picker preselected from
+`/location/country`, national-format box that accepts a pasted international
+number) and the server enforce one rule from one module. Phone *verification*
+is **dormant**: the `verify_phone` OTP purpose, budget, and redemption exist,
+and the routes mount only when `SMS_PROVIDER_KEY` is configured — the same
+optionality `TURNSTILE_SECRET_KEY` gives bot protection. Activation is one
+function (`services/smsTransport.ts`) plus a key; the runbook documents the
+path.
+
 The listings (`useAdminRecruiters`, `useAdminSeekers`, `useAdminJobs`,
 `useAdminCompanies`) have no interval by design — a mutation is their refresh
 path, so the mutation must invalidate them. Console mutations therefore
