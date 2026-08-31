@@ -2,6 +2,7 @@ import type { ChangeEvent } from "react";
 import { GENDERS, GENDER_LABELS, type Gender } from "@jobportal/shared";
 
 import { FormField } from "@/components/layout/FormField";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Input } from "@/components/ui/input";
 
 export type IdentityValue = { dob: string; phone: string; gender: "" | Gender };
@@ -52,17 +53,17 @@ export function IdentityFieldset({
       <FormField
         label="Phone"
         htmlFor="phone"
-        hint="Optional. Include the country code, e.g. +919876543210."
+        hint="Optional. The country is picked for you; we store the full international number."
       >
-        <Input
+        {/* P3: the picker + national box, emitting E.164. The country arrives
+            from the platform's own location signal, so the visitor's first
+            keystroke is usually their number and nothing else. */}
+        <PhoneInput
           id="phone"
           name="phone"
-          type="tel"
-          autoComplete="tel"
           value={value.phone}
-          onChange={set}
+          onChange={(next) => onChange({ ...value, phone: next })}
           disabled={disabled}
-          placeholder="+919876543210"
         />
       </FormField>
 
