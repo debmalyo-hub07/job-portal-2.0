@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pen } from "lucide-react";
+import { toast } from "sonner";
 import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -13,6 +14,7 @@ import IdentityCard from "./identity/IdentityCard";
 import { apiClient } from "@/lib/apiClient";
 import { initialsOf } from "@/lib/initials";
 import { Reveal } from "@/lib/motion";
+import { useDeviceLocation } from "@/hooks/useDeviceLocation";
 import { useAppSelector } from "@/redux/store";
 
 const Profile = () => {
@@ -57,6 +59,49 @@ const Profile = () => {
   const skills = profile?.seeker?.skills ?? [];
   const resumeUrl = profile?.seeker?.resumeUrl;
   const fit = profile?.seeker;
+
+  /**
+   * The consented device location (P2). Distinct from the self-reported
+   * "Preferred location" below: that is typed, this is detected with the
+   * browser's permission, and only the city is ever saved.
+   */
+  const geo = useDeviceLocation();
+  const storedGeo = profile?.seeker?.geoLocation ?? null;
+  const [savingGeo, setSavingGeo] = useState(false);
+
+  // Saves once per consented lookup, and only when it differs from what the
+  // profile already holds. Runs off the granted state — nothing posts without
+  // the "Use my location" button having been clicked first.
+  useEffect(() => {
+    if (geo.state !== "granted" || !geo.city || !geo.country) return;
+    if (storedGeo?.city === geo.city && storedGeo.country === geo.country) return;
+    let cancelled = false;
+    setSavingGeo(true);
+    const form = new FormData();
+    form.set("geoLocation", JSON.stringify({ city: geo.city, country: geo.country }));
+    apiClient
+      .post("/user/profile/update", form)
+      .then(() => {
+        if (!cancelled && profile) {
+          setProfile({
+            ...profile,
+            seeker: { ...profile.seeker!, geoLocation: { city: geo.city!, country: geo.country! } },
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Could not save your area. Try again in a moment.");
+      })
+      .finally(() => {
+        if (!cancelled) setSavingGeo(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // The stored primitives, not the profile object: the save must not re-fire
+    // on every unrelated profile state change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geo.state, geo.city, geo.country, storedGeo?.city, storedGeo?.country]);
 
   /**
    * One bound set and not the other is a real state — `salaryFit` reads a lone
@@ -196,6 +241,46 @@ const Profile = () => {
                 <dd className="text-ink">{remoteLabel}</dd>
               </div>
             </dl>
+          </div>
+
+          <div className="mt-(--space-card)" data-testid="profile-location">
+            <h2 className="font-display text-xl font-semibold text-ink">Your area</h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              Detected with your browser&apos;s permission when you ask for it. Only the city is
+              saved — never your precise position.
+            </p>
+            <div className="mt-3">
+              {geo.city && geo.country ? (
+                <p className="text-ink">
+                  {geo.city}, {geo.country}
+                  {savingGeo ? <span className="ml-2 text-sm text-ink-muted">saving…</span> : null}
+                </p>
+              ) : storedGeo ? (
+                <p className="text-ink">
+                  {storedGeo.city}, {storedGeo.country}
+                </p>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={geo.locate}
+                  disabled={geo.state === "locating"}
+                >
+                  {geo.state === "locating" ? "Locating…" : "Use my location"}
+                </Button>
+              )}
+              {geo.state === "denied" ? (
+                <p className="mt-2 text-sm text-ink-muted">
+                  Your browser said no. You can allow location for this site in its settings and
+                  try again.
+                </p>
+              ) : null}
+              {geo.state === "failed" ? (
+                <p className="mt-2 text-sm text-ink-muted">
+                  Could not detect your area just now. Try again in a moment.
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-(--space-card)">

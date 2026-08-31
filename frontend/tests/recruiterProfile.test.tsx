@@ -51,6 +51,11 @@ describe("recruiter profile", () => {
  * here — without this pair, it has coverage on neither.
  */
 describe("the recruiter page covers the recruiter-only fields", () => {
+  /**
+   * `geoLocation` is excluded on both pages: it is the seeker's consented
+   * device location, written by the profile card's "Use my location" flow
+   * (`profileLocation.test.tsx` proves the writer), never a typed control.
+   */
   const SEEKER_ONLY = [
     "bio",
     "skills",
@@ -59,6 +64,7 @@ describe("the recruiter page covers the recruiter-only fields", () => {
     "salaryMin",
     "salaryMax",
     "openToRemote",
+    "geoLocation",
   ];
   const FIELDS = Object.keys(profileUpdateBodySchema.shape).filter(
     (f) => !SEEKER_ONLY.includes(f),

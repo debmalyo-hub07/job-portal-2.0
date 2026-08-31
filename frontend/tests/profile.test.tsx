@@ -110,16 +110,21 @@ describe("UpdateProfileDialog covers every field the endpoint accepts", () => {
    * seeker's. `designation` is the recruiter's byline and belongs to the
    * recruiter profile page, which carries the same guard for its own side.
    *
-   * A named exclusion rather than a shrinking list: the assertion below proves
-   * the field really is absent here, so this cannot quietly become the place new
-   * fields go to be forgotten.
+   * `geoLocation` is the other named exclusion, for a different reason: its
+   * writer is the profile card's consented "Use my location" flow — proven by
+   * `profileLocation.test.tsx` — not a typed control. A device observation has
+   * no business in a form the user types into.
+   *
+   * Named exclusions rather than a shrinking list: the assertion below proves
+   * each field really is absent here, so this cannot quietly become the place
+   * new fields go to be forgotten.
    */
-  const RECRUITER_ONLY = ["designation"];
+  const NOT_IN_DIALOG = ["designation", "geoLocation"];
   const FIELDS = Object.keys(profileUpdateBodySchema.shape).filter(
-    (f) => !RECRUITER_ONLY.includes(f),
+    (f) => !NOT_IN_DIALOG.includes(f),
   );
 
-  it.each(RECRUITER_ONLY)("deliberately does not render %s, a recruiter field", (field) => {
+  it.each(NOT_IN_DIALOG)("deliberately does not render %s", (field) => {
     renderDialog(FULL);
     expect(control(field)).toBeNull();
   });
