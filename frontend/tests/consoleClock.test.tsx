@@ -8,17 +8,20 @@ const NOON_IST = new Date("2026-08-31T12:34:56"); // local-time naive on purpose
 
 describe("detectTimeZone", () => {
   it("falls back to IST when the runtime reports nothing", () => {
-    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions");
-    spy.mockReturnValue({ locale: "en", timeZone: undefined } as Intl.ResolvedDateTimeFormatOptions);
-    expect(detectTimeZone()).toBe("Asia/Kolkata");
-    spy.mockRestore();
+    const reports = () => ({ locale: "en", timeZone: undefined }) as Intl.ResolvedDateTimeFormatOptions;
+    expect(detectTimeZone(reports)).toBe("Asia/Kolkata");
+  });
+
+  it("falls back to IST when the runtime throws", () => {
+    const throws = () => {
+      throw new Error("no icu");
+    };
+    expect(detectTimeZone(throws)).toBe("Asia/Kolkata");
   });
 
   it("keeps whatever the runtime reports when it is usable", () => {
-    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions");
-    spy.mockReturnValue({ locale: "en", timeZone: "Europe/Berlin" } as Intl.ResolvedDateTimeFormatOptions);
-    expect(detectTimeZone()).toBe("Europe/Berlin");
-    spy.mockRestore();
+    const reports = () => ({ locale: "en", timeZone: "Europe/Berlin" }) as Intl.ResolvedDateTimeFormatOptions;
+    expect(detectTimeZone(reports)).toBe("Europe/Berlin");
   });
 });
 
@@ -39,7 +42,10 @@ describe("ConsoleClock", () => {
     expect(screen.getByTestId("clock-time").textContent).toMatch(/^\d{1,2}:\d{2}/);
     // en-IN day-first, matching the platform's locale.
     expect(screen.getByTestId("clock-date").textContent).toMatch(/31 August 2026/);
-    expect(screen.getByTestId("clock-zone").textContent).toMatch(/GMT[+-]\d{1,2}:\d{2}/);
+    // The offset label's SHAPE, not its digits: ICU versions differ on
+    // zero offsets ("GMT+0" vs "GMT+0:00") and half-hour zones carry minutes,
+    // so anything stricter than "GMT, a sign, a digit" is machine-dependent.
+    expect(screen.getByTestId("clock-zone").textContent).toMatch(/^GMT[+-]\d/);
   });
 
   it("ticks every second", () => {
@@ -52,25 +58,26 @@ describe("ConsoleClock", () => {
     expect(screen.getByTestId("clock-time").textContent).not.toBe(before);
   });
 
-  it("shows IST by default when no zone was chosen and detection fails", () => {
-    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions");
-    spy.mockReturnValue({ locale: "en", timeZone: undefined } as Intl.ResolvedDateTimeFormatOptions);
+  it("shows the detected zone by default, as the picker's selected value", () => {
     render(<ConsoleClock />);
-    spy.mockRestore();
-
-    expect(screen.getByTestId("clock-zone").textContent).toMatch(/GMT\+5:30/);
+    // The component's default must agree with detection — the fallback logic
+    // itself is pinned at the lib level above, where it is injectable. (Node's
+    // no-arg Intl fast path cannot be intercepted from a prototype spy, which
+    // is why this is not tested by mocking detection at the component level.)
+    const picker = screen.getByRole("combobox", { name: /timezone/i }) as HTMLSelectElement;
+    expect(picker.value).toBe(detectTimeZone());
   });
 
   it("switches zones from the picker and remembers the choice", () => {
     render(<ConsoleClock />);
+    const picker = screen.getByRole("combobox", { name: /timezone/i }) as HTMLSelectElement;
 
-    const before = screen.getByTestId("clock-time").textContent;
-    fireEvent.change(screen.getByRole("combobox", { name: /timezone/i }), { target: { value: "UTC" } });
+    fireEvent.change(picker, { target: { value: "UTC" } });
 
-    // With the system time fixed, switching zone changes the rendered hour
-    // (local noon vs UTC afternoon — or the reverse; either way not equal).
-    const after = screen.getByTestId("clock-time").textContent;
-    expect(after).not.toBe(before);
+    // The switch and its persistence are the behavior. Whether the rendered
+    // TIME changes depends on the runner's own timezone (on a UTC runner it
+    // does not), so the time text is deliberately not asserted here.
+    expect(picker.value).toBe("UTC");
     expect(window.localStorage.getItem("console-clock-zone")).toBe("UTC");
   });
 

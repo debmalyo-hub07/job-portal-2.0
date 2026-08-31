@@ -33,10 +33,18 @@ export const ZONE_CHOICES = [
  * The browser's zone, or the IST default when the runtime reports nothing or
  * throws. The check is existence, not membership: a zone outside the curated
  * list is still the viewer's own zone and is offered in the picker.
+ *
+ * The resolver is injectable because Node's no-arg `Intl.DateTimeFormat()`
+ * resolves the default timezone through an internal fast path that never
+ * calls the JS-visible `resolvedOptions` — so the fallback cannot be tested
+ * by spying on the prototype (three CI runs were red before that was
+ * understood). The default preserves the production behaviour exactly.
  */
-export function detectTimeZone(): string {
+export function detectTimeZone(
+  resolve: () => Intl.ResolvedDateTimeFormatOptions = () => Intl.DateTimeFormat().resolvedOptions(),
+): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_ZONE;
+    return resolve().timeZone || DEFAULT_ZONE;
   } catch {
     return DEFAULT_ZONE;
   }
