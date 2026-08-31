@@ -13,7 +13,12 @@ import proxy from "../proxy.js";
  *   - the claim is injected only when this function holds BOTH the shared
  *     secret and an address to name
  *   - a request it cannot forward (no valid origin) fails loudly rather than
- *     being passed somewhere arbitrary.
+ *     being passed somewhere arbitrary
+ *   - the API is always asked for an UNCOMPRESSED response, because a
+ *     compressed one comes back decoded with stale compression headers
+ *     attached — a body/label mismatch every browser rejects
+ *     (net::ERR_CONTENT_DECODING_FAILED) and curl never notices, which is
+ *     how it reached production through a fully green probe suite.
  *
  * Runs in jsdom only because the suite's shared setup file needs a window;
  * everything this file exercises is Node's own Request/Response/fetch, which
@@ -99,6 +104,27 @@ describe("the /api proxy", () => {
     // it; an automatic follow would consume the redirect inside this function
     // and hand the page the wrong document.
     expect(init.redirect).toBe("manual");
+  });
+
+  it("asks the API for an uncompressed response, whatever the browser accepts", async () => {
+    // Measured against production: forwarding the browser's Accept-Encoding
+    // got the API's brotli response decoded by fetch but returned with the
+    // compression-era Content-Encoding and Content-Length still attached, so
+    // real browsers failed every API call with ERR_CONTENT_DECODING_FAILED
+    // while curl — which never sends the header — saw clean JSON. The header
+    // must be SET, not deleted: fetch re-adds `gzip, deflate` when it is
+    // merely absent.
+    process.env.API_PROXY_ORIGIN = "https://api.example.test";
+    const mock = stubFetch();
+
+    await proxy(
+      pageRequest("/api/v1/job/get", {
+        headers: { "accept-encoding": "gzip, deflate, br, zstd" },
+      }),
+    );
+
+    const [, init] = mock.mock.calls[0] as [URL, RequestInit];
+    expect((init.headers as Headers).get("accept-encoding")).toBe("identity");
   });
 
   it("deletes a caller-supplied client-IP claim and key before forwarding", async () => {

@@ -64,6 +64,23 @@ export default async function proxy(request) {
   headers.delete(CLIENT_IP_HEADER);
   headers.delete(PROXY_KEY_HEADER);
 
+  // Compression ends at this hop, in both directions, and this line is the
+  // whole reason. Forward the browser's `Accept-Encoding: gzip, deflate, br`
+  // (or fetch's own default — it re-adds `gzip, deflate` when the header is
+  // merely absent, so deleting it changes nothing) and the API answers with a
+  // compressed body. Fetch then decodes that body transparently but leaves the
+  // compression-era Content-Encoding and Content-Length on the response it
+  // returns, so the browser receives plain JSON labelled as brotli and
+  // truncated to the compressed length: net::ERR_CONTENT_DECODING_FAILED on
+  // every API call, which axios reports as a bare "Network Error". curl never
+  // sends Accept-Encoding, which is exactly why every scripted probe passed
+  // while every real browser failed. SET to identity rather than deleting:
+  // fetch appends its default only when the header is absent, and with it
+  // present the API's compression never engages, so the upstream response
+  // passes through verbatim — headers and body agree — and Vercel's own edge
+  // re-compresses toward the browser correctly.
+  headers.set("accept-encoding", "identity");
+
   // Two hops reach the API through here, and the second one appends this
   // function's egress address — so without this the API attributes every request
   // on the platform to one IP and enforces every per-IP limit as a single shared
