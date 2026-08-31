@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "near-you-ranking",
+    date: "2026-09-01",
+    kind: "Feature",
+    title: "The job board now leads with roles near you",
+    summary:
+      "Signed-in candidates see a \"Near you\" rail above the board: open roles ranked by how close they are to your area, how well they fit your profile, and how fresh they are.",
+    details: [
+      "Roles in your own city come first, then your region, then everywhere else — with remote roles ranked alongside your region's.",
+      "Distance leads, but it is not the whole story: your existing fit with each role breaks ties, and newer postings surface above older equals.",
+      "No stored area yet? The board offers a one-time \"Use my location\" prompt — share once, only the city is kept, dismiss it and it never asks again.",
+    ],
+  },
+  {
     id: "phone-country-codes",
     date: "2026-09-01",
     kind: "Improvement",

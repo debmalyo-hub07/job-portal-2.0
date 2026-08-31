@@ -738,6 +738,19 @@ optionality `TURNSTILE_SECRET_KEY` gives bot protection. Activation is one
 function (`services/smsTransport.ts`) plus a key; the runbook documents the
 path.
 
+"Near you" (P4) composes three free signals into one ranking, in shared:
+`distanceBand` (same city > same region via `CITY_REGIONS` > elsewhere, with
+remote fixed at the same-region band) weighted 0.5, the existing fit engine
+0.35, and an eight-week linear recency decay 0.15. `GET /job/near-me` ranks
+the open board in memory for a signed-in seeker whose city comes from
+`geoLocation` or the self-reported `profile.location` (through
+`normalizeCity`) — bounded by today's board size, and the service says where
+the aggregation goes the day that stops being true. The board's `NearYouRail`
+leads the page with band-labelled rows ("Your city", "Your region", "Remote",
+"Further afield" — seeker-relative, never the job's city), and a seeker with
+no stored area gets the one-time, dismissible consent prompt instead, which
+runs the P2 flow and re-ranks on save.
+
 The listings (`useAdminRecruiters`, `useAdminSeekers`, `useAdminJobs`,
 `useAdminCompanies`) have no interval by design — a mutation is their refresh
 path, so the mutation must invalidate them. Console mutations therefore
