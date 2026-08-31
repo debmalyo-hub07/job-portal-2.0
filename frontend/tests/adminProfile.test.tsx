@@ -8,9 +8,15 @@ import { makeStore, renderAppAt, renderRoute } from "./helpers/renderRoute";
 const render = () => renderRoute(<AdminProfile />, { route: "/admin/profile" });
 
 describe("admin profile", () => {
-  it("renders inside the console shell", () => {
+  it("renders as an account page, with no console nav on it", () => {
+    // An account page is not a console section. It used to render AdminShell,
+    // whose section nav (Dashboard/Recruiters/Candidates/… — links that have
+    // nothing to do with this page and never list it) appeared as a band
+    // between the navbar and the form below `lg`, reading as a stray panel.
+    // The seeker's profile set the pattern; this page matches it.
     render();
-    expect(screen.getByText(/platform console/i)).toBeTruthy();
+    expect(screen.queryByText(/platform console/i)).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: /your account/i })).toBeTruthy();
   });
 
   it("reads the admin mount, not the shared one", async () => {

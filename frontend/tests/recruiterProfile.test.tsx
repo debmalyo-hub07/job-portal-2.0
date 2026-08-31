@@ -8,9 +8,15 @@ import { setUser } from "@/redux/authSlice";
 const render = () => renderRoute(<RecruiterProfile />, { route: "/hire/profile" });
 
 describe("recruiter profile", () => {
-  it("renders inside the hiring workspace shell", () => {
+  it("renders as an account page, with no workspace nav on it", () => {
+    // An account page is not a workspace section. It used to render HireShell,
+    // whose section nav (Applicants/Companies/Jobs — links that have nothing
+    // to do with this page and never list it) appeared as a band between the
+    // navbar and the form below `lg`, reading as a stray panel. The seeker's
+    // profile set the pattern; this page matches it.
     render();
-    expect(screen.getByText(/hiring workspace/i)).toBeTruthy();
+    expect(screen.queryByText(/hiring workspace/i)).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: /your account/i })).toBeTruthy();
   });
 
   it("offers a designation field, the byline nothing could write", () => {

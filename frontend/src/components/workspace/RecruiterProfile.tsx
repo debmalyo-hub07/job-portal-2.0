@@ -3,10 +3,11 @@ import { CheckCircle2, Clock, Loader2, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import type { AccountStatus, ProfileResponse, ProfileView } from "@jobportal/shared";
 
-import HireShell from "./HireShell";
 import IdentityCard from "@/components/identity/IdentityCard";
 import { IdentityFieldset, type IdentityValue } from "@/components/identity/IdentityFieldset";
 import { FormField } from "@/components/layout/FormField";
+import PageShell from "@/components/layout/PageShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -115,10 +116,17 @@ const RecruiterProfile = () => {
   const ApprovalIcon = approval.icon;
 
   return (
-    <HireShell
-      title="Your account"
-      description="The details Cairn holds for you, and what your account can currently do."
-    >
+    /* An account page, not a workspace section — the same treatment the
+       seeker's profile gets. It used to render HireShell, whose section nav
+       (Applicants/Companies/Jobs) has nothing to do with this page and does
+       not even list it; below `lg` that nav is a horizontal band between the
+       navbar and the form, which read as a stray panel rather than chrome.
+       The route mounts this inside PublicLayout, which owns the navbar. */
+    <PageShell density="compact" motion="response">
+      <PageHeader
+        title="Your account"
+        description="The details Cairn holds for you, and what your account can currently do."
+      />
       <div className="grid gap-(--space-card) lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="rounded-surface border border-line bg-paper-raised p-(--space-card)">
           <h2 className="font-display text-xl font-semibold text-ink">Details</h2>
@@ -196,7 +204,7 @@ const RecruiterProfile = () => {
           </form>
         </section>
       </div>
-    </HireShell>
+    </PageShell>
   );
 };
 

@@ -20,7 +20,11 @@ import Footer from "@/components/Footer";
  * Deliberately not used by the workspace, the console, or auth. Those are
  * signed-in working surfaces with their own shells and their own sub-navigation,
  * and a marketing footer under an applicant table is noise. They reach the legal
- * pages the same way anyone does — the URLs are public.
+ * pages the same way anyone does — the URLs are public. The one signed-in
+ * exception is the three portals' account pages: an account page is not a
+ * working surface, and each one renders here so no portal's section nav ever
+ * sits on it — the nav's links have nothing to do with the page and never
+ * list it.
  */
 export function PublicLayout() {
   return (

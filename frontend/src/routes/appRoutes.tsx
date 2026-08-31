@@ -121,6 +121,34 @@ export const appRoutes: RouteObject[] = [
               </ProtectedRoute>
             ),
           },
+          // The three portals' account pages sit together, in the shared chrome,
+          // with no section nav of any kind: an account page is not a workspace
+          // or console section, and a workbench nav band above it (rendered in
+          // the body below lg) read as a stray panel rather than chrome — the
+          // nav's own links have nothing to do with the page and never list it.
+          // The components render `PageShell` directly; the gates stay exactly
+          // as they were when each page owned its shell.
+          {
+            path: "/hire/profile",
+            element: (
+              <ProtectedRoute portal="recruiter">
+                <RequireProfileComplete portal="recruiter">
+                  <RecruiterProfile />
+                </RequireProfileComplete>
+              </ProtectedRoute>
+            ),
+          },
+          // Deliberately NOT `adminConsole(...)`: that helper is for the console
+          // surfaces, and this page is an account page — but it carries the same
+          // single gate that helper composes.
+          {
+            path: "/admin/profile",
+            element: (
+              <ProtectedRoute portal="admin">
+                <AdminProfile />
+              </ProtectedRoute>
+            ),
+          },
           // Inside ProtectedRoute (it writes to the caller's own account) and
           // deliberately OUTSIDE RequireProfileComplete — the guard redirects
           // here, so wrapping this would redirect it to itself forever.
@@ -218,20 +246,10 @@ export const appRoutes: RouteObject[] = [
       // Same three gates as every workspace page: the queue carries exactly
       // the applicant data the per-job list does.
       { path: "/hire/applicants", element: workspace(<QueueApplicants />) },
-      // RecruiterProfile owns HireShell/WorkbenchShell, including the workspace
-      // Navbar. Keep it outside PublicLayout or both layouts render their chrome.
-      // Deliberately not `workspace(...)`: pending recruiters need this page to
-      // explain their approval state, and the API profile routes are ungated too.
-      {
-        path: "/hire/profile",
-        element: (
-          <ProtectedRoute portal="recruiter">
-            <RequireProfileComplete portal="recruiter">
-              <RecruiterProfile />
-            </RequireProfileComplete>
-          </ProtectedRoute>
-        ),
-      },
+      // The recruiter's account page lives with the other two portals' under
+      // PublicLayout — see the comment there. Still deliberately NOT
+      // `workspace(...)`: pending recruiters need this page to explain their
+      // approval state, and the API profile routes are ungated too.
       // The admin console.
       //
       // Deliberately NOT /admin/jobs and /admin/companies: those two prefixes
@@ -247,7 +265,8 @@ export const appRoutes: RouteObject[] = [
       // Project D's candidate oversight screen. Same gate as every console
       // page, composed by `adminConsole`.
       { path: "/admin/seekers", element: adminConsole(<AdminSeekers />) },
-      { path: "/admin/profile", element: adminConsole(<AdminProfile />) },
+      // The admin's account page is not a console surface — it lives with the
+      // other portals' under PublicLayout; see the comment there.
       { path: "/admin/review/jobs", element: adminConsole(<AdminJobsConsole />) },
       { path: "/admin/review/companies", element: adminConsole(<AdminCompanies />) },
       // Pre-3A workspace URLs. The workspace lived under /admin through 2B-1, so

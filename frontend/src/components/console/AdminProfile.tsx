@@ -3,10 +3,11 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ProfileResponse, ProfileView } from "@jobportal/shared";
 
-import AdminShell from "./AdminShell";
 import IdentityCard from "@/components/identity/IdentityCard";
 import { IdentityFieldset, type IdentityValue } from "@/components/identity/IdentityFieldset";
 import { FormField } from "@/components/layout/FormField";
+import PageShell from "@/components/layout/PageShell";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,7 +95,16 @@ const AdminProfile = () => {
   };
 
   return (
-    <AdminShell title="Your account" description="The details Cairn holds for you.">
+    /* An account page, not a console section — the same treatment the seeker's
+       and the recruiter's profiles get. It used to render AdminShell, whose
+       section nav (Dashboard/Recruiters/Candidates/…) has nothing to do with
+       this page and does not even list it; below `lg` that nav is a horizontal
+       band between the navbar and the form, which read as a stray panel rather
+       than chrome. The route mounts this inside PublicLayout, which owns the
+       navbar — the wordmark still returns to /admin, and the navbar's session
+       links still carry Dashboard. */
+    <PageShell density="compact" motion="response">
+      <PageHeader title="Your account" description="The details Cairn holds for you." />
       <div className="grid gap-(--space-card) lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="rounded-surface border border-line bg-paper-raised p-(--space-card)">
           <h2 className="font-display text-xl font-semibold text-ink">Details</h2>
@@ -143,7 +153,7 @@ const AdminProfile = () => {
           </form>
         </section>
       </div>
-    </AdminShell>
+    </PageShell>
   );
 };
 

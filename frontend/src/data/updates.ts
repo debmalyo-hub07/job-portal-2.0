@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "profile-pages-consistent",
+    date: "2026-08-31",
+    kind: "Improvement",
+    title: "One profile page design across every portal",
+    summary:
+      "Your account page now looks the same whether you are a candidate, an employer, or an administrator — a plain page with just your details on it.",
+    details: [
+      "The employer and administrator account pages used to sit inside their workspace navigation, so a strip of unrelated section links appeared above your own details — noticeably so on a phone.",
+      "All three portals' account pages now share one layout: your details, the standard navigation bar, and nothing else.",
+    ],
+  },
+  {
     id: "admin-console-mobile",
     date: "2026-08-31",
     kind: "Fix",
