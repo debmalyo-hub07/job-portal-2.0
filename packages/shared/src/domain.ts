@@ -2,7 +2,7 @@ import { z } from "zod";
 import { genderSchema, jobDepartmentSchema, jobTypeSchema, type ApplicationStatus, type JobStatus, JOB_STATUSES } from "./enums.js";
 import { RECRUITER_SETTABLE } from "./applicationStatus.js";
 import { dobSchema, phoneSchema, type Portal } from "./auth.js";
-import { seekerLocationSchema } from "./location.js";
+import { seekerLocationSchema, type DistanceBand } from "./location.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
@@ -193,8 +193,7 @@ export type JobDto = {
   location: string;
   jobType: string;
   department: string;
-  position: string;
-  /** 4A.3: whether the role is remote. Drives the fit pipeline's remote factor. */
+  position: string;  /** 4A.3: whether the role is remote. Drives the fit pipeline's remote factor. */
   remote: boolean;
   company: CompanyDto | null;
   createdAt: string;
@@ -252,6 +251,13 @@ export type JobDto = {
    */
   postedBy: JobPosterDto | null;
 };
+
+/**
+ * P4 of the location-aware phase: a board row as the "near you" rail receives
+ * it — the job plus the distance band it was ranked under, so the UI can label
+ * honestly ("In Bengaluru", "Remote") rather than imply a measured distance.
+ */
+export type NearMeJobDto = JobDto & { band: DistanceBand };
 
 /**
  * One transition in an application's life.

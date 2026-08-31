@@ -6,10 +6,12 @@ import type {
   JobPosterDto,
   JobStatus,
   JobUpdateBody,
+  NearMeJobDto,
   OwnedJobsQuery,
   PaginatedResponse,
   PaginationQuery,
 } from "@jobportal/shared";
+import { distanceBand, nearMeScore, normalizeCity } from "@jobportal/shared";
 import { TERMINAL_STATUSES } from "@jobportal/shared";
 import { Job, type JobDocument } from "../models/job.model.js";
 import { Company } from "../models/company.model.js";
@@ -296,6 +298,64 @@ export async function listPublicJobs(
   }
 
   return paginate(filter, query, await resolveFitViewer(viewerId));
+}
+
+/**
+ * P4 of the location-aware phase: the whole open board ranked by the seeker's
+ * area — distance band × fit × recency (weights in shared, locked with the
+ * user 2026-08-31).
+ *
+ * The seeker's city comes from the consented `geoLocation` (P2), with the
+ * self-reported `profile.location` as the fallback so a typed city still
+ * ranks — different provenance, same vocabulary, through `normalizeCity`.
+ *
+ * Scoring is in memory, bounded by the open board's size (198 today). The day
+ * the board outgrows that, this needs an aggregation pipeline — and says so
+ * here rather than degrading quietly.
+ */
+export async function listNearMeJobs(
+  seeker: HydratedDocument<SeekerDocument>,
+  { page, limit }: PaginationQuery,
+): Promise<PaginatedResponse<NearMeJobDto>> {
+  const city =
+    seeker.geoLocation?.city ?? normalizeCity(seeker.profile?.location ?? null)?.city ?? null;
+  if (!city) {
+    // The code, not the message, is the contract: the board's rail renders its
+    // consent prompt on exactly this 400.
+    throw AppError.badRequest(
+      "NEAR_ME_NO_LOCATION",
+      "Add your area to your profile to see roles near you.",
+    );
+  }
+
+  const jobs = await Job.find({ status: mongoose.trusted({ $ne: "closed" }) })
+    .populate<{ company: HydratedDocument<CompanyDocument> | null }>("company")
+    .populate("created_by", POSTER_FIELDS);
+
+  const ranked = jobs
+    .map((job) => {
+      const band = distanceBand(city, job.location ?? "", Boolean(job.remote));
+      const fit = scoreJobForSeeker(seeker, job as unknown as JobDocument).score;
+      const postedAt = (job as { createdAt?: Date }).createdAt ?? new Date(0);
+      return { job, band, score: nearMeScore(band, fit, postedAt) };
+    })
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (b.job.createdAt?.getTime() ?? 0) - (a.job.createdAt?.getTime() ?? 0) ||
+        String(b.job._id).localeCompare(String(a.job._id)),
+    );
+
+  const slice = ranked.slice((page - 1) * limit, page * limit);
+  return {
+    items: slice.map(({ job, band }) => ({
+      ...toJobDto(job as unknown as PopulatedJob, seeker),
+      band,
+    })),
+    total: ranked.length,
+    page,
+    pages: Math.ceil(ranked.length / limit),
+  };
 }
 
 export async function getPublicJob(jobId: string, viewerId?: string): Promise<JobDto> {

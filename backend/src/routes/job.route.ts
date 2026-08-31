@@ -6,6 +6,7 @@ import {
   postJob,
   getAllJobs,
   getJobById,
+  getNearMeJobs,
   getAdminJobs,
   updateJob,
   updateJobStatus,
@@ -44,6 +45,12 @@ router
 // still resolves a session when one is present.
 router.route("/get").get(optionalAuthenticate(), getAllJobs);
 router.route("/get/:id").get(optionalAuthenticate(), getJobById);
+// P4: the area-ranked board, seeker-only. Deliberately NOT behind
+// `requireProfileComplete` — the board is the product's front door and an
+// incomplete seeker simply gets the no-location 400 the rail prompts on, not
+// a wall. The ranking reads the consented geoLocation or the self-reported
+// city, neither of which needs the identity gate.
+router.route("/near-me").get(authenticate("seeker"), getNearMeJobs);
 // Ungated: reads only the caller's own jobs, which for a pending recruiter is
 // the empty set.
 router.route("/getadminjobs").get(authenticate("recruiter"), getAdminJobs);

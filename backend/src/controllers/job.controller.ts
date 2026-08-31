@@ -6,8 +6,11 @@ import {
   jobUpdateBodySchema,
   objectIdSchema,
   ownedJobsQuerySchema,
+  paginationQuerySchema,
 } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
+import { AppError } from "../lib/AppError.js";
+import { findAccountById } from "../services/account.service.js";
 import * as jobService from "../services/job.service.js";
 
 /**
@@ -42,6 +45,19 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
   const id = parseBody(objectIdSchema, req.params.id);
   const job = await jobService.getPublicJob(id, fitViewer(req));
   res.status(200).json({ success: true, job });
+};
+
+/**
+ * P4: the seeker's area-ranked board. Authenticated seeker only — the ranking
+ * is meaningless for anyone else, and the 401 (not a silent empty list) is
+ * what tells the client not to render the rail at all.
+ */
+export const getNearMeJobs = async (req: Request, res: Response): Promise<void> => {
+  const query = parseBody(paginationQuerySchema, req.query);
+  const seeker = await findAccountById("seeker", req.auth!.id);
+  if (!seeker) throw AppError.unauthorized("SESSION_INVALID", "Sign in to continue.");
+  const result = await jobService.listNearMeJobs(seeker, query);
+  res.status(200).json({ success: true, ...result });
 };
 
 export const getAdminJobs = async (req: Request, res: Response): Promise<void> => {
