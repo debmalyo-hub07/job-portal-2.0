@@ -704,6 +704,29 @@ live clock and calendar (`ConsoleClock`) — the browser's `Intl` timezone with
 an Asia/Kolkata default, chosen per-browser — because the "as of" stamp
 describes the data, not the time an admin works against.
 
+### Location
+
+The location foundation (P2 of the location-aware phase, 2026-09-01) is
+keyless by decision: no Google, no API keys, nothing that can expire or bill.
+`GET /location/reverse` is the platform's one geocoding path — it proxies
+OpenStreetMap Nominatim with a descriptive `User-Agent`, behind a per-IP rate
+limit and an in-memory cache keyed by ~1km coordinate boxes (the deploy is
+single-instance by design, so a Map is the whole cache), and normalizes the
+answer through `normalizeCity` against the board's own `JOB_LOCATIONS`
+vocabulary plus a small alias table ("Bangalore" is "Bengaluru", "Noida" is
+"Delhi NCR") — an answer that doesn't match passes through verbatim with
+`matched: false` so callers can label honestly. On the client,
+`useDeviceLocation` runs geolocation only from an explicit user action, keeps
+the normalized city and the browser timezone, and drops the coordinates. The
+seeker profile stores the consented result as a top-level `geoLocation`
+subdocument — deliberately distinct from 4A.3's self-reported
+`profile.location` string, which remains the fit pipeline's input: one is a
+device observation, the other is what the seeker typed. `GET
+/location/country` answers the request's country (`x-vercel-ip-country`,
+which the same-origin proxy forwards verbatim, with a timezone fallback) for
+the phone dial-code default P3 preselects. No location signal reaches an
+authentication or authorization decision anywhere.
+
 The listings (`useAdminRecruiters`, `useAdminSeekers`, `useAdminJobs`,
 `useAdminCompanies`) have no interval by design — a mutation is their refresh
 path, so the mutation must invalidate them. Console mutations therefore

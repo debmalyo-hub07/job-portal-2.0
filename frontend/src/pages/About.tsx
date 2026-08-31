@@ -162,6 +162,12 @@ export default function About() {
             <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-muted">
               The board, applications, recruiter approval, employer workspace, and moderation console work today. Where a workflow is not available yet, the help and legal pages say so directly.
             </p>
+            {/* Nominatim's usage policy asks its data to be credited where it is
+                used; the location feature answers through it. */}
+            <p className="mt-3 text-xs text-ink-muted">
+              Place detection on this platform answers through OpenStreetMap — place data ©
+              OpenStreetMap contributors.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">

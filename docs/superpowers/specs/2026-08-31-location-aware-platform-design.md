@@ -72,11 +72,21 @@ holds nothing: coordinates are used for the one request and dropped.
 - OpenStreetMap attribution ships in the About page and the API response
   (`source: "openstreetmap"`), per Nominatim's usage policy.
 
-**Seeker profile storage.** The existing unused `seeker.location: String`
-becomes a subdocument: `{ city: string, country: string, updatedAt: Date }`,
-default `null`. **Coordinates are never stored** — the transient lat/lng dies
-with the request. The DTO projects city and country only. Updating it is an
-authenticated seeker action on the profile route; nothing else writes it.
+**Seeker profile storage.** ~~The existing unused `seeker.location: String`
+becomes a subdocument~~ **(Amended 2026-09-01 during implementation: that
+field does not exist.** The string the model carries is `profile.location` —
+4A.3's *self-reported* location, an input to the fit pipeline, and very much
+in use. Replacing it would have broken the scorer.) The consented location is
+therefore a **separate top-level subdocument `geoLocation:
+{ city, country, updatedAt }`**, default `null` — a device observation has
+different provenance and a different lifetime from anything the seeker typed.
+It is written only by the profile update route's seeker branch
+(`geoLocation` on `profileUpdateBodySchema`, preprocessed from the multipart
+JSON string), projected as `{ city, country }`, and excluded from the edit
+dialog's field-coverage guard by name — its writer is the profile card's
+consent flow, not a typed control. **Coordinates are never stored** — the
+transient lat/lng dies with the request. The DTO projects city and country
+only. Nothing else writes it.
 
 **Country for phone preselection.** A transient signal, never stored:
 `x-vercel-ip-country` where present, else the timezone→country map, else

@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "seeker-location",
+    date: "2026-09-01",
+    kind: "Feature",
+    title: "Your profile can now know where you are looking",
+    summary:
+      "Candidates can set their area once, with the browser's own permission, and the platform keeps only the city — never the precise position.",
+    details: [
+      "A \"Use my location\" action on your profile asks your browser for permission, resolves your city, and saves it to your profile.",
+      "Only the city and country are stored. The precise position your browser shares is used for that one lookup and then discarded.",
+      "Job recommendations that use your area are coming next.",
+    ],
+  },
+  {
     id: "console-clock",
     date: "2026-08-31",
     kind: "Improvement",

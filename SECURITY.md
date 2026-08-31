@@ -346,6 +346,20 @@ independent counters.
 | Email-change confirm per IP | 10 / hour | Active |
 | Guardian-consent send per account | 3 / hour | Active |
 | Guardian-consent confirm per IP | 10 / hour | Active |
+| Reverse geocoding per IP | 10 / min | Active |
+
+## Location data (P2, 2026-09-01)
+
+The location foundation stores **city-level PII only**. A consented browser
+geolocation sends coordinates to `GET /location/reverse`, which uses them for
+that one lookup (through OpenStreetMap Nominatim, behind the per-IP rate limit
+above and a ~1km-box cache) and discards them: nothing in any collection, log,
+or DTO carries coordinates. What persists is the seeker's `geoLocation`
+subdocument — city, country, and the moment the consent ran. The IP-country
+header that backs `/location/country` is a UI default for a dial code, never
+an identity claim, and **no location signal participates in any
+authentication, authorization, or anti-abuse decision** — location answers
+"which city is this user near", not "who is this user".
 
 Redemption is limited per IP rather than per email because the email in the body
 is attacker-chosen: keying on it would let one attacker cycle addresses to get an
