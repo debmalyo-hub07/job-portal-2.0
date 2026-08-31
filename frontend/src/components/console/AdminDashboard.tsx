@@ -112,6 +112,10 @@ export function AdminDashboard() {
   const createAdmin = useCreateAdmin();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState({ fullName: "", email: "", provisioningKey: "" });
+  // True only between a manual refresh and its completion. Background refetches
+  // fire every 30-60s and must be invisible — the page used to dim for each
+  // one, which read as the console stuttering twice a minute.
+  const [manualRefresh, setManualRefresh] = useState(false);
 
   const submitInvite = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -126,9 +130,10 @@ export function AdminDashboard() {
   };
 
   const refreshAll = () => {
-    void overview.refetch();
-    void insights.refetch();
-    void activity.refetch();
+    setManualRefresh(true);
+    Promise.allSettled([overview.refetch(), insights.refetch(), activity.refetch()]).finally(() =>
+      setManualRefresh(false),
+    );
   };
 
   const busy = overview.isFetching || insights.isFetching || activity.isFetching;
@@ -180,12 +185,14 @@ export function AdminDashboard() {
             : "unknown error"}
         </p>
       ) : (
-        // Held at reduced opacity through a refetch rather than replaced by
-        // skeletons: an already-populated dashboard flashing back to grey is a
-        // layout jump for no new information.
+        // Held at reduced opacity through a MANUAL refresh only, where the
+        // button's spinner already says "working". A background refetch keeps
+        // the page exactly as it was — React Query holds the data, so there is
+        // nothing to communicate, and dimming for each 30-second poll was the
+        // console's stutter.
         <div
           className={
-            busy && insights.data
+            manualRefresh && insights.data
               ? "opacity-60 transition-opacity duration-(--dur-fast)"
               : "transition-opacity duration-(--dur-fast)"
           }

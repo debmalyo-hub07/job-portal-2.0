@@ -696,6 +696,14 @@ should not have to wait out a tick. Single-record reads (`useCompany`, `useJob`)
 deliberately do not poll: they back edit forms, where a background write would
 fight what the recruiter is typing.
 
+Background refetches are also **silent**: the dashboard dims only between a
+manual refresh and its completion, where the button's spinner is already
+speaking. It used to dim on every fetch including the 30-second polls, which
+read as the page stuttering twice a minute. The console's side band carries a
+live clock and calendar (`ConsoleClock`) — the browser's `Intl` timezone with
+an Asia/Kolkata default, chosen per-browser — because the "as of" stamp
+describes the data, not the time an admin works against.
+
 The listings (`useAdminRecruiters`, `useAdminSeekers`, `useAdminJobs`,
 `useAdminCompanies`) have no interval by design — a mutation is their refresh
 path, so the mutation must invalidate them. Console mutations therefore

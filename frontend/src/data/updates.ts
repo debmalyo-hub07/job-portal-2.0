@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "console-clock",
+    date: "2026-08-31",
+    kind: "Improvement",
+    title: "The admin console keeps time — and stopped flickering",
+    summary:
+      "The console's side panel now carries a live ticking clock, the full date and a month calendar, in your own timezone (IST by default). And the page no longer dims itself every time it quietly checks for updates in the background.",
+    details: [
+      "The console used to fade to half brightness whenever it refreshed its numbers — including the silent checks it runs every half minute — so the page appeared to stutter while you were reading it. It now stays perfectly still unless you press Refresh yourself.",
+      "The clock shows the time to the second, the date, and your timezone's offset, and can be switched to any common working timezone. The calendar highlights today and flips through months.",
+    ],
+  },
+  {
     id: "every-role-has-a-recruiter",
     date: "2026-08-31",
     kind: "Improvement",

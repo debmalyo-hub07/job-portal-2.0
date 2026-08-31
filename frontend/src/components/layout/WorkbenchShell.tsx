@@ -15,6 +15,7 @@ export function WorkbenchShell({
   title,
   description,
   actions,
+  sidebarExtra,
   children,
 }: {
   portal: Extract<Portal, "recruiter" | "admin">;
@@ -23,6 +24,8 @@ export function WorkbenchShell({
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** Rendered below the nav in the side band — the admin console's clock. */
+  sidebarExtra?: ReactNode;
   children: ReactNode;
 }) {
   const links = navLinksFor(portal, "session");
@@ -77,6 +80,7 @@ export function WorkbenchShell({
                 ))}
               </ul>
             </nav>
+            {sidebarExtra}
           </aside>
 
           <main className="min-w-0 py-7 md:py-8 md:pl-8">
