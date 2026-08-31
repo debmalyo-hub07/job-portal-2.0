@@ -19,7 +19,7 @@ const otpBudgetSchema = new Schema(
     // Keep in sync with otpCode.model.ts's enum and the OtpPurpose type.
     purpose: {
       type: String,
-      enum: ["verify_email", "reset_password", "change_email", "guardian_consent"],
+      enum: ["verify_email", "reset_password", "change_email", "guardian_consent", "verify_phone"],
       required: true,
     },
     failures: { type: Number, default: 0 },

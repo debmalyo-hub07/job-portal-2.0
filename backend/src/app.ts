@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
 import locationRoute from "./routes/location.route.js";
+import phoneVerificationRoute from "./routes/phoneVerification.route.js";
 import { buildAuthRouter } from "./routes/auth.route.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/error.js";
@@ -54,6 +55,15 @@ export function buildApp(): Express {
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);
   app.use("/api/v1/location", locationRoute);
+  // Dormant by design (P3): the phone-verification paths exist only when an
+  // SMS provider key does — an absent key is a 404, not a misdeploy. Presence
+  // is read from process.env directly rather than env(): buildApp() runs at
+  // module scope in the test harness before setup.ts assigns MONGO_URI, so an
+  // env() call here fails full validation on 16 suites — the same bootstrap
+  // exception buildHttpLogger documents two lines above.
+  if (process.env.SMS_PROVIDER_KEY) {
+    app.use("/api/v1/user/phone-verification", phoneVerificationRoute);
+  }
 
   app.use(notFound);
   app.use(errorHandler);

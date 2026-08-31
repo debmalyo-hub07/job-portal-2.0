@@ -21,7 +21,7 @@ const otpCodeSchema = new Schema(
      */
     purpose: {
       type: String,
-      enum: ["verify_email", "reset_password", "change_email", "guardian_consent"],
+      enum: ["verify_email", "reset_password", "change_email", "guardian_consent", "verify_phone"],
       required: true,
     },
     /**
@@ -61,7 +61,14 @@ export type OtpPurpose =
   | "verify_email"
   | "reset_password"
   | "change_email"
-  | "guardian_consent";
+  | "guardian_consent"
+  /**
+   * P3, dormant: mintable by the phone-verification routes, which mount only
+   * when an SMS provider key exists. It has no email branch in
+   * `renderOtpEmail` on purpose — a phone code is delivered by SMS, and the
+   * transport is the one piece activation adds.
+   */
+  | "verify_phone";
 
 /** Which mailbox a `change_email` code was mailed to. See `stage` above. */
 export type OtpStage = "confirm-current" | "confirm-new";

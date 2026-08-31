@@ -83,6 +83,15 @@ export const envSchema = z.object({
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 
   /**
+   * P3 of the location-aware phase — deliberately optional EVERYWHERE,
+   * production included: the phone-verification routes are dormant by design
+   * and mount only when this key exists (see phoneVerification.service and the
+   * deployment runbook's activation path). An absent key is a route that does
+   * not exist, not a misconfigured deploy.
+   */
+  SMS_PROVIDER_KEY: z.string().min(1).optional(),
+
+  /**
    * Shared with the web origin's `/api` proxy so it can name the real client
    * address on a request it forwards. Optional here: with it unset the claim is
    * ignored and a proxied request is attributed to the proxy, which is safe and

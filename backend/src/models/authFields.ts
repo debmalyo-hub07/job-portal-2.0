@@ -31,6 +31,13 @@ export const authFields = {
   fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
   phone: { type: String, default: null },
   /**
+   * P3 of the location-aware phase: when an SMS-verified OTP last proved
+   * control of `phone`. Null everywhere today — the verification routes are
+   * dormant until an SMS provider key exists (see phoneVerification.service).
+   * Like `emailVerifiedAt`, it is a fact about proof, never a login gate.
+   */
+  phoneVerifiedAt: { type: Date, default: null },
+  /**
    * A calendar date stored at UTC midnight. Required of seekers and recruiters
    * by the gate, NOT by this schema — `seed:admin` and `seed:catalog` create
    * accounts with no DOB, and a schema-level `required` breaks both.
