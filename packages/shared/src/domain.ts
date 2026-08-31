@@ -2,6 +2,7 @@ import { z } from "zod";
 import { genderSchema, jobDepartmentSchema, jobTypeSchema, type ApplicationStatus, type JobStatus, JOB_STATUSES } from "./enums.js";
 import { RECRUITER_SETTABLE } from "./applicationStatus.js";
 import { dobSchema, phoneSchema, type Portal } from "./auth.js";
+import { seekerLocationSchema } from "./location.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
 import { paginationQuerySchema } from "./pagination.js";
 
@@ -398,6 +399,34 @@ export const profileUpdateBodySchema = z.object({
    */
   experienceYears: clearableInt(60),
   location: z.string().trim().max(120).optional(),
+  /**
+   * P2 of the location-aware phase: the CONSENTED device location, from the
+   * reverse-geocode flow — city-level only, never coordinates.
+   *
+   * Distinct from the self-reported free-text `location` above, which 4A.3
+   * added for the matching pipeline: that one is what the seeker typed, this
+   * one is where their browser said they are. Absent means "leave alone" —
+   * there is deliberately no clearable form, because P2 has no surface that
+   * needs to withdraw a consented city yet.
+   *
+   * The edit path is multipart, so this arrives as a JSON string; the
+   * preprocess turns it back into the object before validation. Anything that
+   * is neither valid JSON nor a valid location fails with the schema's own
+   * message rather than a parse crash.
+   */
+  geoLocation: z
+    .preprocess(
+      (v) => {
+        if (typeof v !== "string") return v;
+        try {
+          return JSON.parse(v);
+        } catch {
+          return v;
+        }
+      },
+      seekerLocationSchema,
+    )
+    .optional(),
   /**
    * 4A.3: self-reported salary band in `job.salary`'s unit.
    *
