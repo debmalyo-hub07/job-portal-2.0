@@ -687,6 +687,17 @@ should not have to wait out a tick. Single-record reads (`useCompany`, `useJob`)
 deliberately do not poll: they back edit forms, where a background write would
 fight what the recruiter is typing.
 
+The listings (`useAdminRecruiters`, `useAdminSeekers`, `useAdminJobs`,
+`useAdminCompanies`) have no interval by design — a mutation is their refresh
+path, so the mutation must invalidate them. Console mutations therefore
+invalidate the `["admin", <plural>]` prefix rather than any one listing's key:
+an approval moves a row on the recruiters screen, a dashboard counter and the
+triage band all at once, and prefix invalidation reaches every screen the
+decision lands on. The approval mutation once invalidated only the pending
+queue's key, which left the Project D monitoring listing showing Approve on a
+row it had already approved until the next manual reload — the regression test
+in `tests/oversight.test.tsx` pins this.
+
 Account **status** is the one live value that does not live in react-query.
 `useAuthBootstrap` writes the session into Redux once, at startup, and every
 route guard reads it from there — correct for identity, wrong for a recruiter's

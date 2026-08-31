@@ -150,6 +150,42 @@ describe("the recruiters monitoring screen", () => {
     expect(screen.getAllByRole("button", { name: /^reinstate/i })).toHaveLength(1);
     get.mockRestore();
   });
+
+  it("moves a row off pending after a decision without a manual reload", async () => {
+    // The listing has no refetchInterval — the only thing that can refresh it
+    // after a decision is the mutation invalidating its query key.
+    const afterApprove: PaginatedResponse<AdminRecruiterDto> = {
+      ...RECRUITERS_PAGE,
+      items: RECRUITERS_PAGE.items.map((r) =>
+        r.id === "r1" ? { ...r, status: "active" as const } : r,
+      ),
+    };
+    const get = vi
+      .spyOn(apiClient, "get")
+      .mockResolvedValueOnce({ data: { success: true, ...RECRUITERS_PAGE } })
+      .mockResolvedValue({ data: { success: true, ...afterApprove } });
+    const post = vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: { success: true },
+    });
+    const { default: AdminRecruiters } = await import(
+      "@/components/console/AdminRecruiters"
+    );
+    renderAt(<AdminRecruiters />);
+
+    await screen.findByText("Pending Person");
+    await userEvent.click(screen.getByRole("button", { name: /^approve/i }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith("/admin/recruiters/r1/approve"),
+    );
+    // The row must lose its pending actions on its own — no reload, no
+    // navigation — which only happens if the listing was refetched.
+    await waitFor(
+      () => expect(screen.queryByRole("button", { name: /^approve/i })).toBeNull(),
+    );
+    get.mockRestore();
+    post.mockRestore();
+  });
 });
 
 const QUEUE_PAGE: PaginatedResponse<{

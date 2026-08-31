@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "recruiter-decision-refresh",
+    date: "2026-08-31",
+    kind: "Fix",
+    title: "Approving or denying a recruiter now updates the row immediately",
+    summary:
+      "On the console's recruiter screen, approving or denying a request used to leave the Approve and Deny buttons sitting on the row until the page was reloaded. The row now changes the moment the decision is made.",
+    details: [
+      "The screen lists every recruiter, and a decision changes a row from pending to active — but the list was not refreshed after the decision, so the row still offered the actions it had just resolved.",
+      "Suspend and reinstate were already correct; the fix gives approvals and denials the same immediate behaviour.",
+    ],
+  },
+  {
     id: "email-change-reachable",
     date: "2026-08-31",
     kind: "Fix",

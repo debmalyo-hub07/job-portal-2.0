@@ -133,7 +133,11 @@ export function useRecruiterDecision() {
       }
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "recruiters", "pending"] });
+      // The "recruiters" prefix, not "recruiters/pending": Project D turned the
+      // queue into the full monitoring listing (keyed "recruiters/all"), and a
+      // decision must move the row on that screen too — an Approve button that
+      // survives its own approval reads as the action having failed.
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "recruiters"] });
       void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "overview"] });
       // The triage band reads pendingRecruiters from insights, so approving
       // without this leaves "3 awaiting approval" above an empty queue.
