@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 
 import FilterCard from "./FilterCard";
 import Job from "./Job";
+import NearYouRail from "./board/NearYouRail";
 import { EmptyState } from "./layout/EmptyState";
 import { Pager } from "./layout/ListControls";
 import PageShell from "./layout/PageShell";
@@ -88,6 +89,10 @@ const Jobs = () => {
         </div>
 
         <main ref={resultsRef} className="min-w-0 scroll-mt-24">
+          {/* P4: the area-ranked rail, above the counts and the facet board.
+              Renders itself only for a signed-in seeker — null for everyone
+              else, so the public board is untouched. */}
+          <NearYouRail />
           <div className="mb-4 flex min-h-11 items-center justify-between gap-4 border-b border-line pb-3">
             <p className="text-sm font-medium text-ink">
               {isPending ? "Finding roles..." : `${data?.total ?? jobs.length} roles`}
