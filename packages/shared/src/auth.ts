@@ -1,3 +1,4 @@
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { z } from "zod";
 
 export const portalSchema = z.enum(["seeker", "recruiter", "admin"]);
@@ -17,18 +18,39 @@ export const passwordSchema = z
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
 
 /**
- * One E.164 definition, now the only one: `profileUpdateBodySchema.phone` and
- * `completeProfileBodySchema.phone` both build on it.
+ * Phone validation is libphonenumber-driven (P3 of the location-aware phase):
+ * parse, require validity for the country the number itself names, refuse
+ * known landline types (verification, the day it exists, arrives by SMS), and
+ * canonicalize to E.164. A number whose line type the metadata cannot pin
+ * down passes — "unknown" is not "landline", and over-refusing costs a real
+ * user their real number.
  *
- * It used to be inline in `registerBodySchema` while
- * `profileUpdateBodySchema.phoneNumber` accepted any string up to 20 characters —
- * so the profile could store a number registration would reject, under a
- * different field name.
+ * The outward contract is unchanged from the E.164-regex era: string in,
+ * canonical E.164 string out, so `completeProfileBodySchema` and
+ * `profileUpdateBodySchema` — the two builders on it — need no edits.
  */
 export const phoneSchema = z
   .string()
   .trim()
-  .regex(/^\+[1-9]\d{7,14}$/, "must be E.164, e.g. +919876543210");
+  .transform((value, ctx) => {
+    const parsed = parsePhoneNumberFromString(value);
+    if (!parsed || !parsed.isValid()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid phone number with its country code, e.g. +919876543210.",
+      });
+      return z.NEVER;
+    }
+    const type = parsed.getType();
+    if (type && type !== "MOBILE" && type !== "FIXED_LINE_OR_MOBILE") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a mobile number — landlines cannot receive texts.",
+      });
+      return z.NEVER;
+    }
+    return parsed.number;
+  });
 
 /**
  * The adult boundary — the age at which every restriction lifts. Recruiter

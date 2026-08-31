@@ -34,6 +34,31 @@ describe("phone", () => {
     expect(phoneSchema.safeParse("9876543210").success).toBe(false);
     expect(phoneSchema.safeParse("+0123456789").success).toBe(false);
   });
+
+  it("accepts formatting noise and canonicalizes to E.164", () => {
+    // libphonenumber parses the country out of the number itself; spacing and
+    // separators are presentation, not structure.
+    expect(phoneSchema.parse("+91 98765 43210")).toBe("+919876543210");
+  });
+
+  it("rejects a well-formed number that is not valid for its country", () => {
+    // Twelve digits is not an Indian number, whatever the prefix claims.
+    expect(phoneSchema.safeParse("+919999999999999").success).toBe(false);
+  });
+
+  it("rejects a landline — verification, the day it exists, arrives by SMS", () => {
+    // A London fixed line, typed as FIXED_LINE by the metadata. (Indian
+    // landlines come back type-unknown and deliberately pass — "unknown" is
+    // not "landline", and over-refusing costs a real number.)
+    const result = phoneSchema.safeParse("+442071234567");
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a number whose line type the metadata cannot pin down", () => {
+    // +91 11 is a Delhi fixed-line area code, but the core metadata types it
+    // unknown — unknown must pass, or every such real number is refused.
+    expect(phoneSchema.parse("+911123456789")).toBe("+911123456789");
+  });
 });
 
 describe("ageInYears", () => {
