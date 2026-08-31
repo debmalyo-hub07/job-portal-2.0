@@ -84,6 +84,28 @@ async function openDialog() {
   return screen.findByRole("dialog");
 }
 
+describe("the Change action's place in the email row", () => {
+  it("truncates the address without ever clipping the action", () => {
+    // Measured against the admin profile: the button sat inline after the
+    // address inside the same truncated <dd>, so a long address ellipsized the
+    // action away — invisible on desktop's two-column card, fine on a phone's
+    // one-column one. jsdom cannot lay out a page, so this pins the structure
+    // that makes the clipping impossible: the address truncates inside a span,
+    // and the action is its shrink-0 flex sibling rather than trailing text.
+    renderCard(baseProfile);
+    const button = screen.getByRole("button", { name: /change email address/i });
+    const dd = button.closest("dd");
+    expect(dd).not.toBeNull();
+    expect(dd!.className).toMatch(/\bflex\b/);
+    expect(button.className).toMatch(/shrink-0/);
+    const value = dd!.querySelector("span");
+    expect(value?.className).toMatch(/truncate/);
+    // The action is the value's sibling, not its trailing content: the value's
+    // overflow can never reach it.
+    expect(button.previousElementSibling).toBe(value);
+  });
+});
+
 function apiRejection(code: string, message: string, status = 400): AxiosError {
   return new AxiosError(message, "ERR_BAD_REQUEST", undefined, undefined, {
     status,

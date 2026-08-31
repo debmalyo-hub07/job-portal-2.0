@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "email-change-reachable",
+    date: "2026-08-31",
+    kind: "Fix",
+    title: "Change email is reachable on every screen size",
+    summary:
+      "The \"Change\" action beside your email address could disappear on a wide screen when the address filled the row. The address now shortens instead, and the action stays put.",
+    details: [
+      "The action sat inline after the address inside the same truncated line, so a long address shortened the row by hiding the button — visible on a phone's one-column card, gone on a desktop's two-column one.",
+      "The address now shortens with an ellipsis on its own, and the action sits beside it at every width, on all three portals' account pages.",
+    ],
+  },
+  {
     id: "profile-pages-consistent",
     date: "2026-08-31",
     kind: "Improvement",

@@ -46,13 +46,21 @@ export function IdentityCard({ profile }: { profile: ProfileView }) {
             <Icon className="mt-0.5 size-4 text-ink-muted" aria-hidden />
             <div className="min-w-0">
               <dt className="text-xs uppercase text-ink-muted">{label}</dt>
-              <dd className="truncate text-sm text-ink">
-                {value}
+              {/* The value truncates; an action never does. "Change" used to
+                  sit inline after the address inside the same truncated <dd>,
+                  so a long address clipped the button away first — measured
+                  against the admin profile: hidden at desktop's two-column
+                  card, visible on a phone's one-column one, the exact inverse
+                  of what anyone would want. A flex row with a shrink-0 action
+                  keeps the address's ellipsis and the button both reachable at
+                  every width. */}
+              <dd className="flex min-w-0 items-baseline gap-2 text-sm text-ink">
+                <span className="min-w-0 truncate">{value}</span>
                 {label === "Email" ? (
                   <button
                     type="button"
                     onClick={() => setChangeOpen(true)}
-                    className="ml-2 text-xs text-signal-text hover:underline focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
+                    className="shrink-0 text-xs text-signal-text hover:underline focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
                   >
                   Change{" "}
                   <span className="sr-only">email address</span>
