@@ -7,6 +7,7 @@ import adminRoute from "./routes/admin.route.js";
 import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
+import locationRoute from "./routes/location.route.js";
 import { buildAuthRouter } from "./routes/auth.route.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/error.js";
@@ -52,6 +53,7 @@ export function buildApp(): Express {
   app.use("/api/v1/company", companyRoute);
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);
+  app.use("/api/v1/location", locationRoute);
 
   app.use(notFound);
   app.use(errorHandler);

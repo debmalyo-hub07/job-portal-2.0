@@ -109,10 +109,20 @@ const TIMEZONE_COUNTRY: Record<string, string> = {
  * a security input. The edge header arrives through the same-origin proxy,
  * which forwards request headers verbatim; the timezone is the client's own
  * report, sent as a query param; India is the platform's default.
+ *
+ * Accepts both header shapes this codebase meets: a fetch `Headers` in tests
+ * and Express's plain lower-cased record on a live request.
  */
-export function countryFromRequest(headers: Headers, timeZone: string | null | undefined): string {
-  const header = headers.get("x-vercel-ip-country");
-  if (header && /^[A-Za-z]{2}$/.test(header)) return header.toUpperCase();
+export function countryFromRequest(
+  headers: Headers | Record<string, string | string[] | undefined>,
+  timeZone: string | null | undefined,
+): string {
+  const header =
+    headers instanceof Headers
+      ? headers.get("x-vercel-ip-country")
+      : ((headers["x-vercel-ip-country"] as string | string[] | undefined) ?? null);
+  const value = Array.isArray(header) ? header[0] : header;
+  if (value && /^[A-Za-z]{2}$/.test(value)) return value.toUpperCase();
   if (timeZone && TIMEZONE_COUNTRY[timeZone]) return TIMEZONE_COUNTRY[timeZone];
   return "IN";
 }
