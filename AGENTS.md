@@ -97,6 +97,20 @@ npm run audit:prod
 git diff --check
 ```
 
+CI runs on a **UTC** runner, and the dev machine does not: a test that
+depends on the local timezone or on ICU's exact offset formatting ("GMT+0"
+vs "GMT+0:00") passes here and fails remotely. When a change touches time,
+timezones, or locale formatting, rehearse CI first:
+
+```powershell
+$env:TZ = "UTC"; npm test --workspace @jobportal/web; Remove-Item Env:TZ
+```
+
+Local green is not the remote verdict. After pushing, confirm the Actions
+run (`gh run list --limit 1`) actually went green — five consecutive pushes
+once shipped red while every local run passed, and nothing noticed until
+someone looked.
+
 For a production web build, provide only Cloudflare's public site key:
 
 ```powershell
