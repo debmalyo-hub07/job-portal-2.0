@@ -141,9 +141,13 @@ export function AdminDashboard() {
       actions={
         <>
           {/* The "as of" the numbers describe, from the server's clock rather than
-              the browser's — see AdminInsightsDto.generatedAt. */}
+              the browser's — see AdminInsightsDto.generatedAt. Visible at every
+              width: a phone is where a stale figure is hardest to notice and a
+              refresh is most likely to be the reason the dashboard was opened.
+              It survives narrow screens by wrapping inside the actions row
+              rather than hiding. */}
           {generatedAt ? (
-            <span className="hidden text-xs text-ink-muted sm:inline">
+            <span className="text-xs text-ink-muted">
               as of{" "}
               {new Date(generatedAt).toLocaleTimeString(undefined, {
                 hour: "2-digit",

@@ -37,6 +37,19 @@ describe("PageHeader", () => {
     );
     expect(getByRole("button", { name: "Post a job" })).toBeInTheDocument();
   });
+
+  /**
+   * Buttons are `whitespace-nowrap` by nature, so an actions row that cannot
+   * wrap pushes the page sideways once the header carries enough of them —
+   * measured at 390px on the admin console, where the document ran to 487px
+   * for exactly this reason. Wrapping takes the second line instead.
+   */
+  it("lets its actions wrap rather than overflow the page", () => {
+    const { container } = render(
+      <PageHeader title="Jobs" actions={<button>Post a job</button>} />,
+    );
+    expect(container.querySelector("header > div.flex-wrap")).not.toBeNull();
+  });
 });
 
 describe("EmptyState", () => {

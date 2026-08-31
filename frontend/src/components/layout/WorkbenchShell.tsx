@@ -35,8 +35,19 @@ export function WorkbenchShell({
           {/* The 30% band. A workbench is mostly chrome, so the portal's hue
               belongs here as a large quiet field rather than only in the small
               accents — that is what makes the recruiter and admin consoles
-              legible as different places at a glance. */}
-          <aside className="border-b border-line bg-container px-4 py-5 lg:border-r lg:border-b-0 lg:py-8 lg:pr-6">
+              legible as different places at a glance.
+
+              `min-w-0` is load-bearing, not tidy-up: below `lg` this band is a
+              horizontal nav strip whose items are deliberately `whitespace-
+              nowrap`, and a grid item's automatic minimum is its content's
+              min-content — the full width of every label. Without the cap the
+              grid track grows to that width, the whole workbench follows, and
+              the page scrolls sideways on phones with the strip's own
+              `overflow-x-auto` never engaging, because the strip was never
+              narrower than its content. Measured at 390px: the document was
+              487px wide with the strip 471px of it. `main` below already had
+              the same cap for the same reason. */}
+          <aside className="min-w-0 border-b border-line bg-container px-4 py-5 lg:border-r lg:border-b-0 lg:py-8 lg:pr-6">
             <p className="mb-3 text-xs font-semibold uppercase text-signal-text">
               {eyebrow}
             </p>

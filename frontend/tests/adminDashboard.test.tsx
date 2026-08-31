@@ -1,16 +1,19 @@
 import type { ReactElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render as rtlRender, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import type { AdminActivityDto, AdminInsightsDto } from "@jobportal/shared";
+import { Provider } from "react-redux";
+import type { AdminActivityDto, AdminInsightsDto, AdminOverviewDto } from "@jobportal/shared";
 
 import { ActivityFeed } from "@/components/console/ActivityFeed";
+import { AdminDashboard } from "@/components/console/AdminDashboard";
 import { CompositionCard } from "@/components/console/CompositionCard";
 import { JobsTrend } from "@/components/console/JobsTrend";
 import { PipelineFunnel } from "@/components/console/PipelineFunnel";
 import { TriageBand } from "@/components/console/TriageBand";
+import { makeStore } from "./helpers/renderRoute";
 
 
 /**
@@ -302,5 +305,125 @@ describe("invite dialog copy", () => {
   /** The wording that described a screen that did not exist. */
   it("no longer promises only a bare code", () => {
     expect(source).not.toMatch(/receives a short-lived password setup code/i);
+  });
+});
+
+/**
+ * The dashboard's responsive shell, mounted whole.
+ *
+ * Both assertions pin classes that are load-bearing at phone width and
+ * invisible everywhere else — jsdom cannot lay out a page, so the test holds
+ * the line the real-browser probe measured: at 390px the document ran to 487px
+ * with the nav band alone 471px of it, and the "as of" stamp did not render
+ * at all. The classes are the fix; drop one and a phone scrolls sideways or
+ * loses its timestamp again while every desktop check stays green.
+ *
+ * `vi.hoisted` because `vi.mock` factories run before the module body: the
+ * fixtures they close over must exist by then, and the module-scope literals
+ * above (PIPELINE_FULL, series) would still be in their temporal dead zone.
+ */
+const consoleFixtures = vi.hoisted(() => {
+  const pipeline = {
+    byStatus: {
+      applied: 40,
+      reviewed: 22,
+      shortlisted: 11,
+      interview: 5,
+      offered: 2,
+      rejected: 9,
+      withdrawn: 0,
+    },
+    total: 89,
+    live: 80,
+    decided: 9,
+  };
+  const jobsPostedSeries = Array.from({ length: 56 }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 5, 1));
+    d.setUTCDate(d.getUTCDate() + i);
+    return { date: d.toISOString().slice(0, 10), count: ({ 0: 1, 10: 3, 40: 2 } as Record<number, number>)[i] ?? 0 };
+  });
+  return {
+    insights: {
+      triage: { pendingRecruiters: 2, companiesMissingBranding: 0 },
+      pipeline,
+      liquidity: { openJobs: 12, jobsWithApplications: 7, applicationsPerJob: 1.4 },
+      composition: {
+        byDepartment: [{ label: "Engineering", count: 9 }],
+        byType: [{ label: "Full-time", count: 10 }],
+        remoteOpenJobs: 4,
+      },
+      jobsPostedSeries,
+      generatedAt: "2026-08-31T09:41:00.000Z",
+    } as AdminInsightsDto,
+    overview: {
+      recruiters: { pending: 2, active: 6, suspended: 1 },
+      seekers: { total: 40 },
+      jobs: { total: 198 },
+      companies: { total: 27 },
+      applications: { total: 89 },
+    } as AdminOverviewDto,
+  };
+});
+
+vi.mock("@/hooks/useAdminConsole", () => ({
+  useAdminOverview: () => ({
+    data: consoleFixtures.overview,
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: async () => ({}),
+  }),
+  useAdminInsights: () => ({
+    data: consoleFixtures.insights,
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: async () => ({}),
+  }),
+  useAdminActivity: () => ({
+    data: [] as AdminActivityDto[],
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: async () => ({}),
+  }),
+  useCreateAdmin: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+describe("AdminDashboard at phone width", () => {
+  function renderDashboard() {
+    return rtlRender(
+      <Provider store={makeStore()}>
+        <MemoryRouter>
+          <AdminDashboard />
+        </MemoryRouter>
+      </Provider>,
+    );
+  }
+
+  it("renders the 'as of' stamp at every width, not only from sm up", () => {
+    // The stamp is the only clue the numbers are a snapshot. It was hidden
+    // below sm, which is the width where a refresh is most likely the reason
+    // the dashboard was opened. `hidden … sm:inline` was the removed bug;
+    // re-adding the hidden class must fail here.
+    const { container } = renderDashboard();
+    const stamp = screen.getByText(/^as of/);
+    expect(stamp.className).not.toMatch(/\bhidden\b/);
+    expect(stamp.className).not.toMatch(/sm:inline/);
+    expect(container).toBeInTheDocument();
+  });
+
+  it("caps the nav band so the workbench cannot grow past the viewport", () => {
+    // A grid item's automatic minimum is its content's min-content, and the
+    // mobile nav strip's labels are deliberately nowrap — without this cap the
+    // grid track grows to the full label width and drags the whole page with
+    // it. Measured: 390px viewport, 487px document.
+    const { container } = renderDashboard();
+    const aside = container.querySelector("aside");
+    expect(aside).not.toBeNull();
+    expect(aside!.className).toMatch(/\bmin-w-0\b/);
   });
 });

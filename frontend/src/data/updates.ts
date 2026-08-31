@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "admin-console-mobile",
+    date: "2026-08-31",
+    kind: "Fix",
+    title: "The admin console now fits a phone",
+    summary:
+      "Opening the console on a mobile browser no longer scrolls sideways behind a stretched navigation strip, and the dashboard's \"as of\" time is visible at every screen size.",
+    details: [
+      "Below desktop width the console's section navigation is a horizontally scrolling strip. Its labels had no width cap, so the strip pushed the entire page wider than the screen — dragging right-to-left revealed empty margin and every panel overflowed its frame.",
+      "The strip now scrolls within itself as designed, and the header's action buttons wrap onto a second line instead of pushing the page sideways.",
+      "The dashboard's data timestamp, previously hidden on small screens, is now shown everywhere — a stale figure is hardest to notice on the device most likely to be checking it.",
+    ],
+  },
+  {
     id: "google-start-loading-state",
     date: "2026-08-31",
     kind: "Improvement",

@@ -25,7 +25,12 @@ export function PageHeader({
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {/* `flex-wrap`, because an actions row is the one place a header grows
+          past a phone: its buttons are `whitespace-nowrap` by nature and used
+          to push the page sideways on a console header carrying three of them.
+          Wrapped, the row takes a second line instead — the same header, one
+          breakpoint narrower, nothing clipped. */}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }
