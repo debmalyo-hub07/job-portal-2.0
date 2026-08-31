@@ -75,12 +75,13 @@ export async function seedDemoCatalog(input: SeedDemoCatalogInput): Promise<Seed
   for (const definition of CATALOGUE_COMPANIES) {
     let company = await Company.findOne({ userId: owner._id, name: definition.name });
     if (!company) {
-      company = await Company.create({ name: definition.name, description: definition.description, location: definition.location, logo: definition.logo, userId: owner._id });
+      company = await Company.create({ name: definition.name, description: definition.description, location: definition.location, logo: definition.logo, website: definition.website, userId: owner._id });
       companiesCreated += 1;
     } else {
       company.description = definition.description;
       company.location = definition.location;
       company.logo = definition.logo;
+      company.website = definition.website;
       await company.save();
     }
     companyByKey.set(definition.key, company);

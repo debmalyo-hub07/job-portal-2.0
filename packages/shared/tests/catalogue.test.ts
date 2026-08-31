@@ -50,6 +50,18 @@ describe("the catalogue roster", () => {
     }
   });
 
+  it("gives every employer a distinct public website", () => {
+    // The workspace shows it and the console's triage band counts its absence,
+    // so a roster entry without one re-seeds the very gap it is meant to fill.
+    // Distinctness catches the copy-paste that points two employers at one site.
+    for (const company of CATALOGUE_COMPANIES) {
+      expect(company.website).toMatch(/^https:\/\/[a-z0-9.-]+(\.[a-z]{2,})(\/[a-z0-9/-]*)?$/);
+    }
+    expect(new Set(CATALOGUE_COMPANIES.map((company) => company.website)).size).toBe(
+      CATALOGUE_COMPANIES.length,
+    );
+  });
+
   it("gives every employer a curated subset of roles, never the whole pool", () => {
     for (const company of CATALOGUE_COMPANIES) {
       expect(company.roles.length).toBeGreaterThanOrEqual(5);

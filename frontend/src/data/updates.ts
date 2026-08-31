@@ -30,6 +30,19 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "every-role-has-a-recruiter",
+    date: "2026-08-31",
+    kind: "Improvement",
+    title: "Every role now has a hiring team you can reach",
+    summary:
+      "Each of the marketplace's employers and their open roles is now owned by a real recruiting lead. Every job page names who posted the role, and signed-in candidates can contact them directly.",
+    details: [
+      "Job pages now show a Posted by card naming the recruiter behind the role and their title. Candidates signed in to the candidate portal also see the poster's contact details there; visitors who are not signed in are invited to sign in instead.",
+      "Applying to any role now reaches the recruiter who owns it: applications land in that person's applicant queue and notify them by email.",
+      "Every employer profile now carries its website, so the details a candidate wants before applying are on the page.",
+    ],
+  },
+  {
     id: "hire-hero-crop-stable",
     date: "2026-08-31",
     kind: "Fix",

@@ -48,6 +48,7 @@ describe("seedDemoCatalog", () => {
     expect(companies).toHaveLength(COMPANY_COUNT);
     expect(companies.map((company) => company.name).sort()).toEqual([...CATALOGUE_COMPANY_NAMES].sort());
     expect(companies.every((company) => company.logo?.startsWith("/images/companies/"))).toBe(true);
+    expect(companies.every((company) => /^https:\/\//.test(company.website ?? ""))).toBe(true);
   });
 
   it("seeds every job somewhere the board's facets can reach", async () => {
