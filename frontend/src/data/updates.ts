@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "hire-hero-crop-stable",
+    date: "2026-08-31",
+    kind: "Fix",
+    title: "The employer hero no longer trims its photo when you hover",
+    summary:
+      "Moving the cursor over the opening photo of the employer landing page zoomed it a touch, which cropped a sliver off the top of the picture — the team's heads. The photo now holds its framing; the cursor's light, the focus reticle and the photo's gentle drift with the pointer all remain.",
+    details: [
+      "Hovering enlarged the photo by two per cent, and because the employer hero keeps its subject near the top of the frame, that zoom read as the picture losing its upper edge rather than as depth.",
+      "The photo now keeps one size whether the cursor is over it or not. Everything else the hover does is unchanged.",
+    ],
+  },
+  {
     id: "hero-pointer-tracking",
     date: "2026-08-31",
     kind: "Fix",

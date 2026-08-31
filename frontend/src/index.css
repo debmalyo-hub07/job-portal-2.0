@@ -706,6 +706,13 @@
     object-position: var(--hero-image-position-mobile);
     filter: brightness(var(--hero-image-brightness)) saturate(var(--hero-image-saturation))
       contrast(var(--hero-image-contrast));
+    /* The 3.5% oversize is slack for the pointer parallax, nothing more. It is
+       deliberately the same at rest and under hover: a scale change on hover
+       re-crops the photo — an extra ~10px of the top vanished on entering the
+       hire hero, whose object-position anchors the subject near the top — and
+       a 2% zoom over 900ms reads as the frame drifting, not as depth. Hover
+       feedback comes from the parallax translate, the focus wash and the
+       reticle, none of which move the photo's crop. */
     transform: translate3d(var(--hero-depth-x), var(--hero-depth-y), 0) scale(1.035);
     will-change: transform;
     transition: transform 900ms var(--ease-out-quint);
@@ -860,10 +867,8 @@
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .hero-media:hover .hero-media__image {
-      transform: translate3d(var(--hero-depth-x), var(--hero-depth-y), 0) scale(1.055);
-    }
-
+    /* No image rule here on purpose: the photo keeps its resting scale under
+       hover (see .hero-media__image above). */
     .hero-media:hover .hero-media__cursor {
       opacity: 0.9;
     }
