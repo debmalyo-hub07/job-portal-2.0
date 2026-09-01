@@ -619,7 +619,9 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | 3 | Application status pipeline: seven stages, candidate timeline, withdraw, status emails | Complete |
 | 3 | Job lifecycle: edit a posting, close a filled role, delete an unapplied one | Complete |
 | 3 | Saved jobs | Planned |
-| 4 | Recruiter dashboard: applicant pipeline, bulk actions, analytics | Planned |
+| 4 | Recruiter dashboard: bulk actions, analytics | Planned |
+| Location-aware (2026-09-01) | Consented city-level seeker area, "Near you" rail on the board, phone country codes, the console's live clock | Complete |
+| Console automation (2026-09-02) | Admin alerts for new work, orphan sweep on approval, feature flags + the Flags screen, guardrailed approval automation, applicant alerts + the pipeline funnel | Complete |
 
 Recruiter approval is now end to end. Sign in at `/admin/login` with an account
 from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
@@ -638,6 +640,24 @@ decision lands in an append-only per-account history (approve, deny, suspend,
 reinstate, with the acting admin). On the workspace side, `/hire/applicants`
 is the recruiter's cross-job queue: every application on every owned role,
 newest first, backed by `GET /api/v1/application/queue`.
+
+**The location-aware phase (2026-09-01)** made the board aware of where a
+candidate is looking: a consented, city-level area on the seeker profile
+(browser geolocation used for one lookup — only the city is ever stored), a
+"Near you" rail above the board ranked by area, fit and freshness, phone
+country codes preselected from the request's country, and the console's
+live clock and calendar. The platform stays keyless — reverse geocoding
+rides OpenStreetMap behind a rate limit and a cache, and no location signal
+reaches any authentication or authorization decision (see ARCHITECTURE.md).
+
+**Console automation (2026-09-01/02)** made the console event-driven instead
+of watch-based: admins are emailed the moment a pending recruiter verifies,
+approving a recruiter sweeps orphaned companies onto the active pool, a
+feature-flag system (`/admin/flags`, ADR-0009) gates a guardrailed
+auto-approval tier that fires only for signups at a known employer's own
+website domain (ADR-0010 — off by default until flipped in the console), and
+the workspace gained instant applicant alerts plus a pipeline funnel on the
+applicants screen.
 
 The public informational surfaces are live: `/about`, `/contact`, `/help`,
 `/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries
