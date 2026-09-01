@@ -196,6 +196,7 @@ export type AdminInsightsDto = {
  */
 export const ADMIN_ACTIVITY_KINDS = [
   "recruiter_registered",
+  "recruiter_auto_approved",
   "job_posted",
   "company_created",
   "application_submitted",
@@ -246,12 +247,16 @@ export type AdminRecruiterDto = {
   jobCount: number;
   applicationCount: number;
   createdAt: string;
+  /** P4's assisted-review signals: the email's domain class, and the company
+      whose website domain the email matches, if any. */
+  emailDomainKind: "free" | "custom";
+  matchingCompany: string | null;
 };
 
 /** One row of a per-account status history, newest first. */
 export type AccountEventDto = {
   id: string;
-  kind: "approved" | "denied" | "suspended" | "reinstated";
+  kind: "approved" | "auto_approved" | "denied" | "suspended" | "reinstated";
   reason: string | null;
   at: string;
   /** The acting admin's email, or null where a script made the decision. */

@@ -10,4 +10,5 @@ export * from "./matching/index.js";
 export * from "./catalogue.js";
 export * from "./location.js";
 export * from "./flags.js";
+export * from "./signupSignals.js";
 
