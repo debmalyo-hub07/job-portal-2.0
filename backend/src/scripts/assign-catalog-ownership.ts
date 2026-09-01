@@ -11,9 +11,6 @@ import {
   applyAssignment,
   orphanedAmong,
   planAssignment,
-  type OwnershipPlan,
-  type PlannedCompany,
-  type PlannedRecruiter,
 } from "../services/catalogOwnership.service.js";
 
 /**

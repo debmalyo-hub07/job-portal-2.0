@@ -10,7 +10,7 @@ import { installCaptureMailer } from "./auth/helpers.js";
 
 const deadOwnerId = new mongoose.Types.ObjectId();
 
-async function activeRecruiter(email: string): Promise<Recruiter> {
+async function activeRecruiter(email: string) {
   return Recruiter.create({
     email,
     fullName: email.split("@")[0]!,
@@ -21,7 +21,7 @@ async function activeRecruiter(email: string): Promise<Recruiter> {
   });
 }
 
-async function company(name: string, userId: unknown): Promise<Company> {
+async function company(name: string, userId: unknown) {
   return Company.create({
     name,
     description: "A catalogue employer",
@@ -31,7 +31,7 @@ async function company(name: string, userId: unknown): Promise<Company> {
   });
 }
 
-async function job(companyId: unknown, createdById: unknown): Promise<Job> {
+async function job(companyId: unknown, createdById: unknown) {
   return Job.create({
     title: `Role at ${String(companyId)}`,
     description: "d",
