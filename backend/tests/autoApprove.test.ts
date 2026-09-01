@@ -156,3 +156,33 @@ describe("the auto-approval tier at the verification flip", () => {
     expect(outbox.some((m) => m.to === "boss@admins.test")).toBe(true);
   });
 });
+
+describe("the monitoring table's signals", () => {
+  beforeEach(async () => {
+    await Promise.all([Company.init(), Recruiter.init()]);
+    installCaptureMailer();
+  });
+
+  it("carries the domain class and the matched company for each recruiter", async () => {
+    await northstarCompany();
+    await pendingRecruiter("mira@northstarlabs.example");
+    await pendingRecruiter("someone@gmail.com");
+    await pendingRecruiter("fresh@newco.example");
+
+    const { items } = await listAllRecruiters({ keyword: "", page: 1, limit: 10 });
+
+    const byEmail = new Map(items.map((row) => [row.email, row]));
+    expect(byEmail.get("mira@northstarlabs.example")).toMatchObject({
+      emailDomainKind: "custom",
+      matchingCompany: "Northstar Labs",
+    });
+    expect(byEmail.get("someone@gmail.com")).toMatchObject({
+      emailDomainKind: "free",
+      matchingCompany: null,
+    });
+    expect(byEmail.get("fresh@newco.example")).toMatchObject({
+      emailDomainKind: "custom",
+      matchingCompany: null,
+    });
+  });
+});

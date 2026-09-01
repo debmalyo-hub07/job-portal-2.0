@@ -1,5 +1,10 @@
 import mongoose from "mongoose";
-import { APPLICATION_STATUSES, isMinor } from "@jobportal/shared";
+import {
+  APPLICATION_STATUSES,
+  isFreeMailAddress,
+  isMinor,
+  signupDomainMatches,
+} from "@jobportal/shared";
 import type {
   AdminActivityDto,
   AdminActivityItem,
@@ -281,6 +286,27 @@ export async function listAllRecruiters(
     );
   }
 
+  // P4's assisted-review signals: the same computation the auto-tier uses,
+  // surfaced on the row the admin actually reads. One website scan per page,
+  // not per row. `mongoose.trusted` for the $ne — sanitizeFilter is global.
+  const companies = await Company.find({
+    website: mongoose.trusted({ $ne: null }),
+  }).select("name website");
+  const signalsFor = (email: string): {
+    emailDomainKind: "free" | "custom";
+    matchingCompany: string | null;
+  } => {
+    const kind = isFreeMailAddress(email) ? "free" : "custom";
+    let matchingCompany: string | null = null;
+    for (const company of companies) {
+      if (signupDomainMatches(email, company.website ?? "")) {
+        matchingCompany = company.name;
+        break;
+      }
+    }
+    return { emailDomainKind: kind, matchingCompany };
+  };
+
   return {
     items: rows.map((row) => ({
       id: String(row._id),
@@ -290,6 +316,7 @@ export async function listAllRecruiters(
       jobCount: jobCountByOwner.get(String(row._id)) ?? 0,
       applicationCount: appCountByOwner.get(String(row._id)) ?? 0,
       createdAt: (row as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? "",
+      ...signalsFor(row.email),
     })),
     total,
     page,
