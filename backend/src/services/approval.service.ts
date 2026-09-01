@@ -7,6 +7,7 @@ import {
 } from "../lib/emailTemplates.js";
 import { logger } from "../lib/logger.js";
 import { recordAccountEvent } from "./oversight.service.js";
+import { sweepOrphanedCompanies } from "./catalogOwnership.service.js";
 
 export interface PendingRecruiterDto {
   id: string;
@@ -68,6 +69,20 @@ export async function approveRecruiter(id: string, adminId: string | null = null
   await recordAccountEvent("recruiter", id, "approved", null, adminId);
   const account = await Recruiter.findById(id).select("email");
   if (account) dispatch(sendRendered(account.email, renderRecruiterApprovedEmail()));
+
+  // P2 of the console automation program. One more active recruiter is one
+  // more pair of hands: any company orphaned by a deleted owner is re-homed
+  // now, through the same code the assign-catalog script runs, rather than
+  // lingering until someone remembers the script. Fire-and-forget like the
+  // approval mail above — the approval is the product, the sweep is
+  // bookkeeping, and a partial failure's leftovers are exactly what the next
+  // approval picks up. The sweep's own contract is never-reject; the catch is
+  // the process-level guarantee that a broken contract stays a logged line
+  // rather than an unhandled rejection.
+  void sweepOrphanedCompanies().catch((error) => {
+    logger.error({ err: error }, "orphan sweep failed");
+  });
+
   logger.info({ recruiterId: id }, "recruiter approved");
 }
 

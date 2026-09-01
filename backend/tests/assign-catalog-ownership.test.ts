@@ -11,9 +11,9 @@ import { Recruiter } from "../src/models/recruiter.model.js";
 import {
   assignCatalogOwnership,
   designationsFor,
-  planAssignment,
   restoreSnapshot,
 } from "../src/scripts/assign-catalog-ownership.js";
+import { planAssignment } from "../src/services/catalogOwnership.service.js";
 
 describe("planAssignment", () => {
   const recruiters = [

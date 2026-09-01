@@ -1,9 +1,18 @@
 import request from "supertest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { Admin } from "../src/models/admin.model.js";
+import { approveRecruiter } from "../src/services/approval.service.js";
 import { asSession, installCaptureMailer, lastCodeFor, cookieValue, outbox } from "./auth/helpers.js";
+
+// The orphan sweep's contract is never-reject — it catches its own failures
+// and logs them. This mock breaks that contract on purpose so the approval
+// wiring's own catch is what gets exercised: an approval must survive even a
+// throwing sweep, and the rejection must not become an unhandled one.
+vi.mock("../src/services/catalogOwnership.service.js", () => ({
+  sweepOrphanedCompanies: vi.fn().mockRejectedValue(new Error("sweep exploded")),
+}));
 
 const app = buildApp();
 const PASSWORD = "correct horse battery staple";
@@ -233,5 +242,24 @@ describe("admin approval", () => {
       .post("/api/v1/admin/recruiters/000000000000000000000000/approve")
       .use(asSession("admin", admin))
       .expect(404);
+  });
+});
+
+describe("the approval's orphan sweep", () => {
+  beforeEach(() => installCaptureMailer());
+
+  it("never fails the approval, even when the sweep throws", async () => {
+    const pending = await Recruiter.create({
+      email: "sweepdown@example.com",
+      fullName: "Sweep Down",
+      passwordHash: "x",
+      emailVerifiedAt: new Date(),
+      status: "pending",
+    });
+
+    await expect(approveRecruiter(String(pending._id))).resolves.toBeUndefined();
+
+    const after = await Recruiter.findById(pending._id);
+    expect(after?.status).toBe("active");
   });
 });

@@ -7,6 +7,14 @@ import { mongoDatabaseName, env } from "../config/env.js";
 import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { Recruiter } from "../models/recruiter.model.js";
+import {
+  applyAssignment,
+  orphanedAmong,
+  planAssignment,
+  type OwnershipPlan,
+  type PlannedCompany,
+  type PlannedRecruiter,
+} from "../services/catalogOwnership.service.js";
 
 /**
  * One-time ownership migration for the seeded catalogue.
@@ -29,6 +37,10 @@ import { Recruiter } from "../models/recruiter.model.js";
  * writes a snapshot of every field it touches before it touches it, and can
  * put everything back with `--restore <snapshot>`. Re-running after success is
  * a no-op: once no company's owner is missing, there is nothing to assign.
+ *
+ * The planner, the orphan filter and the assignment write live in
+ * `catalogOwnership.service.ts` since P2 of the console automation program —
+ * the approval flow sweeps orphans through the same code this script runs.
  */
 
 /** Professional bylines for the catalogue's owners, assigned in signup order. */
@@ -38,83 +50,6 @@ const DESIGNATIONS = [
   "Head of Talent",
   "Recruiting Partner",
 ] as const;
-
-export type PlannedCompany = { id: string; name: string; jobCount: number };
-export type PlannedRecruiter = { id: string; email: string };
-
-export type OwnershipPlan = {
-  seed: number;
-  recruiters: {
-    recruiterId: string;
-    email: string;
-    companies: PlannedCompany[];
-    jobCount: number;
-  }[];
-};
-
-/** mulberry32 — small, deterministic, no dependencies. */
-function prng(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function seededShuffle<T>(items: T[], seed: number): T[] {
-  const next = [...items];
-  const random = prng(seed);
-  for (let i = next.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [next[i], next[j]] = [next[j]!, next[i]!];
-  }
-  return next;
-}
-
-/**
- * Greedy balance with a seeded shuffle. The shuffle randomises which recruiter
- * meets which employer (the point of the migration — four people, not one), and
- * the greedy pass keeps the workload comparable: companies are placed largest
- * first, each onto the recruiter carrying the fewest jobs, so the final spread
- * differs by at most one company's worth of listings.
- */
-export function planAssignment(
-  companies: PlannedCompany[],
-  recruiters: PlannedRecruiter[],
-  seed: number,
-): OwnershipPlan {
-  if (recruiters.length === 0) throw new Error("planAssignment needs at least one recruiter");
-
-  const ordered = [...seededShuffle(companies, seed)].sort((a, b) => b.jobCount - a.jobCount);
-  const jobs = new Map(recruiters.map((recruiter) => [recruiter.id, 0]));
-  const assigned = new Map(recruiters.map((recruiter) => [recruiter.id, [] as PlannedCompany[]]));
-
-  for (const company of ordered) {
-    let target = recruiters[0]!;
-    for (const recruiter of recruiters) {
-      const ahead =
-        (jobs.get(recruiter.id) ?? 0) < (jobs.get(target.id) ?? 0) ||
-        ((jobs.get(recruiter.id) ?? 0) === (jobs.get(target.id) ?? 0) &&
-          (assigned.get(recruiter.id)?.length ?? 0) < (assigned.get(target.id)?.length ?? 0));
-      if (ahead) target = recruiter;
-    }
-    jobs.set(target.id, (jobs.get(target.id) ?? 0) + company.jobCount);
-    assigned.get(target.id)?.push(company);
-  }
-
-  return {
-    seed,
-    recruiters: recruiters.map((recruiter) => ({
-      recruiterId: recruiter.id,
-      email: recruiter.email,
-      companies: assigned.get(recruiter.id) ?? [],
-      jobCount: jobs.get(recruiter.id) ?? 0,
-    })),
-  };
-}
 
 /**
  * A designation for every recruiter that never chose one, in signup order.
@@ -217,7 +152,7 @@ export async function assignCatalogOwnership(options: {
   const allCompanies = await Company.find({});
   // Orphaned means no recruiter row answers — not "owned by someone else",
   // which is a real recruiter's company and none of this migration's business.
-  const orphaned = allCompanies.filter((company) => !recruiterIds.has(String(company.userId)));
+  const orphaned = orphanedAmong(allCompanies, recruiterIds);
 
   const websiteByCatalogueName = new Map(CATALOGUE_COMPANIES.map((definition) => [definition.name, definition.website]));
   const websitesToBackfill = allCompanies
@@ -265,14 +200,10 @@ export async function assignCatalogOwnership(options: {
   mkdirSync(resolve(path, ".."), { recursive: true });
   writeFileSync(path, JSON.stringify(snapshot, null, 2));
 
-  for (const entry of plan.recruiters) {
-    for (const company of entry.companies) {
-      await Company.updateOne({ _id: company.id }, { $set: { userId: entry.recruiterId } });
-      // Jobs follow their company: the queue, the workspace and the applicant
-      // routing all resolve an application's owner through job.created_by.
-      await Job.updateMany({ company: company.id }, { $set: { created_by: entry.recruiterId } });
-    }
-  }
+  // One implementation of the write semantics: the company changes hands and
+  // every job under it follows (the queue, the workspace and the applicant
+  // routing all resolve an application's owner through job.created_by).
+  await applyAssignment(plan);
   for (const company of websitesToBackfill) {
     await Company.updateOne({ _id: company.id }, { $set: { website: company.website } });
   }

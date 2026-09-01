@@ -718,6 +718,17 @@ deliverable. Registration itself notifies nothing — an unverified signup is
 indistinguishable from an abandoned one, and notifying on it would let anyone
 spray every admin inbox from the signup form.
 
+The same approval now sweeps the catalogue (`catalogOwnership.service.ts`,
+P2 of the program). Any company whose owner row answers to no recruiter —
+orphaned, not merely owned by someone else, and suspended owners still count
+— is re-homed across the active recruiters through the same planner and
+write the `assign:catalog` script runs, jobs following their companies. One
+more active recruiter is one more pair of hands, so the marketplace can
+never again linger with ownerless employers between script runs; a failed
+sweep logs and leaves its leftovers for the next approval, which is safe
+because an assigned company is no longer orphaned and re-sweeping is a no-op
+on it.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is
