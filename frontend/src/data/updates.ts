@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "approval-automation",
+    date: "2026-09-02",
+    kind: "Feature",
+    title: "Recruiters from known employers can be approved automatically",
+    summary:
+      "A new platform switch — off by default — lets recruiters whose signup email is at a known employer's own website domain be approved the moment they verify their address. Everyone else is reviewed by a person, exactly as before.",
+    details: [
+      "The approval queue's rows now carry trust signals — whether the signup used a custom domain and whether it matches a company already on the platform — so human reviews are faster too.",
+      "Every automatic approval is recorded and shown in the console's activity feed, with the matched employer named.",
+    ],
+  },
+  {
     id: "feature-flags",
     date: "2026-09-01",
     kind: "Feature",

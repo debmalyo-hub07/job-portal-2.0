@@ -744,6 +744,18 @@ client branches on the same resolution the server acts on. The registry
 ships with `autoApproveRecruiterSignups`, off, reserved for P4's approval
 automation and inert until that wires it.
 
+### Approval automation
+
+The flag's tier (P4): at either verification flip, a pending recruiter whose
+signup email's domain exactly matches a known company's website host is
+approved through the same activation a human click runs — guarded flip,
+approval mail, orphan sweep — recording an `auto_approved` event that names
+the matched company and surfacing in the activity feed
+(`signupSignals.service.ts`, ADR-0010). New employers, free-mail addresses,
+a turned-off flag, or an automation failure all fall back to the human queue
+and the admin mail, unchanged. The recruiters monitoring table carries the
+same signals as badges, so the human reviews are faster too.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is
