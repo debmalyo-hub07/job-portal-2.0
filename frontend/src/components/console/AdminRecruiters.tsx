@@ -162,13 +162,26 @@ export function AdminRecruiters() {
                 <TableCell className="font-medium">{recruiter.fullName}</TableCell>
                 <TableCell>{recruiter.email}</TableCell>
                 <TableCell>
-                  {recruiter.status === "pending" ? (
-                    <Badge variant="warn">Pending</Badge>
-                  ) : recruiter.status === "active" ? (
-                    <Badge variant="ok">Active</Badge>
-                  ) : (
-                    <Badge variant="danger">Suspended</Badge>
-                  )}
+                  <div className="flex flex-col items-start gap-1">
+                    {recruiter.status === "pending" ? (
+                      <Badge variant="warn">Pending</Badge>
+                    ) : recruiter.status === "active" ? (
+                      <Badge variant="ok">Active</Badge>
+                    ) : (
+                      <Badge variant="danger">Suspended</Badge>
+                    )}
+                    {/* P4's assisted-review signals, on the rows that are
+                        waiting for a decision — the same computation the
+                        auto-tier gates on, surfaced for the human. */}
+                    {recruiter.status === "pending" && recruiter.matchingCompany ? (
+                      <Badge variant="ok">Matches {recruiter.matchingCompany}</Badge>
+                    ) : null}
+                    {recruiter.status === "pending" &&
+                    !recruiter.matchingCompany &&
+                    recruiter.emailDomainKind === "free" ? (
+                      <Badge variant="outline">Free mail</Badge>
+                    ) : null}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right font-mono">{recruiter.jobCount}</TableCell>
                 <TableCell className="text-right font-mono">{recruiter.applicationCount}</TableCell>

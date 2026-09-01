@@ -13,12 +13,13 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccountEvents } from "@/hooks/useAdminConsole";
 
-/** The four event kinds, as the history renders them. */
+/** The five event kinds, as the history renders them. */
 const KIND_META: Record<
   AccountEventDto["kind"],
   { label: string; tone: "signal" | "secondary" | "danger" | "outline" }
 > = {
   approved: { label: "Approved", tone: "signal" },
+  auto_approved: { label: "Auto-approved", tone: "signal" },
   reinstated: { label: "Reinstated", tone: "signal" },
   denied: { label: "Denied", tone: "danger" },
   suspended: { label: "Suspended", tone: "danger" },

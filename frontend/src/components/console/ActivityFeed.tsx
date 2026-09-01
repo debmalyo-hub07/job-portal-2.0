@@ -1,4 +1,4 @@
-import { Briefcase, Building2, FileText, UserPlus } from "lucide-react";
+import { Briefcase, Building2, FileText, ShieldCheck, UserPlus } from "lucide-react";
 import { Link } from "react-router";
 import type { AdminActivityDto, AdminActivityKind } from "@jobportal/shared";
 
@@ -18,6 +18,7 @@ import { CardEmpty, DashboardCard } from "./DashboardCard";
  */
 const ICONS: Record<AdminActivityKind, typeof Briefcase> = {
   recruiter_registered: UserPlus,
+  recruiter_auto_approved: ShieldCheck,
   job_posted: Briefcase,
   company_created: Building2,
   application_submitted: FileText,
@@ -25,6 +26,7 @@ const ICONS: Record<AdminActivityKind, typeof Briefcase> = {
 
 const VERBS: Record<AdminActivityKind, string> = {
   recruiter_registered: "Recruiter registered",
+  recruiter_auto_approved: "Recruiter auto-approved",
   job_posted: "Job posted",
   company_created: "Company added",
   application_submitted: "Application submitted",
