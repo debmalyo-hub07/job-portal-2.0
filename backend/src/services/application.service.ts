@@ -12,11 +12,13 @@ import type {
 import { Application, type ApplicationDocument } from "../models/application.model.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import { AppError } from "../lib/AppError.js";
+import { env } from "../config/env.js";
 import { getOwnedJob, toJobDto } from "./job.service.js";
 import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
 import {
+  renderApplicantAlertEmail,
   renderApplicationStatusEmail,
   renderApplicationWithdrawnEmail,
 } from "../lib/emailTemplates.js";
@@ -33,8 +35,9 @@ function isDuplicateKey(err: unknown): boolean {
 export async function applyToJob(seekerId: string, jobId: string): Promise<void> {
   // Existence, still open, and — loaded in the same read — everything the
   // eligibility rules below need. `assertJobOpen` selected only `status`; this
-  // needs the type and the poster too, so it loads the job itself.
-  const job = await Job.findById(jobId).select("status jobType created_by");
+  // needs the type, the title (the owner's alert names it) and the poster too,
+  // so it loads the job itself.
+  const job = await Job.findById(jobId).select("status jobType created_by title");
   if (!job) {
     throw AppError.notFound("JOB_NOT_FOUND", "Job not found");
   }
@@ -45,8 +48,9 @@ export async function applyToJob(seekerId: string, jobId: string): Promise<void>
   // Project C: a minor's consequential write is internships only. The DOB is
   // read here rather than trusted from the token because `requireProfileComplete`
   // proves the gate cleared, not which band cleared it — and age crosses a
-  // birthday, which a token minted days ago cannot know.
-  const seeker = await Seeker.findById(seekerId).select("dob guardianConsent");
+  // birthday, which a token minted days ago cannot know. The name rides along
+  // for the owner's alert below.
+  const seeker = await Seeker.findById(seekerId).select("dob guardianConsent fullName");
   if (seeker && isMinor(seeker.dob ?? null) && job.jobType !== "Internship") {
     throw AppError.forbidden(
       "MINOR_NON_INTERNSHIP",
@@ -57,14 +61,15 @@ export async function applyToJob(seekerId: string, jobId: string): Promise<void>
   // Project D: a suspended recruiter's listings stay live by decision, but
   // taking applications for them is a live write the suspension must block.
   // The copy is deliberately vague — the board does not announce suspensions.
-  if (job.created_by) {
-    const owner = await Recruiter.findById(job.created_by).select("status");
-    if (owner?.status === "suspended") {
-      throw AppError.forbidden(
-        "JOB_OWNER_SUSPENDED",
-        "This employer is not accepting applications right now.",
-      );
-    }
+  // The email rides along for the alert below.
+  const owner = job.created_by
+    ? await Recruiter.findById(job.created_by).select("status email")
+    : null;
+  if (owner?.status === "suspended") {
+    throw AppError.forbidden(
+      "JOB_OWNER_SUSPENDED",
+      "This employer is not accepting applications right now.",
+    );
   }
 
   try {
@@ -84,6 +89,25 @@ export async function applyToJob(seekerId: string, jobId: string): Promise<void>
       throw AppError.conflict("ALREADY_APPLIED", "You have already applied for this job");
     }
     throw err;
+  }
+
+  // P5 of the console automation program: the owner learns about the
+  // application the moment it exists. The job, the seeker, and the owner are
+  // already in hand — the alert costs no extra read — and an ownerless job
+  // (or a deleted owner) has nobody to tell. Fire-and-forget, like every
+  // courtesy mail: an application must never fail because its alert did not
+  // send.
+  if (owner?.email) {
+    dispatch(
+      sendRendered(
+        owner.email,
+        renderApplicantAlertEmail(
+          seeker?.fullName ?? "Someone",
+          job.title,
+          `${env().WEB_BASE_URL}/hire/jobs/${jobId}/applicants`,
+        ),
+      ),
+    );
   }
 }
 

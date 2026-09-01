@@ -203,15 +203,39 @@ export function renderAdminPendingEmail(
   const waiting = pendingCount === 1 ? "is 1 recruiter" : `are ${pendingCount} recruiters`;
   return {
     subject: "New recruiter waiting for review",
-    html: ADMIN_WRAPPER(
+    html: NOTICE_WRAPPER(
       `<h1 style="font-size:1.25rem">New recruiter waiting for review</h1><p><strong>${escapeHtml(fullName)}</strong> (${escapeHtml(email)}) just verified their email and is waiting for approval.</p><p>There ${waiting} in the queue.</p><p><a href="${consoleUrl}" style="color:#1a1a1a;font-weight:600">Review the queue</a></p><p style="font-size:.8125rem;color:#6b6b6b">Or paste this address into your browser:<br>${consoleUrl}</p>`,
     ),
     text: `New recruiter waiting for review\n\n${fullName} (${email}) just verified their email and is waiting for approval.\n\nThere ${waiting} in the queue.\n\nReview the queue: ${consoleUrl}\n`,
   };
 }
 
-const ADMIN_WRAPPER = (body: string): string =>
+const NOTICE_WRAPPER = (body: string): string =>
   `<div style="font-family:system-ui,sans-serif;max-width:32rem;margin:0 auto;padding:2rem;color:#1a1a1a">${body}</div>`;
+
+/**
+ * P5 of the console automation program: the work notification sent to a job's
+ * owner the moment someone applies.
+ *
+ * Shares the notice wrapper (no "ignore this email" footer) with the admin
+ * alert for the same reason — this is a notification about work, not a
+ * security transaction. `applicantsUrl` is built by the caller from
+ * `WEB_BASE_URL`, keeping this module free of `env()` like every other
+ * template.
+ */
+export function renderApplicantAlertEmail(
+  applicantName: string,
+  jobTitle: string,
+  applicantsUrl: string,
+): Rendered {
+  return {
+    subject: `New applicant for ${jobTitle}`,
+    html: NOTICE_WRAPPER(
+      `<h1 style="font-size:1.25rem">New applicant for ${escapeHtml(jobTitle)}</h1><p><strong>${escapeHtml(applicantName)}</strong> just applied for this role.</p><p><a href="${applicantsUrl}" style="color:#1a1a1a;font-weight:600">Review the applicant</a></p><p style="font-size:.8125rem;color:#6b6b6b">Or paste this address into your browser:<br>${applicantsUrl}</p>`,
+    ),
+    text: `New applicant for ${jobTitle}\n\n${applicantName} just applied for this role.\n\nReview the applicant: ${applicantsUrl}\n`,
+  };
+}
 
 /**
  * Project D: sent when an admin suspends an account (seeker or recruiter).

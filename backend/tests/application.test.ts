@@ -1,4 +1,5 @@
 import request from "supertest";
+import mongoose from "mongoose";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Offline, like every other suite that touches uploads. The signed-URL stub
@@ -22,7 +23,10 @@ vi.mock("../src/utils/cloudinary.js", () => ({
 
 import { buildApp } from "../src/app.js";
 import { Application } from "../src/models/application.model.js";
+import { Job } from "../src/models/job.model.js";
+import { Recruiter } from "../src/models/recruiter.model.js";
 import { Seeker } from "../src/models/seeker.model.js";
+import { setMailer } from "../src/lib/mailer.js";
 import { asSession, installCaptureMailer, outbox, signedUpOn } from "./auth/helpers.js";
 
 const app = buildApp();
@@ -88,6 +92,72 @@ describe("application routes", () => {
     expect((await apply()).status).toBe(401);
     expect((await apply({ portal: "recruiter", session: recruiter })).status).toBe(401);
     expect((await apply({ portal: "seeker", session: seeker })).status).toBe(201);
+  });
+
+  describe("the owner's application alert (P5)", () => {
+    const isAlert = (m: { to: string; subject: string }) =>
+      m.to === "r@example.com" && /new applicant/i.test(m.subject);
+
+    it("emails the job's owner when a seeker applies", async () => {
+      const res = await apply({ portal: "seeker", session: seeker });
+      expect(res.status).toBe(201);
+
+      await vi.waitFor(() => expect(outbox.some(isAlert)).toBe(true));
+      const mail = outbox.find(isAlert)!;
+      expect(mail.subject).toContain("Dev");
+      expect(mail.text).toContain("Dev"); // the job's title
+      expect(mail.text).toContain("Signed Up"); // the applicant's name
+      expect(mail.text).toContain(`/hire/jobs/${jobId}/applicants`);
+    });
+
+    it("sends no alert for an ownerless job", async () => {
+      // The Job model requires an owner at birth; real ownerless jobs come
+      // from the owner row being deleted afterwards (the catalogue's story),
+      // so that is the path reproduced here.
+      const ghost = await Recruiter.create({ email: "ghost@r.test", fullName: "Ghost" });
+      const orphan = await Job.create({
+        title: "Orphan Role",
+        description: "d",
+        requirements: [],
+        salary: 10,
+        experienceLevel: 1,
+        location: "Remote",
+        jobType: "Full-time",
+        position: "1",
+        company: new mongoose.Types.ObjectId(),
+        created_by: ghost._id,
+      });
+      await Recruiter.deleteOne({ _id: ghost._id });
+
+      const res = await request(app)
+        .post(`/api/v1/application/apply/${String(orphan._id)}`)
+        .use(asSession("seeker", seeker));
+      expect(res.status).toBe(201);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(outbox.some(isAlert)).toBe(false);
+    });
+
+    it("sends exactly one alert — the duplicate apply 409s before any mail", async () => {
+      await apply({ portal: "seeker", session: seeker });
+      await vi.waitFor(() => expect(outbox.some(isAlert)).toBe(true));
+      const afterFirst = outbox.filter(isAlert).length;
+
+      const dup = await apply({ portal: "seeker", session: seeker });
+      expect(dup.status).toBe(409);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(outbox.filter(isAlert).length).toBe(afterFirst);
+    });
+
+    it("never fails the application when the alert mail fails", async () => {
+      setMailer({
+        async send() {
+          throw new Error("brevo down");
+        },
+      });
+      const res = await apply({ portal: "seeker", session: seeker });
+      expect(res.status).toBe(201);
+      expect(await Application.countDocuments({})).toBe(1);
+    });
   });
 
   it("404s an application to a job that does not exist", async () => {
