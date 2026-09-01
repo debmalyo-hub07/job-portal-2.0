@@ -4,7 +4,7 @@ import { RECRUITER_SETTABLE } from "./applicationStatus.js";
 import { dobSchema, phoneSchema, type Portal } from "./auth.js";
 import { seekerLocationSchema, type DistanceBand } from "./location.js";
 import type { ScoreBreakdown } from "./matching/weights.js";
-import { paginationQuerySchema } from "./pagination.js";
+import { paginationQuerySchema, type PaginatedResponse } from "./pagination.js";
 
 /** 24-hex Mongo ObjectId. Route params and body references both use this. */
 export const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "Malformed id");
