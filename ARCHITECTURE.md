@@ -729,6 +729,21 @@ sweep logs and leaves its leftovers for the next approval, which is safe
 because an assigned company is no longer orphaned and re-sweeping is a no-op
 on it.
 
+### Feature flags
+
+Flags are an operator's kill switch, not an experiment platform (ADR-0009).
+`FLAG_REGISTRY` in `packages/shared` defines every flag — key, description,
+default — and the keys are a TypeScript union, so a typo is a compile error
+and a default ships in the PR that introduces the behavior. The
+`FeatureFlag` collection stores only deviations from those defaults; reads
+resolve through a 15-second in-memory cache (single-instance, like the
+rate-limit store) and `setFlag` invalidates immediately. The console's
+Flags screen (`/admin/flags`) lists the registry and flips flags, recording
+who and when; `GET /flags` answers the resolved values publicly so the
+client branches on the same resolution the server acts on. The registry
+ships with `autoApproveRecruiterSignups`, off, reserved for P4's approval
+automation and inert until that wires it.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is

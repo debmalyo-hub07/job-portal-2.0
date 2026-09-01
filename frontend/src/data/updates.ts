@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "feature-flags",
+    date: "2026-09-01",
+    kind: "Feature",
+    title: "The console gains a Flags screen",
+    summary:
+      "Admins can now flip platform-wide feature switches from the console — each switch says what it does, what its default is, and who last changed it. The first switch is reserved for the upcoming approval automation and ships off.",
+    details: [
+      "Switches take effect within seconds, without a redeploy, and every change is attributed.",
+      "Nothing user-facing changes yet — the first switch is reserved and inert until the automation it guards ships.",
+    ],
+  },
+  {
     id: "admin-new-work-alerts",
     date: "2026-09-01",
     kind: "Feature",
