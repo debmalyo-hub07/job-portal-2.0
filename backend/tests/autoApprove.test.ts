@@ -1,12 +1,31 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import mongoose from "mongoose";
+import request from "supertest";
 
+import { buildApp } from "../src/app.js";
+import { Admin } from "../src/models/admin.model.js";
 import { Company } from "../src/models/company.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { AccountEvent } from "../src/models/accountEvent.model.js";
 import { autoApproveRecruiter, approveRecruiter } from "../src/services/approval.service.js";
+import { getActivity, listAllRecruiters } from "../src/services/adminConsole.service.js";
+import { setFlag } from "../src/services/flags.service.js";
 import { matchingCompanyForEmail } from "../src/services/signupSignals.service.js";
-import { installCaptureMailer, outbox } from "./auth/helpers.js";
+import { installCaptureMailer, lastCodeFor, outbox } from "./auth/helpers.js";
+
+const app = buildApp();
+const PASSWORD = "correct horse battery staple";
+
+async function registerAndVerifyRecruiter(email: string): Promise<void> {
+  await request(app)
+    .post("/api/v1/recruiter/auth/register")
+    .send({ fullName: "Mira Patel", email, password: PASSWORD });
+  const code = await lastCodeFor(email);
+  const res = await request(app)
+    .post("/api/v1/recruiter/auth/verify-email")
+    .send({ email, code });
+  expect(res.status).toBe(200);
+}
 
 const deadOwnerId = new mongoose.Types.ObjectId();
 
@@ -81,5 +100,59 @@ describe("matchingCompanyForEmail", () => {
     expect(await matchingCompanyForEmail("mira@northstarlabs.example")).toBe("Northstar Labs");
     expect(await matchingCompanyForEmail("someone@gmail.com")).toBeNull();
     expect(await matchingCompanyForEmail("stranger@unknown.example")).toBeNull();
+  });
+});
+
+describe("the auto-approval tier at the verification flip", () => {
+  beforeEach(async () => {
+    await Promise.all([Company.init(), Recruiter.init(), Admin.init()]);
+    installCaptureMailer();
+    // The flag is the kill switch; each test sets the world it needs.
+    await setFlag("autoApproveRecruiterSignups", false, null);
+  });
+
+  it("auto-approves a domain-matching signup when the flag is on", async () => {
+    await setFlag("autoApproveRecruiterSignups", true, null);
+    await northstarCompany();
+    await Admin.create({ email: "boss@admins.test", fullName: "Boss", status: "active" });
+
+    await registerAndVerifyRecruiter("mira@northstarlabs.example");
+
+    const recruiter = await Recruiter.findOne({ email: "mira@northstarlabs.example" });
+    expect(recruiter?.status).toBe("active");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // The approval mail went to the recruiter; the admin got nothing.
+    expect(
+      outbox.some((m) => m.to === "mira@northstarlabs.example" && /approved/i.test(m.subject)),
+    ).toBe(true);
+    expect(outbox.some((m) => m.to === "boss@admins.test")).toBe(false);
+
+    const activity = await getActivity();
+    const item = activity.items.find((i) => i.kind === "recruiter_auto_approved");
+    expect(item).toMatchObject({ label: "Mira Patel", detail: "Northstar Labs" });
+  });
+
+  it("queues a non-matching signup for the human even with the flag on", async () => {
+    await setFlag("autoApproveRecruiterSignups", true, null);
+    await Admin.create({ email: "boss@admins.test", fullName: "Boss", status: "active" });
+
+    await registerAndVerifyRecruiter("unknown@fresh-employer.example");
+
+    const recruiter = await Recruiter.findOne({ email: "unknown@fresh-employer.example" });
+    expect(recruiter?.status).toBe("pending");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(outbox.some((m) => m.to === "boss@admins.test" && /waiting/i.test(m.subject))).toBe(true);
+  });
+
+  it("with the flag off, a domain-matching signup queues exactly as today", async () => {
+    await northstarCompany();
+    await Admin.create({ email: "boss@admins.test", fullName: "Boss", status: "active" });
+
+    await registerAndVerifyRecruiter("mira@northstarlabs.example");
+
+    const recruiter = await Recruiter.findOne({ email: "mira@northstarlabs.example" });
+    expect(recruiter?.status).toBe("pending");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(outbox.some((m) => m.to === "boss@admins.test")).toBe(true);
   });
 });

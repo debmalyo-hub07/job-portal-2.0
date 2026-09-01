@@ -16,6 +16,7 @@ import type {
 } from "@jobportal/shared";
 
 import { Application } from "../models/application.model.js";
+import { AccountEvent } from "../models/accountEvent.model.js";
 import { Company } from "../models/company.model.js";
 import { Job } from "../models/job.model.js";
 import { Recruiter } from "../models/recruiter.model.js";
@@ -466,7 +467,7 @@ const ACTIVITY_LIMIT = 12;
  * export. That is asserted rather than assumed — see `admin-insights.test.ts`.
  */
 export async function getActivity(): Promise<AdminActivityDto> {
-  const [recruiters, jobs, companies, applications] = await Promise.all([
+  const [recruiters, jobs, companies, applications, autoApprovals] = await Promise.all([
     Recruiter.find({}).select("fullName createdAt").sort({ createdAt: -1 }).limit(ACTIVITY_PER_KIND),
     Job.find({})
       .select("title createdAt company")
@@ -479,6 +480,16 @@ export async function getActivity(): Promise<AdminActivityDto> {
       .sort({ createdAt: -1 })
       .limit(ACTIVITY_PER_KIND)
       .populate<{ job: { title: string } | null }>("job", "title"),
+    // P4's automation has no collection of its own — its record IS the
+    // account event, so the feed reads the events directly.
+    AccountEvent.find({ kind: "auto_approved" })
+      .sort({ createdAt: -1 })
+      .limit(ACTIVITY_PER_KIND)
+      .populate<{ subjectId: { fullName: string } | null }>({
+        path: "subjectId",
+        model: Recruiter,
+        select: "fullName",
+      }),
   ]);
 
   const at = (row: unknown): string =>
@@ -491,6 +502,16 @@ export async function getActivity(): Promise<AdminActivityDto> {
       at: at(row),
       label: row.fullName,
       detail: null,
+      href: "/admin/recruiters",
+    })),
+    ...autoApprovals.map((row) => ({
+      id: `auto-approval:${String(row._id)}`,
+      kind: "recruiter_auto_approved" as const,
+      at: at(row),
+      label: row.subjectId?.fullName ?? "A recruiter",
+      // The event's reason is "email domain matches <Company>"; the company
+      // is the detail that makes the feed row meaningful.
+      detail: row.reason ? row.reason.replace(/^email domain matches /, "") : null,
       href: "/admin/recruiters",
     })),
     ...jobs.map((row) => ({

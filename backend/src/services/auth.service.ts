@@ -17,6 +17,10 @@ import {
 import { revokeAllForSubject } from "./session.service.js";
 import { chargeOtpAttempt, clearOtpBudget, issueOtp, writeGhostOtp } from "./otp.service.js";
 import { notifyAdminsOfPendingRecruiter } from "./notification.service.js";
+import { flagEnabled } from "./flags.service.js";
+import { autoApproveRecruiter } from "./approval.service.js";
+import { matchingCompanyForEmail } from "./signupSignals.service.js";
+import { logger } from "../lib/logger.js";
 import {
   EMAIL_TAKEN,
   isDuplicateKeyError,
@@ -166,15 +170,31 @@ export async function verifyEmail(portal: Portal, email: string, code: string): 
 
   await clearOtpBudget(portal, otp.subjectId, "verify_email");
 
-  // P1 of the console automation program. The flip null → verified on a
-  // pending recruiter is the moment work enters the queue for real — an
-  // unverified signup is indistinguishable from an abandoned one, and
-  // notifying on raw registration would let anyone spray every admin inbox
-  // from the signup form. `account` is the PRE-update read, so its null is
-  // the proof this redemption is the genuine flip. Fire-and-forget: the
+  // P4 of the console automation program. At the moment a pending recruiter
+  // becomes real, the automation gets first refusal: if the flag is on and
+  // the signup email lives at a known employer's website domain, the account
+  // is approved now — the same activation a human click runs, with its own
+  // event kind. Everyone else — new employers, free-mail addresses, the flag
+  // off, or an automation failure — becomes the admins' work instead.
+  // `account` is the PRE-update read, so its null is the proof this
+  // redemption is the genuine flip. Fire-and-forget on the mail: the
   // notification must never fail a verification that succeeded.
   if (portal === "recruiter" && target.status === "pending" && account?.emailVerifiedAt === null) {
-    void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+    let autoApproved = false;
+    try {
+      if (await flagEnabled("autoApproveRecruiterSignups")) {
+        const matchedCompany = await matchingCompanyForEmail(target.email);
+        if (matchedCompany) {
+          await autoApproveRecruiter(String(target._id), matchedCompany);
+          autoApproved = true;
+        }
+      }
+    } catch (error) {
+      logger.error({ err: error }, "auto-approval failed; falling back to the queue");
+    }
+    if (!autoApproved) {
+      void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+    }
   }
 
   return target;
@@ -457,12 +477,26 @@ export async function resetPassword(
   await clearOtpBudget(portal, otp.subjectId, "reset_password");
 
   // The reset path's verify-as-side-effect is the same null → verified flip
-  // as the one in verifyEmail, so it notifies too — "forgot my password
-  // before verifying" must not be the one route that skips telling the
-  // admins the account is now real. `target` here is the PRE-update read
+  // as the one in verifyEmail, so the same automation and the same admin
+  // notification apply here — "forgot my password before verifying" must not
+  // be the one route that skips them. `target` here is the PRE-update read
   // (the conditional spread in the update is what did the flipping).
   if (portal === "recruiter" && target.status === "pending" && target.emailVerifiedAt === null) {
-    void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+    let autoApproved = false;
+    try {
+      if (await flagEnabled("autoApproveRecruiterSignups")) {
+        const matchedCompany = await matchingCompanyForEmail(target.email);
+        if (matchedCompany) {
+          await autoApproveRecruiter(String(target._id), matchedCompany);
+          autoApproved = true;
+        }
+      }
+    } catch (error) {
+      logger.error({ err: error }, "auto-approval failed; falling back to the queue");
+    }
+    if (!autoApproved) {
+      void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+    }
   }
 }
 
