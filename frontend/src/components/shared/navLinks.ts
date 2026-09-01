@@ -52,6 +52,7 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
         { to: "/admin/seekers", label: "Candidates" },
         { to: "/admin/review/jobs", label: "Jobs" },
         { to: "/admin/review/companies", label: "Companies" },
+        { to: "/admin/flags", label: "Flags" },
       ];
     // No "Browse" entry. `/browse` was the pre-4B keyword-only board and now
     // redirects to `/jobs`, which is the only seeker job list — listing both

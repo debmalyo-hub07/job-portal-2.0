@@ -24,6 +24,7 @@ import AdminRecruiters from "@/components/console/AdminRecruiters";
 import AdminSeekers from "@/components/console/AdminSeekers";
 import AdminJobsConsole from "@/components/console/AdminJobsConsole";
 import AdminCompanies from "@/components/console/AdminCompanies";
+import AdminFlags from "@/components/console/AdminFlags";
 import AdminProfile from "@/components/console/AdminProfile";
 import VerifyEmail from "@/components/auth/VerifyEmail";
 import ForgotPassword from "@/components/auth/ForgotPassword";
@@ -269,6 +270,8 @@ export const appRoutes: RouteObject[] = [
       // other portals' under PublicLayout; see the comment there.
       { path: "/admin/review/jobs", element: adminConsole(<AdminJobsConsole />) },
       { path: "/admin/review/companies", element: adminConsole(<AdminCompanies />) },
+      // P3 of the console automation program: the operator's kill switches.
+      { path: "/admin/flags", element: adminConsole(<AdminFlags />) },
       // Pre-3A workspace URLs. The workspace lived under /admin through 2B-1, so
       // a recruiter's bookmarks and any shared link still point there — and /admin
       // now resolves to the ADMIN portal, which would show them a console door

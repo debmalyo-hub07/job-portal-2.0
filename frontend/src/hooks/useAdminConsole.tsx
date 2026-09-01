@@ -4,11 +4,13 @@ import type {
   AccountEventDto,
   AdminActivityDto,
   AdminCompanyDto,
+  AdminFlagDto,
   AdminInsightsDto,
   AdminJobDto,
   AdminOverviewDto,
   AdminRecruiterDto,
   AdminSeekerDto,
+  FlagKey,
   PaginatedResponse,
   PendingRecruiterDto,
 } from "@jobportal/shared";
@@ -151,6 +153,36 @@ export function useCreateAdmin() {
     mutationFn: async (input: { fullName: string; email: string; provisioningKey: string }) => {
       const res = await apiClient.post<{ success: true; message: string }>("/admin/admins", input);
       return res.data;
+    },
+  });
+}
+
+/**
+ * P3 of the console automation program: the console's flag read and write.
+ * The list hangs off ADMIN_KEY so a flip invalidates exactly this query; the
+ * mutation is NOT optimistic — a switch whose state lies about itself until
+ * the round trip lands is worse than one that waits a beat.
+ */
+export function useAdminFlags() {
+  return useQuery({
+    queryKey: [...ADMIN_KEY, "flags"],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean; flags: AdminFlagDto[] }>("/admin/flags", {
+        signal,
+      });
+      return res.data.flags;
+    },
+  });
+}
+
+export function useSetFlag() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { key: FlagKey; enabled: boolean }) => {
+      await apiClient.put(`/admin/flags/${input.key}`, { enabled: input.enabled });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...ADMIN_KEY, "flags"] });
     },
   });
 }
