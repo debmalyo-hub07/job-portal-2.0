@@ -386,8 +386,9 @@ describe("admin insights", () => {
   });
 
   it("stamps the response with the time it was generated", async () => {
-    // The screen says "as of". Without a server timestamp that label would be
-    // the browser's clock describing the server's numbers.
+    // The console header rendered this as an "as of" stamp until 2026-09-01,
+    // when the stamp was removed; the field stays, because an aggregation's
+    // generation time is a fact about the response, not a UI detail.
     const admin = await signedInAdmin("ins-stamp-root@example.com");
     const res = await request(app)
       .get("/api/v1/admin/insights")

@@ -137,7 +137,6 @@ export function AdminDashboard() {
   };
 
   const busy = overview.isFetching || insights.isFetching || activity.isFetching;
-  const generatedAt = insights.data?.generatedAt;
 
   return (
     <AdminShell
@@ -145,21 +144,11 @@ export function AdminDashboard() {
       description="Moderation and oversight across every portal."
       actions={
         <>
-          {/* The "as of" the numbers describe, from the server's clock rather than
-              the browser's — see AdminInsightsDto.generatedAt. Visible at every
-              width: a phone is where a stale figure is hardest to notice and a
-              refresh is most likely to be the reason the dashboard was opened.
-              It survives narrow screens by wrapping inside the actions row
-              rather than hiding. */}
-          {generatedAt ? (
-            <span className="text-xs text-ink-muted">
-              as of{" "}
-              {new Date(generatedAt).toLocaleTimeString(undefined, {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          ) : null}
+          {/* No timestamp here. The server-stamped "as of" minute used to sit
+              in this row and jumped on every silent 30-60s poll, reading as a
+              numeric timer parked beside the Invite admin action. Freshness is
+              the manual refresh's spinner to tell; the side band's clock owns
+              the wall time. */}
           <Button variant="ghost" size="icon-sm" onClick={refreshAll} aria-label="Refresh">
             <RefreshCw aria-hidden="true" className={busy ? "animate-spin" : undefined} />
           </Button>

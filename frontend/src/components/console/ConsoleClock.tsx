@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ZONE_CHOICES, detectTimeZone } from "@/lib/timeZone";
@@ -8,14 +8,23 @@ import { ZONE_CHOICES, detectTimeZone } from "@/lib/timeZone";
  * The console's live clock and calendar — P1 of the location-aware phase.
  *
  * The console previously had no clock at all, only the dashboard's server-
- * stamped "as of" minute, which jumps on each refetch. This is the replacement:
- * a ticking clock, the full date, and a month calendar in the console's side
- * band, so the time an admin works against is on every screen.
+ * stamped "as of" minute, which jumped on each refetch — a stamp since
+ * removed from the header, so this is where the console's time lives: a
+ * ticking clock, the full date, and a month calendar in the console's side
+ * band, on every screen.
  *
  * The timezone is the browser's own (`Intl` — exact, offline, free) with
  * **Asia/Kolkata as the default** when the runtime reports nothing, per the
  * phase decision. The choice is per-browser (localStorage) because it is a
  * viewer convenience, not platform state.
+ *
+ * A section of the band, not a card on it. The band is the surface — the nav
+ * above sits on it the same way — and every pixel of a card's own chrome or
+ * padding was a pixel off the calendar grid: a boxed card with `px-4` left
+ * 133px for a grid whose cells want 168px, and the fixed `size-6` cells
+ * overlapped each other by ~5px at every desktop width. The section carries
+ * no padding of its own and the cells size to their tracks, so the calendar
+ * renders the same 24px cells from the 13rem desktop band down to a phone.
  *
  * The tick is a plain one-second interval, not the shared rAF motion clock:
  * a wall clock has no frames to align and no animation to honour — the display
@@ -40,7 +49,11 @@ const timeFormatter = (zone: string) =>
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: true,
+    // 24-hour: a bare 12-hour time is ambiguous, and stripping the meridiem
+    // after the fact was already tried — en-IN renders it lowercase ("pm"),
+    // which an uppercase-only regex never caught, so the wider string is what
+    // pushed the desktop band's clock onto two lines.
+    hourCycle: "h23",
   });
 
 const dateFormatter = (zone: string) =>
@@ -124,26 +137,24 @@ export function ConsoleClock() {
   }, []);
 
   return (
-    <div className="mt-6 rounded-surface border border-line bg-paper-raised px-4 py-4 shadow-[var(--elevate-1)] lg:mt-8">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          {/* aria-live is deliberately absent: a clock that announced itself
-              every second would talk over everything else on the page. */}
-          <p
-            data-testid="clock-time"
-            className="font-display text-3xl font-semibold leading-none tabular-nums text-ink"
-          >
-            {time.replace(/([AP]M)/, "").trim()}
-          </p>
-          <p data-testid="clock-date" className="mt-2 text-xs text-ink-muted">
-            {date}
-          </p>
-          <p data-testid="clock-zone" className="mt-1 text-xs font-medium text-signal-text">
-            {offsetLabel(zone, now)}
-          </p>
-        </div>
-        <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-      </div>
+    <div
+      data-testid="clock-section"
+      className="mt-6 border-t border-line pt-4 lg:mt-8"
+    >
+      {/* aria-live is deliberately absent: a clock that announced itself
+          every second would talk over everything else on the page. */}
+      <p
+        data-testid="clock-time"
+        className="font-display text-3xl font-semibold leading-none tabular-nums text-ink"
+      >
+        {time}
+      </p>
+      <p data-testid="clock-date" className="mt-2 text-xs text-ink-muted">
+        {date}
+      </p>
+      <p data-testid="clock-zone" className="mt-1 text-xs font-medium text-signal-text">
+        {offsetLabel(zone, now)}
+      </p>
 
       <label className="mt-4 block">
         <span className="sr-only">Timezone</span>
@@ -195,7 +206,12 @@ export function ConsoleClock() {
               key={index}
               data-testid={inCursorMonth && day === today.day ? "clock-today" : undefined}
               className={cn(
-                "mx-auto flex size-6 items-center justify-center rounded-full text-[0.6875rem] tabular-nums",
+                // The cell takes its track's width, capped at 24px, rather
+                // than a fixed size: a fixed cell cannot shrink, and at lg
+                // the 13rem band's tracks are the width the grid has —
+                // fixed 24px cells in 19px tracks overlapped each other by
+                // ~5px on every desktop console screen.
+                "mx-auto flex aspect-square w-full max-w-6 items-center justify-center rounded-full text-[0.6875rem] tabular-nums",
                 day === null && "opacity-0",
                 inCursorMonth && day === today.day
                   ? "bg-signal font-semibold text-signal-fg"

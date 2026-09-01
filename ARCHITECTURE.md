@@ -691,8 +691,8 @@ approval queue, 30s for counters, activity, owned jobs and applicants, 60s for
 the insights aggregations — so nothing is asked for again before it can have
 changed. `refetchIntervalInBackground` stays at its default of false throughout,
 so a tab in another window stops asking; the dashboard keeps its manual refresh
-control and its server-stamped "as of", because an admin who has just acted
-should not have to wait out a tick. Single-record reads (`useCompany`, `useJob`)
+control, because an admin who has just acted should not have to wait out a
+tick. Single-record reads (`useCompany`, `useJob`)
 deliberately do not poll: they back edit forms, where a background write would
 fight what the recruiter is typing.
 
@@ -700,9 +700,12 @@ Background refetches are also **silent**: the dashboard dims only between a
 manual refresh and its completion, where the button's spinner is already
 speaking. It used to dim on every fetch including the 30-second polls, which
 read as the page stuttering twice a minute. The console's side band carries a
-live clock and calendar (`ConsoleClock`) — the browser's `Intl` timezone with
-an Asia/Kolkata default, chosen per-browser — because the "as of" stamp
-describes the data, not the time an admin works against.
+live clock and calendar (`ConsoleClock`) — a flat section of the band, sized by
+it, so the calendar renders the same cells from the 13rem desktop band down to
+a phone — showing the browser's `Intl` timezone with an Asia/Kolkata default,
+chosen per-browser. It is the wall time an admin works against; the header's
+server-stamped "as of" minute was removed (2026-09-01) because it jumped on
+every silent poll and read as a stray timer beside the Invite admin action.
 
 ### Location
 

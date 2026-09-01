@@ -39,7 +39,13 @@ describe("ConsoleClock", () => {
   it("renders the live time, the full date, and a timezone label", () => {
     render(<ConsoleClock />);
 
-    expect(screen.getByTestId("clock-time").textContent).toMatch(/^\d{1,2}:\d{2}/);
+    // 24-hour, seconds included, no meridiem. The first cut formatted 12-hour
+    // and stripped the meridiem with /([AP]M)/ — uppercase-only, while every
+    // real browser renders en-IN's meridiem lowercase — so "12:34:56 pm" was
+    // what shipped, ~28px wider than the design meant, which is what pushed
+    // the desktop band's clock onto two lines. Formatting h23 at the source
+    // removed the hack and the ambiguity at once.
+    expect(screen.getByTestId("clock-time").textContent).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     // en-IN day-first, matching the platform's locale.
     expect(screen.getByTestId("clock-date").textContent).toMatch(/31 August 2026/);
     // The offset label's SHAPE, not its digits: ICU versions differ on
@@ -94,5 +100,38 @@ describe("ConsoleClock", () => {
     fireEvent.click(screen.getByRole("button", { name: /previous month/i }));
     fireEvent.click(screen.getByRole("button", { name: /previous month/i }));
     expect(screen.getByTestId("clock-month").textContent).toBe("July 2026");
+  });
+
+  it("is a flat section of the side band, sized by the band it lives in", () => {
+    render(<ConsoleClock />);
+
+    // jsdom cannot lay out a page, so this holds the line the real-browser
+    // probe measured on 2026-09-01. At lg the side band is a fixed 13rem
+    // (208px) track; after the band's own padding that is 168px of content
+    // width. The clock used to be a raised card whose border, background and
+    // px-4 trimmed that to 133px — while its calendar cells were a fixed
+    // size-6 (24px) and the grid needs 7 × 24 = 168px. Every cell sat in a
+    // 19px track and overlapped its neighbour by ~5px, the time wrapped onto
+    // two lines, and the card's own content overflowed it (scrollWidth 171
+    // against clientWidth 165). A card inside the already-surfaced band was
+    // double chrome: the section now sits flat on the band like the nav does,
+    // and its width is the band's, so the calendar renders the same 24px
+    // cells at every width.
+    const section = screen.getByTestId("clock-section");
+    expect(section.className).toMatch(/border-t\b/);
+    expect(section.className).not.toMatch(/bg-paper-raised/);
+    expect(section.className).not.toMatch(/shadow/);
+    // No horizontal padding of its own — the band already provides it, and
+    // every px here is a px off the calendar grid.
+    expect(section.className).not.toMatch(/\bpx-\d/);
+
+    const today = screen.getByTestId("clock-today");
+    expect(today.className).toMatch(/\bw-full\b/);
+    expect(today.className).toMatch(/aspect-square/);
+    expect(today.className).toMatch(/max-w-6/);
+    // A fixed-size cell cannot shrink to its track; that fixed size is the
+    // overlap. The cell takes the track's width, capped at the old 24px so
+    // wide bands do not balloon it.
+    expect(today.className).not.toMatch(/size-6/);
   });
 });

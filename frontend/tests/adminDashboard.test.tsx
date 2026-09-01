@@ -314,9 +314,8 @@ describe("invite dialog copy", () => {
  * Both assertions pin classes that are load-bearing at phone width and
  * invisible everywhere else — jsdom cannot lay out a page, so the test holds
  * the line the real-browser probe measured: at 390px the document ran to 487px
- * with the nav band alone 471px of it, and the "as of" stamp did not render
- * at all. The classes are the fix; drop one and a phone scrolls sideways or
- * loses its timestamp again while every desktop check stays green.
+ * with the nav band alone 471px of it. The classes are the fix; drop one and
+ * a phone scrolls sideways again while every desktop check stays green.
  *
  * `vi.hoisted` because `vi.mock` factories run before the module body: the
  * fixtures they close over must exist by then, and the module-scope literals
@@ -404,16 +403,16 @@ describe("AdminDashboard at phone width", () => {
     );
   }
 
-  it("renders the 'as of' stamp at every width, not only from sm up", () => {
-    // The stamp is the only clue the numbers are a snapshot. It was hidden
-    // below sm, which is the width where a refresh is most likely the reason
-    // the dashboard was opened. `hidden … sm:inline` was the removed bug;
-    // re-adding the hidden class must fail here.
-    const { container } = renderDashboard();
-    const stamp = screen.getByText(/^as of/);
-    expect(stamp.className).not.toMatch(/\bhidden\b/);
-    expect(stamp.className).not.toMatch(/sm:inline/);
-    expect(container).toBeInTheDocument();
+  it("no longer renders the server's 'as of' stamp in the header actions", () => {
+    // Removed 2026-09-01 at the owner's call. The ticking side-band clock
+    // already keeps time, and a server minute that jumps on every silent
+    // 30-60s poll read as a stray numeric timer sitting beside the Invite
+    // admin action — the header's rare privileged action carrying a clock it
+    // never asked for. Freshness is the manual refresh's spinner to tell; the
+    // clock owns the wall time. Re-introducing a timestamp into the actions
+    // row must fail here.
+    renderDashboard();
+    expect(screen.queryByText(/^as of/)).toBeNull();
   });
 
   it("caps the nav band so the workbench cannot grow past the viewport", () => {

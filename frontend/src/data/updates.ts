@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "console-clock-fits",
+    date: "2026-09-01",
+    kind: "Fix",
+    title: "The console's clock now fits its panel on every screen",
+    summary:
+      "On wide screens the admin console's clock and calendar were squeezed into their side panel — the calendar's days ran into each other and the time broke onto two lines. The clock is now a flat part of that panel and sizes itself to it, looking the same on a phone and a wide monitor.",
+    details: [
+      "The time reads 24-hour (20:01:24), so morning and evening are never a guess, and it fits on one line at every width.",
+      "The small server timestamp that sat beside \"Invite admin\" in the console header is gone — it moved with every silent background check and read as a stray timer. The clock in the side panel keeps the time.",
+    ],
+  },
+  {
     id: "near-you-ranking",
     date: "2026-09-01",
     kind: "Feature",

@@ -177,7 +177,12 @@ export type AdminInsightsDto = {
   };
   /** Dense and ascending, one point per UTC day, gaps zero-filled. */
   jobsPostedSeries: AdminSeriesPoint[];
-  /** Server-side, because the screen's "as of" must describe the numbers. */
+  /**
+   * Server-side, so a client describing the numbers' freshness reads the
+   * server's clock, not its own. (The console header displayed this as an
+   * "as of" stamp until 2026-09-01, when the stamp was removed; the field
+   * stays — an aggregation's generation time is API fact, not UI.)
+   */
   generatedAt: string;
 };
 

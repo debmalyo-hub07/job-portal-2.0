@@ -104,7 +104,11 @@ describe("the console's background refetches", () => {
     harness.state.fetching = true;
     const { container } = renderDashboard();
 
-    expect(await screen.findByText(/as of/i)).toBeTruthy();
+    // Painted sentinel: the TriageBand's empty state renders only once the
+    // insights query has data — the isPending branch shows skeletons instead.
+    // (The header's "as of" stamp used to be this sentinel; the stamp is gone
+    // and the band's copy is what says the dashboard painted.)
+    expect(await screen.findByText("Nothing waiting.")).toBeTruthy();
     expect(dimmed(container)).toBe(false);
   });
 
@@ -112,7 +116,7 @@ describe("the console's background refetches", () => {
     harness.state.fetching = false;
     harness.pending.length = 0;
     const { container } = renderDashboard();
-    expect(await screen.findByText(/as of/i)).toBeTruthy();
+    expect(await screen.findByText("Nothing waiting.")).toBeTruthy();
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: /refresh/i }));
