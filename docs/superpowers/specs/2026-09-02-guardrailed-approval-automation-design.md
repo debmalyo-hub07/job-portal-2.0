@@ -56,11 +56,13 @@ events (`job_posted`, `company_created`, …), so a new feed kind
 service's merge, with the matched company named in the item's detail. No
 email; the kill switch is one console click away.
 
-**D6 — The queue gets the signals as badges.** `listPendingRecruiters`
-extends `PendingRecruiterDto` with `emailDomainKind: "free" | "custom"` and
+**D6 — The queue gets the signals as badges.** The console's live queue
+surface is the recruiters **monitoring table** (`AdminRecruiterDto` via
+`listAllRecruiters` — the old pending-only listing is vestigial and unused),
+so that DTO extends with `emailDomainKind: "free" | "custom"` and
 `matchingCompany: string | null` — the same computation the auto-tier uses,
-surfaced so human reviews get faster. The queue row renders them as badges
-("Custom domain", "Matches <Company>", "Free mail"). This is the
+surfaced so human reviews get faster. The table's pending rows render them
+as badges ("Custom domain", "Matches <Company>", "Free mail"). This is the
 assisted-review half, and it ships regardless of the flag.
 
 **D7 — The free-provider list lives in shared.** A small curated list
