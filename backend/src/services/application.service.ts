@@ -1,7 +1,13 @@
 import mongoose, { type HydratedDocument } from "mongoose";
-import { isMinor, notifiesSeeker, transitionRefusal } from "@jobportal/shared";
+import {
+  APPLICATION_STATUSES,
+  isMinor,
+  notifiesSeeker,
+  transitionRefusal,
+} from "@jobportal/shared";
 import type {
   ApplicantDto,
+  ApplicantsPageDto,
   ApplicationEventDto,
   ApplicationStatus,
   AppliedJobDto,
@@ -167,7 +173,7 @@ export async function listApplicants(
   recruiterId: string,
   jobId: string,
   { page, limit }: PaginationQuery,
-): Promise<PaginatedResponse<ApplicantDto>> {
+): Promise<ApplicantsPageDto> {
   // The document is both the ownership check and the right-hand side of every
   // reverse fit score. Looking it up again per applicant would be an N+1 read.
   const job = await getOwnedJob(recruiterId, jobId);
@@ -178,6 +184,20 @@ export async function listApplicants(
     // far more than a recruiter is entitled to see. The full `profile` object is
     // needed internally for scoring, but only its established DTO fields leave.
     .populate({ path: "applicant", select: "fullName email phone profile resume" });
+
+  // P5's funnel: one aggregate over every application this job holds — the
+  // ranked list paginates after scoring, so a client-side count would describe
+  // a page, not the pipeline. Zero-filled so every stage renders uniformly.
+  // `$match` on the loaded document's own ObjectId: aggregate casting of a
+  // route-param string is not a thing to rely on here.
+  const rows = await Application.aggregate<{ _id: ApplicationStatus; n: number }>([
+    { $match: { job: job._id } },
+    { $group: { _id: "$status", n: { $sum: 1 } } },
+  ]);
+  const funnel = Object.fromEntries(
+    APPLICATION_STATUSES.map((status) => [status, 0]),
+  ) as Record<ApplicationStatus, number>;
+  for (const row of rows) funnel[row._id] = row.n;
 
   const ranked = (applications as unknown as PopulatedApplicant[])
     .map((application) => ({
@@ -213,6 +233,7 @@ export async function listApplicants(
       resumeName: a.applicant?.resume?.originalName ?? null,
       fit,
     })),
+    funnel,
     total,
     page,
     pages: Math.ceil(total / limit),

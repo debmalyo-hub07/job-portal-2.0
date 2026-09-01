@@ -160,6 +160,43 @@ describe("application routes", () => {
     });
   });
 
+  describe("the per-job pipeline funnel (P5)", () => {
+    it("counts every status across the whole set, past what a page shows", async () => {
+      const second = await signedUpOn("seeker", "s2@example.com");
+      const third = await signedUpOn("seeker", "s3@example.com");
+      await apply({ portal: "seeker", session: seeker });
+      await request(app)
+        .post(`/api/v1/application/apply/${jobId}`)
+        .use(asSession("seeker", second));
+      await request(app)
+        .post(`/api/v1/application/apply/${jobId}`)
+        .use(asSession("seeker", third));
+
+      // Two of the three move on; the funnel must reflect the stages, not
+      // whatever slice of the ranked list a page happens to hold.
+      await Application.updateOne(
+        { applicant: (seeker as { id: string }).id },
+        { $set: { status: "shortlisted" } },
+      );
+      await Application.updateOne(
+        { applicant: (second as { id: string }).id },
+        { $set: { status: "reviewed" } },
+      );
+
+      const res = await request(app)
+        .get(`/api/v1/application/${jobId}/applicants?limit=2`)
+        .use(asSession("recruiter", recruiter))
+        .expect(200);
+
+      expect(res.body.funnel).toMatchObject({ applied: 1, reviewed: 1, shortlisted: 1 });
+      // Zero-filled: every stage is present, so the strip renders uniformly.
+      expect(res.body.funnel).toHaveProperty("offered", 0);
+      expect(res.body.funnel).toHaveProperty("rejected", 0);
+      expect(res.body.funnel).toHaveProperty("withdrawn", 0);
+      expect(res.body.funnel).toHaveProperty("interview", 0);
+    });
+  });
+
   it("404s an application to a job that does not exist", async () => {
     const res = await request(app)
       .post("/api/v1/application/apply/64b0c8f2a9d3e45f6a7b8c9d")

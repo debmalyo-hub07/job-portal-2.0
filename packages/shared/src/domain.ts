@@ -317,6 +317,16 @@ export type QueuedApplicantDto = ApplicantDto & {
 };
 
 /**
+ * The per-job applicants page (P5): the ranked, paginated list plus the
+ * pipeline funnel — a zero-filled count per status across ALL of the job's
+ * applications, computed server-side, so the strip a recruiter reads is the
+ * whole picture rather than whatever slice the current page happens to hold.
+ */
+export type ApplicantsPageDto = PaginatedResponse<ApplicantDto> & {
+  funnel: Record<ApplicationStatus, number>;
+};
+
+/**
  * A numeric profile field a blank form value *clears*.
  *
  * `z.coerce.number()` on its own turns `""` into `0`, because `Number("")` is
