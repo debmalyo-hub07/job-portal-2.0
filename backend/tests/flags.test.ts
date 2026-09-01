@@ -60,6 +60,10 @@ describe("the flag service", () => {
     );
 
     expect(await flagEnabled("autoApproveRecruiterSignups")).toBe(false);
-    expect((await listFlags()).every((flag) => flag.key !== "removedLongAgo")).toBe(true);
+    // The DTO's key is the FlagKey union, which cannot carry the ghost's name
+    // at the type level — this assertion is about the runtime, so the ghost
+    // is held in a string rather than a literal the compiler rightly rejects.
+    const ghost: string = "removedLongAgo";
+    expect((await listFlags()).every((flag) => flag.key !== ghost)).toBe(true);
   });
 });
