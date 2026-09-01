@@ -180,6 +180,40 @@ export function renderRecruiterDeniedEmail(reason: string): Rendered {
 }
 
 /**
+ * P1 of the console automation program: the work notification sent to every
+ * active admin when a pending recruiter verifies their email.
+ *
+ * Owns a wrapper rather than sharing WRAPPER, because that one closes with
+ * "if you did not request this, you can ignore this email" — the footer of a
+ * security transaction. This is the opposite kind of mail: a notification to
+ * the platform's operator that work is waiting. A footer telling the admin
+ * to ignore the email is the one sentence guaranteed to be read.
+ *
+ * `consoleUrl` is built by the caller from `WEB_BASE_URL` so this module
+ * stays free of `env()` — a module-scope config read would run at import
+ * time, before the test setup has an environment to read (the same reason
+ * as `renderPasswordSetupEmail`).
+ */
+export function renderAdminPendingEmail(
+  fullName: string,
+  email: string,
+  pendingCount: number,
+  consoleUrl: string,
+): Rendered {
+  const waiting = pendingCount === 1 ? "is 1 recruiter" : `are ${pendingCount} recruiters`;
+  return {
+    subject: "New recruiter waiting for review",
+    html: ADMIN_WRAPPER(
+      `<h1 style="font-size:1.25rem">New recruiter waiting for review</h1><p><strong>${escapeHtml(fullName)}</strong> (${escapeHtml(email)}) just verified their email and is waiting for approval.</p><p>There ${waiting} in the queue.</p><p><a href="${consoleUrl}" style="color:#1a1a1a;font-weight:600">Review the queue</a></p><p style="font-size:.8125rem;color:#6b6b6b">Or paste this address into your browser:<br>${consoleUrl}</p>`,
+    ),
+    text: `New recruiter waiting for review\n\n${fullName} (${email}) just verified their email and is waiting for approval.\n\nThere ${waiting} in the queue.\n\nReview the queue: ${consoleUrl}\n`,
+  };
+}
+
+const ADMIN_WRAPPER = (body: string): string =>
+  `<div style="font-family:system-ui,sans-serif;max-width:32rem;margin:0 auto;padding:2rem;color:#1a1a1a">${body}</div>`;
+
+/**
  * Project D: sent when an admin suspends an account (seeker or recruiter).
  *
  * The reason rides in the mail AND in the login refusal — the owner cannot
