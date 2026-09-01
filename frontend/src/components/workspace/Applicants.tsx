@@ -2,7 +2,7 @@ import { MoreHorizontal, Users } from "lucide-react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import type { ApplicantDto } from "@jobportal/shared";
-import { RECRUITER_SETTABLE, isTerminal } from "@jobportal/shared";
+import { ACTIVE_STATUSES, RECRUITER_SETTABLE, TERMINAL_STATUSES, isTerminal } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
 import { FitBadge } from "@/components/FitBadge";
@@ -72,6 +72,33 @@ export function Applicants() {
         ) : undefined
       }
     >
+      {data?.funnel ? (
+        /* P5's funnel: where everyone stands, across every page. Server-owned
+           for the same reason the fit ordering is — the list below paginates
+           after ranking, so a client-side count would describe a slice. */
+        <ol
+          aria-label="Pipeline"
+          className="mb-4 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-surface border border-line bg-paper-raised px-4 py-3"
+        >
+          {ACTIVE_STATUSES.map((status) => (
+            <li key={status} className="flex items-baseline gap-1.5">
+              <span className="font-mono text-sm font-semibold tabular-nums text-ink">
+                {data.funnel[status]}
+              </span>
+              <span className="text-xs text-ink-muted">{statusMeta(status).label}</span>
+            </li>
+          ))}
+          <li aria-hidden="true" className="hidden h-4 w-px bg-line sm:block" />
+          {TERMINAL_STATUSES.map((status) => (
+            <li key={status} className="flex items-baseline gap-1.5">
+              <span className="font-mono text-sm font-semibold tabular-nums text-ink-faint">
+                {data.funnel[status]}
+              </span>
+              <span className="text-xs text-ink-faint">{statusMeta(status).label}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       {isPending ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }, (_, i) => (

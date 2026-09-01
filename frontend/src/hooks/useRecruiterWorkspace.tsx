@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tansta
 import { useSearchParams } from "react-router";
 import type {
   ApplicantDto,
+  ApplicantsPageDto,
   CompanyDto,
   JobDto,
   JobStatus,
@@ -154,7 +155,7 @@ export function useApplicants(jobId: string | undefined) {
   const query = useQuery({
     queryKey: [...WORKSPACE_KEY, "applicants", jobId, qs],
     queryFn: async ({ signal }) => {
-      const res = await apiClient.get<{ success: boolean } & PaginatedResponse<ApplicantDto>>(
+      const res = await apiClient.get<{ success: boolean } & ApplicantsPageDto>(
         `/application/${jobId}/applicants?${qs}`,
         { signal },
       );
