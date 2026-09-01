@@ -141,6 +141,43 @@ describe("SPA fallback config", () => {
     expect(connect).not.toContain("onrender.com");
   });
 
+  /**
+   * The second directive that took a production feature down, and the second
+   * time this file did not look at it. `Permissions-Policy` shipped as a stock
+   * hardening list including `geolocation=()` — added for security headers'
+   * sake before the location-aware phase existed.
+   *
+   * A policy-disabled API never reaches the browser's prompt: every "Use my
+   * location" click answered instantly with the hook's `denied` state, whose
+   * advice ("allow location for this site in its settings") is a wild goose
+   * chase — the site never appears in the browser's site list, because it was
+   * never asked. Measured in Chromium against production on 2026-09-01, with
+   * the permission granted and coordinates mocked: getCurrentPosition failed
+   * with code 1, "Geolocation has been disabled in this document by
+   * permissions policy", while the same call on localhost — which serves no
+   * such header — resolved. Local-first development kept every check green;
+   * only the deployed host carries the header.
+   *
+   * `(self)` restores the API for this origin's own documents and keeps it
+   * denied for third-party frames — which X-Frame-Options: DENY and
+   * frame-ancestors 'none' already refuse to embed, so nothing is given away.
+   */
+  it("does not policy-disable the geolocation the location feature needs", () => {
+    const raw = readFileSync(join(FRONTEND, "vercel.json"), "utf8");
+    const config = JSON.parse(raw) as {
+      headers?: { source: string; headers: { key: string; value: string }[] }[];
+    };
+    const policy = new Map(
+      config.headers?.[0]?.headers.map(({ key, value }) => [key, value]),
+    ).get("Permissions-Policy");
+
+    // Read the directive, not the whole policy: the word "geolocation"
+    // appearing is not the question — `geolocation=()` disables the API,
+    // `geolocation=(self)` enables it for this origin.
+    const geolocation = /geolocation=([^,]*)/.exec(policy ?? "")?.[1] ?? "";
+    expect(geolocation).toBe("(self)");
+  });
+
   it("public/_redirects serves Netlify and Cloudflare with a 200, not a redirect", () => {
     // In public/ so Vite copies it into dist verbatim — no build step, and it
     // cannot drift from the output directory.

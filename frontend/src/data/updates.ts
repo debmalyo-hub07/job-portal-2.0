@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "use-my-location-prod-fix",
+    date: "2026-09-01",
+    kind: "Fix",
+    title: "\"Use my location\" now works on the site",
+    summary:
+      "The site's own security header was telling browsers to keep location switched off, so every \"Use my location\" tap failed the instant it was clicked. The header now allows location for the site itself.",
+    details: [
+      "It looked like your browser refusing — but the permission dialog never appeared. The site was blocking the feature before your browser could even ask you.",
+      "Nothing else about the flow changed: your precise position is still used for one city lookup and then discarded, and only the city is kept.",
+    ],
+  },
+  {
     id: "console-clock-fits",
     date: "2026-09-01",
     kind: "Fix",

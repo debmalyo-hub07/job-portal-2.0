@@ -730,6 +730,14 @@ which the same-origin proxy forwards verbatim, with a timezone fallback) for
 the phone dial-code default P3 preselects. No location signal reaches an
 authentication or authorization decision anywhere.
 
+The browser side of that consent is a **deploy-time contract**: the web host's
+`Permissions-Policy` must carry `geolocation=(self)`, or the API is
+policy-disabled before the browser ever shows its prompt — the stock
+`geolocation=()` hardening value shipped in `frontend/vercel.json` silently
+killed the whole feature on production for its first day (2026-09-01), while
+local dev, which serves no such header, stayed green.
+`deployArtifacts.test.tsx` pins the directive so it cannot drift back.
+
 Phone numbers (P3) are validated by **libphonenumber through the shared
 `phoneSchema`** — valid-for-country, mobile-or-unknown line type, canonical
 E.164 out — so the client's `PhoneInput` (country picker preselected from
