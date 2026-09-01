@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "admin-new-work-alerts",
+    date: "2026-09-01",
+    kind: "Feature",
+    title: "The console now tells admins when a recruiter is waiting",
+    summary:
+      "When a new recruiter verifies their email and joins the approval queue, every active admin gets an email — the recruiter's name, how many are waiting, and a link straight to the queue.",
+    details: [
+      "The email fires only once the recruiter has verified their address — the moment a signup becomes a real person rather than an abandoned form.",
+      "If email delivery fails, nothing else is affected: the verification still succeeds and the queue still updates; the alert simply does not arrive.",
+    ],
+  },
+  {
     id: "use-my-location-prod-fix",
     date: "2026-09-01",
     kind: "Fix",

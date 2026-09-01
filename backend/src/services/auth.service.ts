@@ -16,6 +16,7 @@ import {
 } from "./account.service.js";
 import { revokeAllForSubject } from "./session.service.js";
 import { chargeOtpAttempt, clearOtpBudget, issueOtp, writeGhostOtp } from "./otp.service.js";
+import { notifyAdminsOfPendingRecruiter } from "./notification.service.js";
 import {
   EMAIL_TAKEN,
   isDuplicateKeyError,
@@ -164,6 +165,18 @@ export async function verifyEmail(portal: Portal, email: string, code: string): 
   if (!target) throw AppError.badRequest("OTP_INVALID", "That code is incorrect or has expired.");
 
   await clearOtpBudget(portal, otp.subjectId, "verify_email");
+
+  // P1 of the console automation program. The flip null → verified on a
+  // pending recruiter is the moment work enters the queue for real — an
+  // unverified signup is indistinguishable from an abandoned one, and
+  // notifying on raw registration would let anyone spray every admin inbox
+  // from the signup form. `account` is the PRE-update read, so its null is
+  // the proof this redemption is the genuine flip. Fire-and-forget: the
+  // notification must never fail a verification that succeeded.
+  if (portal === "recruiter" && target.status === "pending" && account?.emailVerifiedAt === null) {
+    void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+  }
+
   return target;
 }
 
@@ -442,6 +455,15 @@ export async function resetPassword(
 
   await revokeAllForSubject(otp.subjectId, portal);
   await clearOtpBudget(portal, otp.subjectId, "reset_password");
+
+  // The reset path's verify-as-side-effect is the same null → verified flip
+  // as the one in verifyEmail, so it notifies too — "forgot my password
+  // before verifying" must not be the one route that skips telling the
+  // admins the account is now real. `target` here is the PRE-update read
+  // (the conditional spread in the update is what did the flipping).
+  if (portal === "recruiter" && target.status === "pending" && target.emailVerifiedAt === null) {
+    void notifyAdminsOfPendingRecruiter({ fullName: target.fullName, email: target.email });
+  }
 }
 
 /**

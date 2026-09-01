@@ -707,6 +707,17 @@ chosen per-browser. It is the wall time an admin works against; the header's
 server-stamped "as of" minute was removed (2026-09-01) because it jumped on
 every silent poll and read as a stray timer beside the Invite admin action.
 
+The console's reads are pull; its one urgent edge is now push. When a pending
+recruiter's `emailVerifiedAt` flips — through verify-email or password
+reset's verify-as-side-effect, the only two places it can — every active
+admin is mailed the recruiter's name, the queue's own pending count, and a
+link to the queue (`notification.service.ts`). The send is fire-and-forget
+with per-recipient isolation: a courtesy must never fail the request that
+triggered it, the opposite posture from invite-admin, where the email is the
+deliverable. Registration itself notifies nothing — an unverified signup is
+indistinguishable from an abandoned one, and notifying on it would let anyone
+spray every admin inbox from the signup form.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is
