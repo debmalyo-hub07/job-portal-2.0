@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "applicant-alerts-and-funnel",
+    date: "2026-09-02",
+    kind: "Feature",
+    title: "Recruiters hear about new applicants instantly",
+    summary:
+      "The moment someone applies to one of your roles, you get an email naming them and the role, with a link straight to the applicant list. The list itself now opens with a pipeline strip — where every applicant stands, at a glance.",
+    details: [
+      "The email arrives whether or not you're watching — applications no longer wait to be discovered.",
+      "The pipeline strip counts every stage across all of the role's applicants, not just the page you're on.",
+    ],
+  },
+  {
     id: "approval-automation",
     date: "2026-09-02",
     kind: "Feature",

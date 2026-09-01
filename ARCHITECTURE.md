@@ -756,6 +756,17 @@ a turned-off flag, or an automation failure all fall back to the human queue
 and the admin mail, unchanged. The recruiters monitoring table carries the
 same signals as badges, so the human reviews are faster too.
 
+### The workspace's half (P5)
+
+The automation program ends on the recruiter's side. The moment an
+application is filed, its job's owner is mailed the applicant's name, the
+role, and a link to that job's applicants screen — the same fire-and-forget
+posture as the admin mail, and an ownerless job simply has nobody to tell.
+The applicants screen itself gained the pipeline funnel: a server-computed
+count per status across every application the job holds (`ApplicantsPageDto`),
+because the ranked list paginates after scoring and a client-side count
+would describe a page, not the pipeline.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is
