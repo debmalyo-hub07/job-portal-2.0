@@ -3,15 +3,31 @@ import {
   accountSuspendBodySchema,
   adminCreateBodySchema,
   adminListQuerySchema,
+  flagKeySchema,
   objectIdSchema,
   portalSchema,
   recruiterDenyBodySchema,
+  setFlagBodySchema,
 } from "@jobportal/shared";
 import { parseBody } from "../lib/validate.js";
 import * as approvalService from "../services/approval.service.js";
 import * as adminConsoleService from "../services/adminConsole.service.js";
 import * as adminProvisioningService from "../services/adminProvisioning.service.js";
+import * as flagsService from "../services/flags.service.js";
 import * as oversightService from "../services/oversight.service.js";
+
+export const listFlags = async (_req: Request, res: Response): Promise<void> => {
+  res.status(200).json({ success: true, flags: await flagsService.listFlags() });
+};
+
+export const setFlag = async (req: Request, res: Response): Promise<void> => {
+  // Registry validation at the boundary: an unregistered key is a 400, never
+  // a silently created flag.
+  const key = parseBody(flagKeySchema, req.params.key);
+  const { enabled } = parseBody(setFlagBodySchema, req.body);
+  await flagsService.setFlag(key, enabled, req.auth?.id ? String(req.auth.id) : null);
+  res.status(200).json({ success: true });
+};
 
 export const createAdmin = async (req: Request, res: Response): Promise<void> => {
   const body = parseBody(adminCreateBodySchema, req.body);

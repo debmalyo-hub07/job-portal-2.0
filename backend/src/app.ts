@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health.js";
 import jobRoute from "./routes/job.route.js";
 import userRoute from "./routes/user.route.js";
 import locationRoute from "./routes/location.route.js";
+import flagsRoute from "./routes/flags.route.js";
 import phoneVerificationRoute from "./routes/phoneVerification.route.js";
 import { buildAuthRouter } from "./routes/auth.route.js";
 import { notFound } from "./middleware/notFound.js";
@@ -55,6 +56,7 @@ export function buildApp(): Express {
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);
   app.use("/api/v1/location", locationRoute);
+  app.use("/api/v1/flags", flagsRoute);
   // Dormant by design (P3): the phone-verification paths exist only when an
   // SMS provider key does — an absent key is a 404, not a misdeploy. Presence
   // is read from process.env directly rather than env(): buildApp() runs at

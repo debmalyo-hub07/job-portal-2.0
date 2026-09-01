@@ -6,6 +6,7 @@ import { requireMailerAvailable } from "../middleware/requireMailerAvailable.js"
 import {
   accountEvents,
   listCompanies,
+  listFlags,
   listJobs,
   listRecruiters,
   listSeekers,
@@ -20,6 +21,7 @@ import {
   getInsights,
   getOverview,
   createAdmin,
+  setFlag,
 } from "../controllers/admin.controller.js";
 import { getProfile, updateProfile } from "../controllers/user.controller.js";
 import {
@@ -80,6 +82,11 @@ router
  */
 router.route("/seekers").get(authenticate("admin"), listSeekers);
 router.route("/recruiters").get(authenticate("admin"), listRecruiters);
+// P3 of the console automation program. The write names its key against the
+// registry at the controller, so an unregistered key is a 400 rather than a
+// new flag nobody defined.
+router.route("/flags").get(authenticate("admin"), listFlags);
+router.route("/flags/:key").put(authenticate("admin"), csrfProtection(), setFlag);
 router
   .route("/seekers/:id/suspend")
   .post(authenticate("admin"), csrfProtection(), suspendSeeker);
