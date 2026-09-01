@@ -92,11 +92,12 @@ export async function reinstateAccount(portal: Portal, id: string, adminId: stri
   logger.info({ portal, subjectId: id, target }, "account reinstated");
 }
 
-/** Records an oversight decision. Approve/deny call this from approval.service. */
+/** Records an oversight decision. Approve/deny call this from approval.service;
+ *  the automation's auto_approved kind calls it from the same core. */
 export async function recordAccountEvent(
   portal: Portal,
   subjectId: string,
-  kind: "approved" | "denied" | "suspended" | "reinstated",
+  kind: "approved" | "auto_approved" | "denied" | "suspended" | "reinstated",
   reason: string | null,
   actorAdminId: string | null,
 ): Promise<void> {

@@ -40,20 +40,25 @@ export async function listPendingRecruiters(): Promise<PendingRecruiterDto[]> {
 }
 
 /**
- * Flips pending → active.
+ * Flips pending → active — the core both approval paths run.
  *
  * The update is GUARDED on the current status rather than an unconditional
- * set, so two admins racing the same approval send exactly one mail: the
- * loser matches nothing and returns quietly. That is also what makes the route
- * idempotent — approving an already-active recruiter is a no-op, not an error,
- * because a double-click must not be a failure the admin has to interpret.
+ * set, so two approvals racing send exactly one mail and mint one event: the
+ * loser matches nothing and returns false. That is also what makes both
+ * paths idempotent — approving an already-active recruiter is a no-op, not
+ * an error, because a double-click (or an automation racing a human) must
+ * not be a failure anyone has to interpret.
  *
- * A missing recruiter is a genuine 404: the id came from the admin's own list,
- * so an unknown one means the row was deleted, not that ownership is being
- * probed. The 404-for-foreign-resources rule does not apply — an admin has no
- * "foreign" recruiters.
+ * A missing recruiter is a genuine 404: the id came from the caller's own
+ * read, so an unknown one means the row was deleted, not that ownership is
+ * being probed.
  */
-export async function approveRecruiter(id: string, adminId: string | null = null): Promise<void> {
+async function activateRecruiter(
+  id: string,
+  eventKind: "approved" | "auto_approved",
+  reason: string | null,
+  adminId: string | null,
+): Promise<boolean> {
   const exists = await Recruiter.exists({ _id: id });
   if (!exists) throw AppError.notFound("NOT_FOUND", "No such recruiter.");
 
@@ -61,29 +66,36 @@ export async function approveRecruiter(id: string, adminId: string | null = null
     { _id: id, status: "pending" },
     { $set: { status: "active" } },
   );
-  if (result.matchedCount === 0) return; // already approved
+  if (result.matchedCount === 0) return false; // already decided
 
   // The history row. Written after the guarded update, so a raced no-op
-  // records nothing — the doctrine that keeps two admins from minting two
+  // records nothing — the doctrine that keeps two actors from minting two
   // events for one decision.
-  await recordAccountEvent("recruiter", id, "approved", null, adminId);
+  await recordAccountEvent("recruiter", id, eventKind, reason, adminId);
   const account = await Recruiter.findById(id).select("email");
   if (account) dispatch(sendRendered(account.email, renderRecruiterApprovedEmail()));
 
-  // P2 of the console automation program. One more active recruiter is one
-  // more pair of hands: any company orphaned by a deleted owner is re-homed
-  // now, through the same code the assign-catalog script runs, rather than
-  // lingering until someone remembers the script. Fire-and-forget like the
-  // approval mail above — the approval is the product, the sweep is
-  // bookkeeping, and a partial failure's leftovers are exactly what the next
-  // approval picks up. The sweep's own contract is never-reject; the catch is
-  // the process-level guarantee that a broken contract stays a logged line
-  // rather than an unhandled rejection.
+  // P2's sweep, shared by both paths: one more active recruiter is one more
+  // pair of hands for any orphaned company.
   void sweepOrphanedCompanies().catch((error) => {
     logger.error({ err: error }, "orphan sweep failed");
   });
 
-  logger.info({ recruiterId: id }, "recruiter approved");
+  logger.info({ recruiterId: id, eventKind }, "recruiter activated");
+  return true;
+}
+
+export async function approveRecruiter(id: string, adminId: string | null = null): Promise<void> {
+  await activateRecruiter(id, "approved", null, adminId);
+}
+
+/**
+ * P4's automation: approval without a human, earned by an email at an
+ * employer's own domain. The matched company names the reason, because an
+ * audit trail that cannot say WHY the gate opened is not an audit trail.
+ */
+export async function autoApproveRecruiter(id: string, matchedCompany: string): Promise<boolean> {
+  return activateRecruiter(id, "auto_approved", `email domain matches ${matchedCompany}`, null);
 }
 
 /**

@@ -15,6 +15,7 @@ import { defineModel } from "./defineModel.js";
  */
 export const ACCOUNT_EVENT_KINDS = [
   "approved",
+  "auto_approved",
   "denied",
   "suspended",
   "reinstated",
