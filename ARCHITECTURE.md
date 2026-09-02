@@ -767,6 +767,28 @@ count per status across every application the job holds (`ApplicantsPageDto`),
 because the ranked list paginates after scoring and a client-side count
 would describe a page, not the pipeline.
 
+### Bulk moves and posting health
+
+The recruiter power phase (2026-09-02) closes the hand-scale gap. `POST
+/application/:jobId/status/bulk` moves many of one job's applications to one
+stage under an apply-where-legal contract: the job's ownership is checked once
+(a foreign job is the request's own 404), then each row runs the same guarded
+state machine a single move runs — history entry, `decidedAt` on terminal
+stages, the candidate email on notifying stages, byte for byte. Refused rows
+are skipped and reported (`TERMINAL`, `SAME_STATUS`, or `NOT_FOUND` for a
+foreign or stale id) rather than vetoing the batch, because a real applicant
+list is mixed. The screen answers with a checkbox column, a bulk bar, a
+confirmation dialog naming count and destination, and a result toast that
+reports both halves.
+
+Posting health rides the same `ApplicantsPageDto`. `listApplicants` already
+holds the complete ranked set in memory, so `health` — a dense 56-day
+zero-filled applications-per-day series (the console's `jobsPostedSeries`
+shape, shared through `backend/src/lib/dailySeries.ts`), `firstApplicationAt`,
+and the total — is derived with zero additional queries. Nothing is stored or
+tracked, and nothing new reaches the privacy page; time-to-first is the
+client's subtraction of the job's `createdAt`.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is

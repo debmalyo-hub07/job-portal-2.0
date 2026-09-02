@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "recruiter-power",
+    date: "2026-09-02",
+    kind: "Feature",
+    title: "Decide on many applicants at once, and see how a role is doing",
+    summary:
+      "The applicants screen now takes bulk decisions — select any number of candidates and move them to a stage in one action, with each candidate emailed exactly as a single move would. Beside the pipeline, a posting-health block shows applications per day and how long the role waited for its first applicant.",
+    details: [
+      "A bulk move applies where it's legal: rows that can't move — already decided, already at that stage, no longer available — are skipped and reported, so one decided row never blocks the rest.",
+      "Posting health is derived from the applications the platform already keeps: nothing is tracked, and the privacy page is unchanged.",
+    ],
+  },
+  {
     id: "flags-screen-redesign",
     date: "2026-09-02",
     kind: "Fix",
