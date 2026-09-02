@@ -511,6 +511,66 @@ describe("Applicants", () => {
     expect(screen.getByText("1 selected")).toBeInTheDocument();
     expect(post).not.toHaveBeenCalled();
   });
+
+  it("shows posting health beside the funnel when the page carries it", async () => {
+    vi.spyOn(apiClient, "get").mockImplementation(async (url: string) => {
+      if (url.startsWith("/job/get/")) {
+        return {
+          data: {
+            success: true,
+            job: { id: "64b0c8f2a9d3e45f6a7b8c9d", createdAt: "2026-06-08T00:00:00.000Z" },
+          },
+        } as never;
+      }
+      return {
+        data: {
+          success: true,
+          items: [
+            {
+              applicationId: "a1",
+              status: "applied" as const,
+              appliedAt: "2026-06-11T00:00:00.000Z",
+              fullName: "Ada Lovelace",
+              email: "ada@example.com",
+              phone: null,
+              headline: null,
+              skills: [],
+              resumeUrl: null,
+              resumeName: null,
+              fit,
+            },
+          ],
+          funnel: {
+            applied: 1, reviewed: 0, shortlisted: 0, interview: 0,
+            offered: 0, rejected: 0, withdrawn: 0,
+          },
+          health: {
+            series: Array.from({ length: 56 }, (_, i) => {
+              const d = new Date(Date.UTC(2026, 5, 1));
+              d.setUTCDate(d.getUTCDate() + i);
+              return { date: d.toISOString().slice(0, 10), count: i === 10 ? 1 : 0 };
+            }),
+            firstApplicationAt: "2026-06-11T00:00:00.000Z",
+            total: 1,
+          },
+          total: 1,
+          page: 1,
+          pages: 1,
+        },
+      } as never;
+    });
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+
+    const health = await screen.findByRole("region", { name: "Posting health" });
+    expect(within(health).getByText("1 applicant")).toBeInTheDocument();
+    // Time-to-first, from the job read's createdAt.
+    expect(within(health).getByText(/First applicant after 3 days/)).toBeInTheDocument();
+    // The funnel still renders in the same row.
+    expect(screen.getByRole("list", { name: "Pipeline" })).toBeInTheDocument();
+  });
 });
 
 describe("the workspace redux fields", () => {
