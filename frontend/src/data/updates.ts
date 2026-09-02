@@ -30,6 +30,17 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "applied-state-per-job",
+    date: "2026-09-02",
+    kind: "Fix",
+    title: "A role's page always knows you already applied",
+    summary:
+      "The \"Application sent\" state on a role's page is now read per role from the server, instead of scanning your most recent applications — so it stays correct no matter how many roles you've applied to.",
+    details: [
+      "The check is one small read per role, cached, and it no longer depends on how long your applied list is.",
+    ],
+  },
+  {
     id: "saved-jobs",
     date: "2026-09-02",
     kind: "Feature",

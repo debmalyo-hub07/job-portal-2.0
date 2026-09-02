@@ -32,9 +32,8 @@ encrypted to be secure.
 
 The remaining known issues are in [Not yet
 fixed](#not-yet-fixed--known-and-scheduled) below. None is an access-control
-defect; the open items are a performance ceiling on search and an orphaned
-Cloudinary asset on logo replacement. Read them before pointing this at real
-user data.
+defect; the one open item is a performance ceiling on search. Read it before
+pointing this at real user data.
 
 Phases 2A and 2B-1 were frontend work and changed no security boundary. The one
 adjacent change: the client no longer holds a portal in component state or
@@ -165,12 +164,27 @@ subject to the per-account OTP failure budget.
   Render API pattern, local assets, Cloudinary media, and verified Google avatar
   media.
 
+### Fixed in the asset-hygiene pass (2026-09-02)
+
+- Replacing a company logo no longer orphans the previous asset: the upload
+  pins `public_id` to the company's own id and overwrites in place. This
+  actually landed with the portal and catalogue work on 2026-08-16
+  (`8acf434`) — the ledger row below outlived the fix by two weeks.
+- Replacing a resume destroys the previous asset (`destroyResume`, best-effort
+  after the save commits, logged on failure): re-uploads no longer accumulate
+  authenticated orphans in Cloudinary storage.
+
 ### Not yet fixed — known and scheduled
 
 | Defect | Impact | Fixed in |
 |---|---|---|
-| Keyword search is an unindexed regex scan | Full collection scan per search. Injection and ReDoS are closed; this is a performance ceiling, not a vulnerability | 3 |
-| Replacing a company logo orphans the previous Cloudinary asset | Storage growth; the orphan stays publicly readable | unscheduled |
+| Keyword search is an unindexed regex scan | Full collection scan per search. Injection and ReDoS are closed; this is a performance ceiling, not a vulnerability | unscheduled — revisit when postings cross ~1–2k or search latency shows |
+
+The search row's earlier "3" was aspiration, not record — no phase fixed it.
+At the current catalogue size the scan is noise, so the honest trigger for
+the work is scale, not the old roadmap numbering. When it does come, a text
+index changes matching semantics (token match, no substrings) — that is a
+decision to make then, not a chore to schedule now.
 
 ## Authentication design (Phase 1B, as built)
 
