@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "saved-jobs",
+    date: "2026-09-02",
+    kind: "Feature",
+    title: "Save roles to a shortlist of your own",
+    summary:
+      "Every role's page now has a Save button. The roles you're still deciding on wait for you under Saved in the navigation — each with a note of whether you've already applied.",
+    details: [
+      "A saved role stays on your list even after it closes or its posting comes down, marked so you know where it stands.",
+      "Saving is private: recruiters never see who saved a role.",
+    ],
+  },
+  {
     id: "recruiter-power",
     date: "2026-09-02",
     kind: "Feature",

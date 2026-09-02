@@ -618,7 +618,7 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | Auth fixes | `/hire` landing restored as a public page, admin door controls, password reveal on every form, Google mark + pending state | Complete |
 | 3 | Application status pipeline: seven stages, candidate timeline, withdraw, status emails | Complete |
 | 3 | Job lifecycle: edit a posting, close a filled role, delete an unapplied one | Complete |
-| 3 | Saved jobs | Planned |
+| Saved jobs (2026-09-02) | The seeker's shortlist: save from the role's page, list at /saved, idempotent unsave | Complete |
 | Recruiter power (2026-09-02) | Bulk applicant moves and posting health | Complete |
 | Location-aware (2026-09-01) | Consented city-level seeker area, "Near you" rail on the board, phone country codes, the console's live clock | Complete |
 | Console automation (2026-09-02) | Admin alerts for new work, orphan sweep on approval, feature flags + the Flags screen, guardrailed approval automation, applicant alerts + the pipeline funnel | Complete |

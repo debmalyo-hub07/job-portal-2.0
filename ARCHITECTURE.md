@@ -102,6 +102,8 @@ jobs           title, description, requirements[], salary, experienceLevel,
                created_by → recruiters
 applications   job → jobs, applicant → seekers, status
                unique on {job, applicant}
+savedJobs      seeker → seekers, job → jobs
+               unique on {seeker, job}
 ```
 
 "Auth fields" is the set shared by both account collections, defined once in
@@ -788,6 +790,23 @@ shape, shared through `backend/src/lib/dailySeries.ts`), `firstApplicationAt`,
 and the total — is derived with zero additional queries. Nothing is stored or
 tracked, and nothing new reaches the privacy page; time-to-first is the
 client's subtraction of the job's `createdAt`.
+
+### Saved jobs
+
+The seeker's shortlist (2026-09-02): `POST`/`DELETE /saved/:jobId` and
+`GET /saved` under `authenticate("seeker")` — session-gated only, because
+saving is a bookmark and the profile gate belongs to applying, the
+consequential action. Save and unsave are idempotent by design: the unique
+`{seeker, job}` index is the dedupe, a duplicate insert answers 200 (the
+state the caller asked for already holds), and a delete that matched nothing
+answers 200 too — a toggle must never error on stale button state, which is
+the deliberate contrast with apply's 409. The list resolves jobs in two steps
+(raw ids, then a populate keyed on them) so a deleted posting keeps its row
+with a null `job` and its stored `jobId` — the id Unsave targets and the
+applied join keys on — and closed roles keep their `status`. Each row carries
+an `applied` boolean from one bounded read, so the list tells a to-do from a
+done exactly. No recruiter surface reads this collection: a save is the
+seeker's private signal.
 
 ### Location
 
