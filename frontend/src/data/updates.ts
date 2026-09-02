@@ -30,6 +30,17 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "flags-screen-redesign",
+    date: "2026-09-02",
+    kind: "Fix",
+    title: "The console's Flags screen is a proper control panel",
+    summary:
+      "Each platform switch is now one complete card — its state at a glance, a real toggle, and a note of who last changed it — instead of a lone row in a table.",
+    details: [
+      "The switch is a real control with keyboard toggling and screen-reader state, and it never shows a state the server hasn't confirmed.",
+    ],
+  },
+  {
     id: "applicant-alerts-and-funnel",
     date: "2026-09-02",
     kind: "Feature",
