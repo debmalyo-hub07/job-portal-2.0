@@ -30,7 +30,7 @@ import { useSavedJobs, useUnsaveJob } from "@/hooks/useSavedJobs";
  * removable exactly like a live one.
  */
 export function SavedJobs() {
-  const { data, isPending, isError, error, page, setPage } = useSavedJobs();
+  const { data, isPending, isError, error, setPage } = useSavedJobs();
   const unsave = useUnsaveJob();
 
   const onUnsave = async (jobId: string) => {

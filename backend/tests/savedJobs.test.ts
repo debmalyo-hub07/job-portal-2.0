@@ -174,11 +174,16 @@ describe("saved jobs", () => {
       .use(asSession("seeker", seeker))
       .expect(200);
 
-    const byJobId = new Map(res.body.items.map((row: { jobId: string }) => [row.jobId, row]));
+    const rows = res.body.items as Array<{
+      jobId: string;
+      applied: boolean;
+      job: { status: string };
+    }>;
+    const byJobId = new Map(rows.map((row) => [row.jobId, row]));
     expect(byJobId.get(jobId)).toMatchObject({ applied: true });
-    expect(byJobId.get(jobId).job.status).toBe("closed");
+    expect(byJobId.get(jobId)!.job.status).toBe("closed");
     expect(byJobId.get(secondJobId)).toMatchObject({ applied: false });
-    expect(byJobId.get(secondJobId).job.status).toBe("open");
+    expect(byJobId.get(secondJobId)!.job.status).toBe("open");
   });
 
   it("the per-job check answers both states and never 404s", async () => {
