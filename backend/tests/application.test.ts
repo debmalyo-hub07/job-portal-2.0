@@ -556,4 +556,194 @@ describe("application routes", () => {
       ).toBe(401);
     });
   });
+
+  describe("the bulk move", () => {
+    let ids: Record<string, string>;
+    let rivalJobId: string;
+    let foreignId: string;
+
+    beforeEach(async () => {
+      const actors: Awaited<ReturnType<typeof signedUpOn>>[] = [];
+      for (const email of ["b1@example.com", "b2@example.com", "b3@example.com", "b4@example.com"]) {
+        const who = await signedUpOn("seeker", email);
+        actors.push(who);
+        await request(app)
+          .post(`/api/v1/application/apply/${jobId}`)
+          .use(asSession("seeker", who));
+      }
+
+      const list = await request(app)
+        .get(`/api/v1/application/${jobId}/applicants?limit=10`)
+        .use(asSession("recruiter", recruiter));
+      ids = Object.fromEntries(
+        list.body.items.map((i: { email: string; applicationId: string }) => [
+          i.email,
+          i.applicationId,
+        ]),
+      );
+
+      // A rival's job with one application on it: legal work for the rival,
+      // invisible to this recruiter's batch.
+      const rivalCompany = await request(app)
+        .post("/api/v1/company/register")
+        .use(asSession("recruiter", rival))
+        .send({ name: "RivalCo" });
+      const rivalJob = await request(app)
+        .post("/api/v1/job/post")
+        .use(asSession("recruiter", rival))
+        .send({
+          title: "Rival Role",
+          description: "Rival work",
+          requirements: "ts",
+          salary: 10,
+          experience: 1,
+          location: "Remote",
+          jobType: "Full-time",
+          position: "1",
+          companyId: rivalCompany.body.company.id,
+        });
+      rivalJobId = rivalJob.body.job.id;
+      await request(app)
+        .post(`/api/v1/application/apply/${rivalJobId}`)
+        .use(asSession("seeker", actors[0]!));
+      const rivalList = await request(app)
+        .get(`/api/v1/application/${rivalJobId}/applicants`)
+        .use(asSession("recruiter", rival));
+      foreignId = rivalList.body.items[0].applicationId;
+    });
+
+    const bulk = (body: unknown, session = recruiter) =>
+      request(app)
+        .post(`/api/v1/application/${jobId}/status/bulk`)
+        .use(asSession("recruiter", session))
+        .send(body);
+
+    it("moves the legal rows and reports the refused ones with reasons", async () => {
+      // One row already rejected, one already shortlisted; the other two open.
+      await request(app)
+        .post(`/api/v1/application/status/${ids["b1@example.com"]}/update`)
+        .use(asSession("recruiter", recruiter))
+        .send({ status: "rejected" });
+      await request(app)
+        .post(`/api/v1/application/status/${ids["b2@example.com"]}/update`)
+        .use(asSession("recruiter", recruiter))
+        .send({ status: "shortlisted" });
+
+      const res = await bulk({
+        applicationIds: [
+          ids["b1@example.com"],
+          ids["b2@example.com"],
+          ids["b3@example.com"],
+          ids["b4@example.com"],
+        ],
+        status: "shortlisted",
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true, moved: 2 });
+      expect(res.body.skipped).toEqual([
+        { id: ids["b1@example.com"], reason: "TERMINAL" },
+        { id: ids["b2@example.com"], reason: "SAME_STATUS" },
+      ]);
+      // The refused rows are untouched — a skip is a report, never a veto.
+      expect((await Application.findById(ids["b1@example.com"]))?.status).toBe("rejected");
+      expect((await Application.findById(ids["b2@example.com"]))?.status).toBe("shortlisted");
+      // A moved row carries the transition byte-for-byte.
+      const moved = await Application.findById(ids["b3@example.com"]);
+      expect(moved?.status).toBe("shortlisted");
+      expect(moved?.history.at(-1)).toMatchObject({ status: "shortlisted", byPortal: "recruiter" });
+    });
+
+    it("writes the same record a single move writes, decidedAt included", async () => {
+      const res = await bulk({
+        applicationIds: [ids["b1@example.com"], ids["b2@example.com"]],
+        status: "rejected",
+      });
+      expect(res.body.moved).toBe(2);
+      for (const email of ["b1@example.com", "b2@example.com"]) {
+        const doc = await Application.findById(ids[email]);
+        expect(doc?.status).toBe("rejected");
+        expect(doc?.decidedAt).toBeInstanceOf(Date);
+        expect(doc?.history.at(-1)).toMatchObject({ status: "rejected", byPortal: "recruiter" });
+      }
+    });
+
+    it("skips a foreign id and an unknown id as NOT_FOUND while the rest move", async () => {
+      const unknownId = new mongoose.Types.ObjectId().toHexString();
+      const res = await bulk({
+        applicationIds: [foreignId, unknownId, ids["b2@example.com"]],
+        status: "interview",
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.moved).toBe(1);
+      expect(res.body.skipped).toEqual([
+        { id: foreignId, reason: "NOT_FOUND" },
+        { id: unknownId, reason: "NOT_FOUND" },
+      ]);
+      // The foreign row is untouched — it was never this batch's to move.
+      expect((await Application.findById(foreignId))?.status).toBe("applied");
+    });
+
+    it("404s the whole request for a job the caller does not own", async () => {
+      const res = await request(app)
+        .post(`/api/v1/application/${rivalJobId}/status/bulk`)
+        .use(asSession("recruiter", recruiter))
+        .send({ applicationIds: [ids["b1@example.com"]], status: "shortlisted" });
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe("JOB_NOT_FOUND");
+    });
+
+    it("bulk reject emails every moved candidate exactly once, and reviewed mails nobody", async () => {
+      outbox.length = 0;
+      const res = await bulk({
+        applicationIds: [ids["b1@example.com"], ids["b2@example.com"]],
+        status: "rejected",
+      });
+      expect(res.body.moved).toBe(2);
+      await vi.waitFor(() => {
+        for (const email of ["b1@example.com", "b2@example.com"]) {
+          expect(outbox.filter((m) => m.to === email)).toHaveLength(1);
+        }
+      });
+
+      // `reviewed` is deliberately silent, singly and in bulk.
+      outbox.length = 0;
+      const quiet = await bulk({ applicationIds: [ids["b3@example.com"]], status: "reviewed" });
+      expect(quiet.body.moved).toBe(1);
+      await new Promise((r) => setTimeout(r, 150));
+      expect(outbox.filter((m) => m.to === "b3@example.com")).toHaveLength(0);
+    });
+
+    it("answers a duplicated id as a same-status skip, not a second move", async () => {
+      const id = ids["b1@example.com"];
+      const res = await bulk({ applicationIds: [id, id], status: "shortlisted" });
+      expect(res.body).toMatchObject({ moved: 1 });
+      expect(res.body.skipped).toEqual([{ id, reason: "SAME_STATUS" }]);
+    });
+
+    it("rejects a 101-id batch, an empty one, a malformed id, and operator stages", async () => {
+      const many = Array.from({ length: 101 }, () => new mongoose.Types.ObjectId().toHexString());
+      expect((await bulk({ applicationIds: many, status: "rejected" })).status).toBe(400);
+      expect((await bulk({ applicationIds: [], status: "rejected" })).status).toBe(400);
+      expect((await bulk({ applicationIds: ["not-an-id"], status: "rejected" })).status).toBe(400);
+      for (const status of ["applied", "withdrawn"]) {
+        expect((await bulk({ applicationIds: [ids["b1@example.com"]], status })).status).toBe(400);
+      }
+    });
+
+    it("anonymous and seeker cannot reach the bulk route", async () => {
+      const body = { applicationIds: [ids["b1@example.com"]], status: "shortlisted" };
+      expect(
+        (await request(app).post(`/api/v1/application/${jobId}/status/bulk`).send(body)).status,
+      ).toBe(401);
+      expect(
+        (
+          await request(app)
+            .post(`/api/v1/application/${jobId}/status/bulk`)
+            .use(asSession("seeker", seeker))
+            .send(body)
+        ).status,
+      ).toBe(401);
+    });
+  });
 });

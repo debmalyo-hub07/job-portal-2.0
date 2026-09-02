@@ -4,6 +4,7 @@ import { requireApproved } from "../middleware/requireApproved.js";
 import { requireProfileComplete } from "../middleware/requireProfileComplete.js";
 import {
   applyJob,
+  bulkUpdateStatus,
   getAppliedJobs,
   getApplicants,
   getQueue,
@@ -32,6 +33,15 @@ router.route("/:id/applicants").get(authenticate("recruiter"), requireApproved, 
 router
   .route("/status/:id/update")
   .post(authenticate("recruiter"), requireApproved, csrfProtection(), updateStatus);
+// The bulk move: one stage, many of this job's applications. Legal rows move
+// and refused rows are skipped with a reason, so a mixed page is one action.
+// Same gates as the single move — an unapproved recruiter changes nothing.
+// (`/:jobId/status/bulk` cannot collide with `/status/:id/update`: that
+// pattern pins its first segment to the literal `status` and its last to
+// `update`, neither of which this path's segments are.)
+router
+  .route("/:jobId/status/bulk")
+  .post(authenticate("recruiter"), requireApproved, csrfProtection(), bulkUpdateStatus);
 // The candidate's own exit. Gated on the seeker portal, and the service resolves
 // the application by `applicant` so a seeker cannot withdraw somebody else's —
 // the job's recruiter has no route to this transition at all.

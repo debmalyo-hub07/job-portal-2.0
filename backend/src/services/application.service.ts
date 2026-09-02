@@ -11,6 +11,7 @@ import type {
   ApplicationEventDto,
   ApplicationStatus,
   AppliedJobDto,
+  BulkStatusResult,
   PaginatedResponse,
   PaginationQuery,
   QueuedApplicantDto,
@@ -416,6 +417,86 @@ export async function updateApplicationStatus(
       );
     }
   }
+}
+
+/**
+ * The bulk move: one stage, many of this job's applications, legal rows only.
+ *
+ * The job's ownership is checked once, and a job the caller does not own is
+ * the request's own 404, exactly as the per-job list. Each row then answers
+ * for itself through the same guarded state machine a single move runs —
+ * history entry, `decidedAt` on terminal stages, the candidate email on
+ * notifying stages, byte for byte. A refused row is skipped and reported with
+ * its reason rather than vetoing the batch: a real applicant list is mixed,
+ * and one decided row must not block nine open ones.
+ *
+ * A foreign or unknown id is a skipped row, not a 404 — the other rows' work
+ * is legal — which is the one place bulk deliberately differs from a single
+ * move, where a foreign application answers exactly as a missing one does.
+ */
+export async function bulkUpdateApplicationStatus(
+  recruiterId: string,
+  jobId: string,
+  applicationIds: string[],
+  status: ApplicationStatus,
+): Promise<BulkStatusResult> {
+  const job = await getOwnedJob(recruiterId, jobId);
+
+  const skipped: BulkStatusResult["skipped"] = [];
+  const moved: { applicant: unknown; from: ApplicationStatus }[] = [];
+
+  for (const id of applicationIds) {
+    const application = await Application.findById(id).select(
+      "job status history decidedAt applicant",
+    );
+    // Foreign to this job — another recruiter's, or the caller's own other
+    // posting, this batch being one job's pipeline — answers as a missing row.
+    if (!application || String(application.job) !== jobId) {
+      skipped.push({ id, reason: "NOT_FOUND" });
+      continue;
+    }
+    const refusal = transitionRefusal(application.status as ApplicationStatus, status, "recruiter");
+    // NOT_ALLOWED_FOR_PORTAL cannot occur — the body schema pins `status` to
+    // RECRUITER_SETTABLE — and if it ever did, `transition` below remains the
+    // authority and the request fails loudly rather than mis-reporting.
+    if (refusal === "TERMINAL" || refusal === "SAME_STATUS") {
+      skipped.push({ id, reason: refusal });
+      continue;
+    }
+    const from = await transition(application, status, "recruiter");
+    moved.push({ applicant: application.applicant, from });
+  }
+
+  // Notifying stages mail exactly the moved rows, byte-for-byte as the single
+  // move's mail. The company is constant across the batch, so it is read once;
+  // the seekers are one `$in` read rather than one per row.
+  const notifying = moved.filter((row) => notifiesSeeker(row.from, status));
+  if (notifying.length > 0) {
+    const [company, seekers] = await Promise.all([
+      Company.findById(job.company).select("name"),
+      Seeker.find({
+        _id: mongoose.trusted({ $in: notifying.map((row) => row.applicant) }),
+      }).select("email"),
+    ]);
+    const emailByApplicant = new Map(seekers.map((s) => [String(s._id), s.email]));
+    for (const row of notifying) {
+      const email = emailByApplicant.get(String(row.applicant));
+      if (email) {
+        dispatch(
+          sendRendered(
+            email,
+            renderApplicationStatusEmail(
+              status as "shortlisted" | "interview" | "offered" | "rejected",
+              job.title,
+              company?.name ?? null,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  return { moved: moved.length, skipped };
 }
 
 /**

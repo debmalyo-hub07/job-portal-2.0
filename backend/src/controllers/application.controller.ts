@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   applicationStatusBodySchema,
+  bulkStatusBodySchema,
   objectIdSchema,
   paginationQuerySchema,
 } from "@jobportal/shared";
@@ -37,6 +38,22 @@ export const updateStatus = async (req: Request, res: Response): Promise<void> =
   const { status } = parseBody(applicationStatusBodySchema, req.body);
   await applicationService.updateApplicationStatus(req.auth!.id, applicationId, status);
   res.status(200).json({ success: true, message: "Status updated successfully." });
+};
+
+/**
+ * The bulk move. The job is the route's target and the ids name rows inside
+ * it; the service owns the apply-where-legal contract and the honest result.
+ */
+export const bulkUpdateStatus = async (req: Request, res: Response): Promise<void> => {
+  const jobId = parseBody(objectIdSchema, req.params.jobId);
+  const { applicationIds, status } = parseBody(bulkStatusBodySchema, req.body);
+  const result = await applicationService.bulkUpdateApplicationStatus(
+    req.auth!.id,
+    jobId,
+    applicationIds,
+    status,
+  );
+  res.status(200).json({ success: true, ...result });
 };
 
 /**
