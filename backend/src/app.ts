@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import express, { type Express } from "express";
 
 import applicationRoute from "./routes/application.route.js";
+import savedJobRoute from "./routes/savedJob.route.js";
 import companyRoute from "./routes/company.route.js";
 import adminRoute from "./routes/admin.route.js";
 import { healthRouter } from "./routes/health.js";
@@ -55,6 +56,7 @@ export function buildApp(): Express {
   app.use("/api/v1/company", companyRoute);
   app.use("/api/v1/job", jobRoute);
   app.use("/api/v1/application", applicationRoute);
+  app.use("/api/v1/saved", savedJobRoute);
   app.use("/api/v1/location", locationRoute);
   app.use("/api/v1/flags", flagsRoute);
   // Dormant by design (P3): the phone-verification paths exist only when an

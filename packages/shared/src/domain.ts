@@ -312,6 +312,24 @@ export type AppliedJobDto = {
   history: ApplicationEventDto[];
 };
 
+/**
+ * One row of the seeker's shortlist. `job` is null when the posting was
+ * deleted after saving — the row stays, the applied list's stance: the
+ * seeker's record is theirs. `applied` is computed at read time (this seeker
+ * has an application on this job), so the list can tell a to-do from a done.
+ *
+ * `jobId` is the stored reference and is always present: populating a
+ * deleted job yields null and loses the raw id, and it is that id an Unsave
+ * targets — a dead row must still be removable.
+ */
+export type SavedJobDto = {
+  id: string;
+  jobId: string;
+  savedAt: string;
+  job: JobDto | null;
+  applied: boolean;
+};
+
 /** Everything a recruiter may see about an applicant. Nothing else leaves. */
 export type ApplicantDto = {
   applicationId: string;
