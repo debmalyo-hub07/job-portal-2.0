@@ -90,9 +90,13 @@ reopen).
   so the answer is `false` — a check endpoint has no business erroring on the
   thing it is checking for.
 
-`SavedJobDto` (shared, `domain.ts`): `{ id, savedAt, job: JobDto | null,
+`SavedJobDto` (shared, `domain.ts`): `{ id, jobId, savedAt, job: JobDto | null,
 applied: boolean }` — `id` is the save's own id, `savedAt` its timestamp,
-`job` null only for a deleted posting, `applied` from the D6 join.
+`job` null only for a deleted posting, `applied` from the D6 join. `jobId` is
+the stored reference, always present: populating a deleted job yields null
+and loses the raw id, and it is that id an Unsave targets — a dead row must
+still be removable from the list. The applied join keys on the stored ids
+for the same reason (an application on a since-deleted job still counts).
 
 ## Non-goals
 
