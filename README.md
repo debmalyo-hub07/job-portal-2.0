@@ -375,6 +375,7 @@ mirroring the API's `buildAuthRouter(portal)`:
 | `/` | seeker | Marketing landing: hero search, role shortcuts, latest openings |
 | `/jobs` | seeker | The job board. Every filter lives in the URL, so a search is a shareable link |
 | `/description/:id`, `/profile` | seeker | Job detail is public; the profile requires a seeker session |
+| `/saved` | seeker | The shortlist: roles saved from their pages, with Applied, Closed and no-longer-available markers |
 | `/complete-profile` | seeker | The identity step. Reached by redirect when an account has no date of birth |
 | `/login`, `/signup` | seeker | |
 | `/hire` | recruiter | Employer landing page. Redirects to the workspace only when a recruiter session is active |
@@ -658,6 +659,26 @@ auto-approval tier that fires only for signups at a known employer's own
 website domain (ADR-0010 — off by default until flipped in the console), and
 the workspace gained instant applicant alerts plus a pipeline funnel on the
 applicants screen.
+
+**The recruiter power phase (2026-09-02)** closed the hand-scale gap in the
+workspace. Bulk status moves: select any rows on one job's applicant list and
+move them in a single confirmed action — legal rows move, refused rows are
+skipped and reported with their reasons (already closed, already at that
+stage, no longer available), and every moved candidate is emailed exactly as
+a single move would. Posting health sits beside the pipeline funnel: a dense
+56-day applications-per-day chart, the total, and how long the role waited
+for its first applicant — derived from the applications the platform already
+keeps, with nothing new tracked. On a phone, the applicant list and the
+cross-job queue render as cards — one per applicant, every fact the table
+carries — instead of three sideways screens of table.
+
+**Saved jobs (2026-09-02)** gave seekers a shortlist of their own: a Save
+control on every role's page (an anonymous click routes to sign-in with a way
+back, exactly as Apply does) and a `/saved` list in the navbar carrying each
+role's state — an Applied marker, Closed, or "no longer available" when the
+posting has come down. Saved roles stay on the list and are marked rather
+than silently dropped; save and unsave are idempotent, and a save is the
+seeker's private signal that reaches no recruiter surface.
 
 The public informational surfaces are live: `/about`, `/contact`, `/help`,
 `/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries

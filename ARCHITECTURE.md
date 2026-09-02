@@ -808,6 +808,13 @@ an `applied` boolean from one bounded read, so the list tells a to-do from a
 done exactly. No recruiter surface reads this collection: a save is the
 seeker's private signal.
 
+Below the `sm` breakpoint the two applicant lists render as cards — one per
+application, carrying the table's facts, its bulk checkbox and the same
+decision menu (`DecisionMenu`, shared by both renderings so they cannot
+drift) — because a nine-column table on a phone is three sideways screens of
+swiping. The tables are unchanged from `sm` up; CSS alone decides which
+rendering is visible.
+
 ### Location
 
 The location foundation (P2 of the location-aware phase, 2026-09-01) is
