@@ -1,6 +1,6 @@
 import request from "supertest";
 import mongoose from "mongoose";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 // Offline, like every other suite that touches uploads. The signed-URL stub
 // carries a marker so the applicant DTO assertion can prove the recruiter gets
@@ -9,11 +9,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // upload id increments so a replacement test can tell two assets apart.
 vi.mock("../src/utils/cloudinary.js", () => {
   let uploads = 0;
-  const upload = vi.fn(async () => {
+  const upload = vi.fn(async (_dataUri: string, options: { public_id?: string }) => {
     uploads += 1;
+    // Echoes the caller's public_id (defaulting like Cloudinary would) so the
+    // suite can prove the key shape end-to-end: what upload was given is what
+    // the DTO's signed URL is built from.
+    const id = options.public_id ?? `resumes/abc${uploads}`;
     return {
-      public_id: `resumes/abc${uploads}`,
-      secure_url: `https://res.cloudinary.com/test/raw/authenticated/resumes/abc${uploads}`,
+      public_id: id,
+      secure_url: `https://res.cloudinary.com/test/raw/authenticated/${id}`,
     };
   });
   const destroy = vi.fn(async () => ({}));
@@ -396,6 +400,33 @@ describe("application routes", () => {
       expect(res.body.items[0].resumeUrl).toContain("sig=");
       expect(res.body.items[0].resumeUrl).not.toBe("resumes/abc123");
       expect(res.body.items[0].resumeName).toBe("cv.pdf");
+    });
+
+    it("uploads resumes under a .pdf key, so the download is the PDF it is", async () => {
+      await request(app)
+        .post("/api/v1/user/profile/update")
+        .use(asSession("seeker", seeker))
+        .attach("file", Buffer.from("%PDF-1.4 fake"), {
+          filename: "cv.pdf",
+          contentType: "application/pdf",
+        });
+
+      // A bare, extension-less raw id makes Cloudinary's download endpoint
+      // answer application/octet-stream with the gibberish id as the
+      // filename — bytes that no PDF reader recognises as a PDF. The upload
+      // pins an extensioned public_id, so the answer is a real PDF.
+      const upload = getCloudinary().uploader.upload as Mock;
+      expect(upload).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          public_id: expect.stringMatching(/\.pdf$/),
+        }),
+      );
+
+      const res = await request(app)
+        .get(`/api/v1/application/${jobId}/applicants`)
+        .use(asSession("recruiter", recruiter));
+      expect(res.body.items[0].resumeUrl).toMatch(/\.pdf\?sig=/);
     });
 
     it("unrelated recruiter → 404 on applicants and on status update", async () => {

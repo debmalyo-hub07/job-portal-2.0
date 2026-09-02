@@ -18,6 +18,12 @@ export async function uploadResume(file: Express.Multer.File): Promise<{ storage
     type: "authenticated",
     resource_type: "raw",
     folder: "resumes",
+    // A data URI carries no filename, so Cloudinary would mint a bare,
+    // extension-less id — and its download endpoint then answers
+    // application/octet-stream with that gibberish id as the filename: the
+    // right bytes, saved as a file no PDF reader recognises as a PDF. An
+    // extensioned id makes the answer a real PDF.
+    public_id: `${crypto.randomUUID()}.pdf`,
   });
   return { storageKey: upload.public_id };
 }
