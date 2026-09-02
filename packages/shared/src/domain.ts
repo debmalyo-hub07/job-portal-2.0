@@ -356,6 +356,28 @@ export type QueuedApplicantDto = ApplicantDto & {
  */
 export type ApplicantsPageDto = PaginatedResponse<ApplicantDto> & {
   funnel: Record<ApplicationStatus, number>;
+  health: PostingHealthDto;
+};
+
+/** One day of a dense daily series. `date` is a UTC `YYYY-MM-DD`. */
+export type DailySeriesPoint = { date: string; count: number };
+
+/**
+ * Posting health: how a role is doing at attracting applicants, derived from
+ * the application records the platform already keeps — nothing is tracked,
+ * nothing is stored, nothing new reaches the privacy page.
+ * `firstApplicationAt` is the raw fact (null when nobody has applied);
+ * time-to-first is the client's subtraction of the job's `createdAt`, not a
+ * server opinion.
+ */
+export type PostingHealthDto = {
+  /**
+   * Dense and ascending, the console's jobsPostedSeries shape: every day of
+   * the window present, zero-filled, so the client never infers a gap.
+   */
+  series: DailySeriesPoint[];
+  firstApplicationAt: string | null;
+  total: number;
 };
 
 /**

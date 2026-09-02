@@ -746,4 +746,94 @@ describe("application routes", () => {
       ).toBe(401);
     });
   });
+
+  describe("posting health", () => {
+    const utcDay = (daysBack: number) => {
+      const d = new Date();
+      d.setUTCHours(12, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - daysBack);
+      return d;
+    };
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+    it("derives a dense zero-filled series and the earliest application, whole-set", async () => {
+      const second = await signedUpOn("seeker", "h2@example.com");
+      const third = await signedUpOn("seeker", "h3@example.com");
+      const fourth = await signedUpOn("seeker", "h4@example.com");
+      await apply({ portal: "seeker", session: seeker });
+      await apply({ portal: "seeker", session: second });
+      // Backdated at creation: `createdAt` is immutable under timestamps:true,
+      // so it is set here or never.
+      await Application.create([
+        {
+          job: jobId,
+          applicant: (third as { id: string }).id,
+          status: "applied",
+          history: [{ status: "applied", at: utcDay(3), byPortal: "seeker" }],
+          createdAt: utcDay(3),
+        },
+        {
+          job: jobId,
+          applicant: (fourth as { id: string }).id,
+          status: "applied",
+          history: [{ status: "applied", at: utcDay(40), byPortal: "seeker" }],
+          createdAt: utcDay(40),
+        },
+      ]);
+
+      // `limit=1`: health must describe the whole set, not the page — the same
+      // rule the funnel obeys.
+      const res = await request(app)
+        .get(`/api/v1/application/${jobId}/applicants?limit=1`)
+        .use(asSession("recruiter", recruiter))
+        .expect(200);
+
+      const { series, firstApplicationAt, total } = res.body.health;
+      expect(series).toHaveLength(56);
+      // Dense: every consecutive pair is exactly one day apart, so the client
+      // never infers a gap the data does not contain.
+      for (let i = 0; i < series.length - 1; i += 1) {
+        expect(Date.parse(series[i + 1].date) - Date.parse(series[i].date)).toBe(86_400_000);
+      }
+      expect(series.at(-1).date).toBe(iso(utcDay(0)));
+      expect(series.find((p: { date: string }) => p.date === iso(utcDay(0))).count).toBe(2);
+      expect(series.find((p: { date: string }) => p.date === iso(utcDay(3))).count).toBe(1);
+      expect(series.find((p: { date: string }) => p.date === iso(utcDay(40))).count).toBe(1);
+      expect(series.find((p: { date: string }) => p.date === iso(utcDay(10))).count).toBe(0);
+      expect(firstApplicationAt).toBe(utcDay(40).toISOString());
+      expect(total).toBe(4);
+      expect(res.body.total).toBe(4);
+    });
+
+    it("answers null firstApplicationAt and an all-zero series for an empty job", async () => {
+      const company = await request(app)
+        .post("/api/v1/company/register")
+        .use(asSession("recruiter", recruiter))
+        .send({ name: "HealthCo" });
+      const job = await request(app)
+        .post("/api/v1/job/post")
+        .use(asSession("recruiter", recruiter))
+        .send({
+          title: "Quiet Role",
+          description: "Quiet work",
+          requirements: "ts",
+          salary: 10,
+          experience: 1,
+          location: "Remote",
+          jobType: "Full-time",
+          position: "1",
+          companyId: company.body.company.id,
+        });
+
+      const res = await request(app)
+        .get(`/api/v1/application/${job.body.job.id}/applicants`)
+        .use(asSession("recruiter", recruiter))
+        .expect(200);
+
+      expect(res.body.health.firstApplicationAt).toBeNull();
+      expect(res.body.health.total).toBe(0);
+      expect(res.body.health.series).toHaveLength(56);
+      expect(res.body.health.series.every((p: { count: number }) => p.count === 0)).toBe(true);
+    });
+  });
 });

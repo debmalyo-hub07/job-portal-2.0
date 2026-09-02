@@ -23,6 +23,7 @@ import type {
 import { Application } from "../models/application.model.js";
 import { AccountEvent } from "../models/accountEvent.model.js";
 import { Company } from "../models/company.model.js";
+import { SERIES_DAYS, denseDailySeries, utcMidnight } from "../lib/dailySeries.js";
 import { Job } from "../models/job.model.js";
 import { Recruiter } from "../models/recruiter.model.js";
 import { Seeker } from "../models/seeker.model.js";
@@ -334,19 +335,6 @@ export async function listAllRecruiters(
  */
 const OPEN_JOBS = { status: { $ne: "closed" } } as const;
 
-/** Eight weeks. Long enough to show a trend, short enough to stay one screen. */
-const SERIES_DAYS = 56;
-
-/** Midnight UTC, `daysBack` days ago. The series is keyed on UTC dates. */
-function utcMidnight(daysBack: number): Date {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() - daysBack);
-  return d;
-}
-
-const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
-
 /**
  * A ranked slice, biggest first, with the empties dropped.
  *
@@ -445,13 +433,8 @@ export async function getInsights(): Promise<AdminInsightsDto> {
     if (row._id in byStatus) byStatus[row._id as ApplicationStatus] = row.n;
   }
 
-  // Dense and ascending. A sparse series makes the client infer the gaps, and a
-  // chart that silently closes one draws a trend the data does not contain.
-  const countByDay = new Map(seriesRows.map((row) => [row._id, row.n]));
-  const jobsPostedSeries = Array.from({ length: SERIES_DAYS }, (_, i) => {
-    const date = isoDay(utcMidnight(SERIES_DAYS - 1 - i));
-    return { date, count: countByDay.get(date) ?? 0 };
-  });
+  // Dense and ascending — the shared series contract; see lib/dailySeries.
+  const jobsPostedSeries = denseDailySeries(new Map(seriesRows.map((row) => [row._id, row.n])));
 
   const coverage = coverageRows[0] ?? { jobs: 0, applications: 0 };
 

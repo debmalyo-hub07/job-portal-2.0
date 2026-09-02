@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { paginationQuerySchema } from "./pagination.js";
 import type { ApplicationStatus } from "./enums.js";
+import type { DailySeriesPoint } from "./domain.js";
 
 /**
  * The admin console's wire contract.
@@ -121,7 +122,7 @@ export type AdminListQuery = z.infer<typeof adminListQuerySchema>;
 export type AdminRankedSlice = { label: string; count: number };
 
 /** One day of the jobs-posted series. `date` is a UTC `YYYY-MM-DD`. */
-export type AdminSeriesPoint = { date: string; count: number };
+export type AdminSeriesPoint = DailySeriesPoint;
 
 /**
  * The dashboard's aggregations, beyond the plain counters in AdminOverviewDto.

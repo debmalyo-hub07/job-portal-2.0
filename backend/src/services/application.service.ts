@@ -23,6 +23,7 @@ import { env } from "../config/env.js";
 import { getOwnedJob, toJobDto } from "./job.service.js";
 import { scoreSeekerForJob } from "./matching.pipeline.js";
 import { signedResumeUrl } from "./resume.service.js";
+import { denseDailySeries, isoDay } from "../lib/dailySeries.js";
 import { dispatch, sendRendered } from "../lib/mailer.js";
 import {
   renderApplicantAlertEmail,
@@ -220,6 +221,21 @@ export async function listApplicants(
 
   const total = ranked.length;
   const pageItems = ranked.slice((page - 1) * limit, page * limit);
+
+  // Posting health: derived from the complete set already in memory — zero
+  // additional queries, the same set the funnel counted. The series is dense
+  // and UTC-keyed so the client never infers a gap; `firstApplicationAt` is
+  // the raw fact, and time-to-first stays the client's subtraction.
+  const countByDay = new Map<string, number>();
+  let firstApplied: Date | null = null;
+  for (const { application } of ranked) {
+    const at = application.createdAt ?? null;
+    if (!at) continue;
+    if (!firstApplied || at < firstApplied) firstApplied = at;
+    const day = isoDay(at);
+    countByDay.set(day, (countByDay.get(day) ?? 0) + 1);
+  }
+
   return {
     items: pageItems.map(({ application: a, fit }) => ({
       applicationId: String(a._id),
@@ -235,6 +251,11 @@ export async function listApplicants(
       fit,
     })),
     funnel,
+    health: {
+      series: denseDailySeries(countByDay),
+      firstApplicationAt: firstApplied?.toISOString() ?? null,
+      total,
+    },
     total,
     page,
     pages: Math.ceil(total / limit),
