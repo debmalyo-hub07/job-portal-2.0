@@ -6,6 +6,7 @@ import Jobs from "@/components/Jobs";
 import Profile from "@/components/Profile";
 import NotFound from "@/components/NotFound";
 import JobDescription from "@/components/JobDescription";
+import SavedJobs from "@/components/SavedJobs";
 import WorkspaceCompanies from "@/components/workspace/WorkspaceCompanies";
 import CompanyCreate from "@/components/workspace/CompanyCreate";
 import CompanyEdit from "@/components/workspace/CompanyEdit";
@@ -112,6 +113,17 @@ export const appRoutes: RouteObject[] = [
           },
           { path: "/jobs", element: <Jobs /> },
           { path: "/description/:id", element: <JobDescription /> },
+          {
+            // The shortlist. Session-gated only — deliberately NOT behind
+            // RequireProfileComplete: applying is the consequential action
+            // that justifies the profile gate, and saving is a bookmark.
+            path: "/saved",
+            element: (
+              <ProtectedRoute portal="seeker">
+                <SavedJobs />
+              </ProtectedRoute>
+            ),
+          },
           {
             path: "/profile",
             element: (

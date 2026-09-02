@@ -67,6 +67,9 @@ export function navLinksFor(portal: Portal, surface: "public" | "session" = "pub
         return [
           { to: "/", label: "Home" },
           { to: "/jobs", label: "Jobs" },
+          // Session-only: a signed-out visitor has no shortlist to link to,
+          // and `/saved` sits behind the seeker gate.
+          { to: "/saved", label: "Saved" },
           { to: "/help", label: "Help" },
           { to: "/updates", label: "Updates" },
         ];

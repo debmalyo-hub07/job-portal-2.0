@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MemoryRouter } from "react-router";
+import type { RouteObject } from "react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
@@ -8,6 +9,7 @@ import { makeStore } from "./helpers/renderRoute";
 import { setUser } from "@/redux/authSlice";
 import Navbar from "@/components/shared/Navbar";
 import { navLinksFor } from "@/components/shared/navLinks";
+import { appRoutes } from "@/routes/appRoutes";
 
 function storeWithUser(portal: "seeker" | "recruiter" | "admin") {
   const s = makeStore();
@@ -99,13 +101,27 @@ describe("Navbar account menu", () => {
   it.each(["seeker", "recruiter"] as const)(
     "offers a signed-out %s no link into a gated route",
     (portal) => {
-      const gated = [/^\/profile/, /^\/hire\/(companies|jobs)/, /^\/admin\//];
+      const gated = [/^\/profile/, /^\/hire\/(companies|jobs)/, /^\/admin\//, /^\/saved/];
 
       for (const link of navLinksFor(portal, "public")) {
         for (const pattern of gated) expect(link.to).not.toMatch(pattern);
       }
     },
   );
+
+  it("offers a signed-in seeker their shortlist, and the route is mounted", () => {
+    const { getByRole } = renderNavbar(storeWithUser("seeker"));
+    expect(getByRole("link", { name: "Saved" })).toHaveAttribute("href", "/saved");
+
+    // The link must not advertise a route the table does not mount — the
+    // same pin the workspace nav has.
+    const collect = (routes: RouteObject[]): string[] =>
+      routes.flatMap((route) => [
+        ...(route.path ? [route.path] : []),
+        ...collect(route.children ?? []),
+      ]);
+    expect(collect(appRoutes)).toContain("/saved");
+  });
 
   it("renders the employer landing bar without the workspace pair", () => {
     const { queryByRole, getByRole } = renderNavbar(makeStore(), "/hire");
