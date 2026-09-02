@@ -26,6 +26,16 @@ const fixtures = vi.hoisted(() => ({
       lastChangedBy: "flipper@admins.test",
       lastChangedAt: "2026-09-01T12:00:00.000Z",
     },
+    {
+      // A second, enabled flag so the ON posture is pinned too — the badge
+      // and the switch's aria-checked are the page's at-a-glance story.
+      key: "anEnabledFlag" as unknown as "autoApproveRecruiterSignups",
+      description: "An enabled flag.",
+      enabled: true,
+      default: false,
+      lastChangedBy: null,
+      lastChangedAt: null,
+    },
   ],
 }));
 
@@ -55,17 +65,27 @@ describe("the Flags console screen", () => {
     mockState.failFlip = false;
   });
 
-  it("renders the registry flag with its state and last flipper", () => {
+  it("renders each flag as a card: badge, key, description, last flipper", () => {
     renderFlags();
-    expect(screen.getByText("autoApproveRecruiterSignups")).toBeInTheDocument();
+
+    // The off flag: muted badge, unchecked switch, the flipper named.
+    const offSwitch = screen.getByRole("switch", { name: "autoApproveRecruiterSignups" });
+    expect(offSwitch).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText("Off")).toBeInTheDocument();
     expect(screen.getByText(/reserved for the approval automation/i)).toBeInTheDocument();
-    expect(screen.getByText(/flipper@admins\.test/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /turn on/i })).toBeInTheDocument();
+    expect(screen.getByText(/last changed by flipper@admins\.test/i)).toBeInTheDocument();
+
+    // The on flag: the ok badge, a checked switch, and the registry-default
+    // footer where nobody has ever flipped it.
+    const onSwitch = screen.getByRole("switch", { name: "anEnabledFlag" });
+    expect(onSwitch).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("On")).toBeInTheDocument();
+    expect(screen.getByText(/never changed/i)).toBeInTheDocument();
   });
 
-  it("flips through the mutation when the toggle is clicked", async () => {
+  it("flips through the mutation when the switch is clicked", async () => {
     renderFlags();
-    await userEvent.click(screen.getByRole("button", { name: /turn on/i }));
+    await userEvent.click(screen.getByRole("switch", { name: "autoApproveRecruiterSignups" }));
     expect(mutate).toHaveBeenCalledWith({
       key: "autoApproveRecruiterSignups",
       enabled: true,
