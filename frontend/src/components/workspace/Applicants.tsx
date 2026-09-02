@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { MoreHorizontal, Users } from "lucide-react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
-import type { ApplicantDto } from "@jobportal/shared";
+import type { ApplicantDto, BulkSkipReason } from "@jobportal/shared";
 import { ACTIVE_STATUSES, RECRUITER_SETTABLE, TERMINAL_STATUSES, isTerminal } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
@@ -10,6 +11,7 @@ import { Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -27,7 +29,18 @@ import {
 } from "@/components/ui/table";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { statusMeta } from "@/lib/applicationStatus";
-import { useApplicantDecision, useApplicants } from "@/hooks/useRecruiterWorkspace";
+import {
+  useApplicantDecision,
+  useApplicants,
+  useBulkApplicantDecision,
+} from "@/hooks/useRecruiterWorkspace";
+
+/** The skip reasons a bulk result can carry, in words a recruiter reads. */
+const SKIP_COPY: Record<BulkSkipReason, string> = {
+  TERMINAL: "already closed",
+  SAME_STATUS: "already at that stage",
+  NOT_FOUND: "no longer available",
+};
 
 /**
  * The applicants for one job.
@@ -42,11 +55,48 @@ import { useApplicantDecision, useApplicants } from "@/hooks/useRecruiterWorkspa
  * Fit is server-owned. The API scores every applicant against this job and sorts
  * the complete set before pagination, so this table explains the order instead
  * of recomputing a second version of the business rule.
+ *
+ * Bulk is a shortcut through the same rules, not a different rule: the batch
+ * posts to one endpoint that applies each row through the single move's state
+ * machine and reports every refusal, so the toast can be honest about both
+ * halves.
  */
 export function Applicants() {
   const params = useParams();
-  const { data, isPending, isError, error, setPage } = useApplicants(params.id);
+  const { data, isPending, isError, error, page, setPage } = useApplicants(params.id);
   const decide = useApplicantDecision(params.id);
+  const bulk = useBulkApplicantDecision(params.id);
+
+  // Selection is client state, page-scoped: the ranked list re-orders under a
+  // decision, so ids from another page are stale by definition once it turns.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pendingStage, setPendingStage] = useState<(typeof RECRUITER_SETTABLE)[number] | null>(
+    null,
+  );
+  useEffect(() => {
+    setSelected(new Set());
+  }, [page]);
+
+  const pageIds = data?.items.map((item) => item.applicationId) ?? [];
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  const toggleOne = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
 
   // The settable subset, not every ApplicationStatus — the menu is built from
   // the same list, so this is the type making that agreement checkable.
@@ -61,6 +111,32 @@ export function Applicants() {
       toast.error(getApiErrorMessage(error, "Could not update status"));
     }
   };
+
+  // The honest result: both halves of the batch, in one toast.
+  const onBulkMove = async () => {
+    if (pendingStage === null || selected.size === 0) return;
+    try {
+      const result = await bulk.mutateAsync({
+        applicationIds: [...selected],
+        status: pendingStage,
+      });
+      const parts = [`Moved ${result.moved} to ${statusMeta(pendingStage).label}`];
+      if (result.skipped.length > 0) {
+        const reasons = [...new Set(result.skipped.map((s) => s.reason))]
+          .map((reason) => SKIP_COPY[reason])
+          .join(", ");
+        parts.push(`${result.skipped.length} skipped — ${reasons}`);
+      }
+      toast.success(parts.join(" · "));
+      setSelected(new Set());
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not move applicants"));
+    } finally {
+      setPendingStage(null);
+    }
+  };
+
+  const selectedLabel = `${selected.size} ${selected.size === 1 ? "applicant" : "applicants"}`;
 
   return (
     <HireShell
@@ -99,6 +175,38 @@ export function Applicants() {
           ))}
         </ol>
       ) : null}
+      {selected.size > 0 ? (
+        /* The bulk bar: count, destination, clear. Selecting a stage opens the
+           confirmation dialog — a mass decision is never one click. */
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-surface border border-line bg-paper-raised px-4 py-3">
+          <span className="text-sm font-medium text-ink">{selected.size} selected</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Move to…
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {/* Every settable stage, including ones some rows already hold:
+                  bulk reports those as skips rather than hiding them, because
+                  the rows in a batch do not share one current status. */}
+              {RECRUITER_SETTABLE.map((next) => {
+                const meta = statusMeta(next);
+                const NextIcon = meta.Icon;
+                return (
+                  <DropdownMenuItem key={next} onSelect={() => setPendingStage(next)}>
+                    <NextIcon className="size-4" />
+                    {meta.label}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+            Clear
+          </Button>
+        </div>
+      ) : null}
       {isPending ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }, (_, i) => (
@@ -119,6 +227,21 @@ export function Applicants() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  aria-label="Select every applicant on this page"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  ref={(el) => {
+                    // Native checkboxes have no `indeterminate` attribute and
+                    // React does not manage the property — the ref is the one
+                    // way to show some-but-not-all.
+                    if (el) el.indeterminate = selected.size > 0 && !allSelected;
+                  }}
+                  className="size-4 rounded accent-[var(--signal-text)]"
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
@@ -134,10 +257,24 @@ export function Applicants() {
               const status = statusMeta(item.status);
               const StatusIcon = status.Icon;
               // A closed application takes no further decision; the API answers
-              // one with 409, so the menu is not offered at all.
+              // one with 409, so the menu is not offered at all. It stays
+              // selectable: a select-all batch reports it as a skip, which is
+              // the honest result, not a hidden one.
               const closed = isTerminal(item.status);
               return (
-                <TableRow key={item.applicationId}>
+                <TableRow
+                  key={item.applicationId}
+                  data-state={selected.has(item.applicationId) ? "selected" : undefined}
+                >
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${item.fullName}`}
+                      checked={selected.has(item.applicationId)}
+                      onChange={() => toggleOne(item.applicationId)}
+                      className="size-4 rounded accent-[var(--signal-text)]"
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{item.fullName}</TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>{item.phone ?? "—"}</TableCell>
@@ -220,6 +357,22 @@ export function Applicants() {
           </TableBody>
         </Table>
       )}
+      <ConfirmDialog
+        open={pendingStage !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingStage(null);
+        }}
+        title={`Move ${selectedLabel}`}
+        description={
+          pendingStage
+            ? `Move ${selectedLabel} to ${statusMeta(pendingStage).label}? Each moved candidate is emailed exactly as a single move emails them.`
+            : ""
+        }
+        confirmLabel="Move"
+        destructive={pendingStage === "rejected"}
+        pending={bulk.isPending}
+        onConfirm={() => void onBulkMove()}
+      />
     </HireShell>
   );
 }

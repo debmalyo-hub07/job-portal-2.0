@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import type {
   ApplicantDto,
   ApplicantsPageDto,
+  BulkStatusResult,
   CompanyDto,
   JobDto,
   JobStatus,
@@ -345,6 +346,38 @@ export function useApplicantDecision(jobId: string | undefined) {
       });
       // The cross-job queue shows the same rows; a decision made from either
       // screen must refresh both.
+      void queryClient.invalidateQueries({
+        queryKey: [...WORKSPACE_KEY, "queue"],
+      });
+    },
+  });
+}
+
+/**
+ * The bulk move: one stage, many of this job's applications.
+ *
+ * Same invalidation as the single decision — the list and the cross-job queue
+ * show the same rows — and the mutation returns the honest result so the
+ * caller can report both halves rather than a bare success.
+ */
+export function useBulkApplicantDecision(jobId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (decision: {
+      applicationIds: string[];
+      // The recruiter-settable subset, exactly as the single decision takes.
+      status: (typeof RECRUITER_SETTABLE)[number];
+    }) => {
+      const res = await apiClient.post<{ success: boolean } & BulkStatusResult>(
+        `/application/${jobId}/status/bulk`,
+        { applicationIds: decision.applicationIds, status: decision.status },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...WORKSPACE_KEY, "applicants", jobId],
+      });
       void queryClient.invalidateQueries({
         queryKey: [...WORKSPACE_KEY, "queue"],
       });

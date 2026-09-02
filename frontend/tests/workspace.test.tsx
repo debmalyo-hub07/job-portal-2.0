@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import {
   computeSeekerFit,
   type ApplicationStatus,
@@ -331,6 +332,29 @@ describe("Applicants", () => {
       },
     } as never);
 
+  const withApplicants = (count: number) =>
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        success: true,
+        items: Array.from({ length: count }, (_, i) => ({
+          applicationId: `a${i + 1}`,
+          status: "applied" as const,
+          appliedAt: "2026-01-01T00:00:00.000Z",
+          fullName: `Candidate ${i + 1}`,
+          email: `c${i + 1}@example.com`,
+          phone: null,
+          headline: null,
+          skills: [],
+          resumeUrl: null,
+          resumeName: null,
+          fit,
+        })),
+        total: count,
+        page: 1,
+        pages: 1,
+      },
+    } as never);
+
   it("reports a failed load in an alert", async () => {
     renderRoute(<Applicants />, {
       route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
@@ -408,6 +432,84 @@ describe("Applicants", () => {
     expect(await screen.findByText(`${Math.round(fit.score)}% fit`)).toBeInTheDocument();
     expect(screen.getByText(/missing: react/i)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/you are missing/i);
+  });
+
+  it("shows the bulk bar at one selection, selects all, and clears", async () => {
+    withApplicants(2);
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // No bar before a selection — "Not selected" is a status label, so the
+    // anchored regex keeps the absence assertion honest.
+    expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
+
+    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
+    expect(await screen.findByText("1 selected")).toBeInTheDocument();
+    // Some-but-not-all is indeterminate on the header box.
+    expect(screen.getByLabelText("Select every applicant on this page").indeterminate).toBe(true);
+
+    await userEvent.click(screen.getByLabelText("Select every applicant on this page"));
+    expect(await screen.findByText("2 selected")).toBeInTheDocument();
+    expect(screen.getByLabelText("Select every applicant on this page").indeterminate).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
+  });
+
+  it("confirms the count and stage, then reports moved and skipped", async () => {
+    withApplicants(2);
+    const post = vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: { success: true, moved: 1, skipped: [{ id: "a2", reason: "TERMINAL" }] },
+    } as never);
+    const success = vi.spyOn(toast, "success").mockImplementation(() => "toast-id");
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+
+    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
+    await userEvent.click(screen.getByLabelText("Select Candidate 2"));
+    await userEvent.click(screen.getByRole("button", { name: /move to/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Interview" }));
+
+    // The dialog names both halves before anything is sent.
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Move 2 applicants")).toBeInTheDocument();
+    expect(screen.getByText(/Move 2 applicants to Interview\?/)).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Move", exact: true }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/application/64b0c8f2a9d3e45f6a7b8c9d/status/bulk",
+        { applicationIds: ["a1", "a2"], status: "interview" },
+      ),
+    );
+    // Both halves of the honest result, in one toast.
+    expect(success).toHaveBeenCalledWith("Moved 1 to Interview · 1 skipped — already closed");
+    // A completed move clears the selection.
+    expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
+  });
+
+  it("keeps the selection when the dialog is cancelled", async () => {
+    withApplicants(1);
+    const post = vi.spyOn(apiClient, "post").mockResolvedValue({
+      data: { success: true },
+    } as never);
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+
+    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
+    await userEvent.click(screen.getByRole("button", { name: /move to/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Shortlisted" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
   });
 });
 

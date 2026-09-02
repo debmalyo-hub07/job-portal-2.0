@@ -44,6 +44,7 @@ vi.mock("@/hooks/useRecruiterWorkspace", () => ({
     setPage: vi.fn(),
   }),
   useApplicantDecision: () => ({ mutateAsync: vi.fn() }),
+  useBulkApplicantDecision: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 describe("the applicants pipeline funnel (P5)", () => {
