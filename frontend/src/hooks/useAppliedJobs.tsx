@@ -19,6 +19,8 @@ import { apiClient } from "@/lib/apiClient";
  * the case that needs it, since status changes originate elsewhere.
  */
 const APPLIED_KEY = ["applied-jobs"] as const;
+/** The per-job checks the role page's button state reads. */
+const APPLIED_ONE_KEY = ["applied-job"] as const;
 
 export function useAppliedJobs() {
   // Local, not URL state: the profile has one list and no shareable search, so a
@@ -38,6 +40,38 @@ export function useAppliedJobs() {
     refetchOnWindowFocus: true,
   });
   return { ...query, page, setPage };
+}
+
+/**
+ * Has this seeker applied to this job? Its own per-job read, replacing the
+ * effect that scanned the applied list with `limit: 50` — application 51
+ * onward was invisible to the role page's own button. Exact at any list
+ * size, and cached per role.
+ */
+export function useIsApplied(jobId: string | undefined) {
+  return useQuery({
+    queryKey: [...APPLIED_ONE_KEY, jobId],
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ success: boolean; applied: boolean }>(
+        `/application/applied/${jobId}`,
+        { signal },
+      );
+      return res.data.applied;
+    },
+    enabled: Boolean(jobId),
+  });
+}
+
+/**
+ * Repaints every per-job check and the applied list — called after a
+ * successful apply, whose outcome is the server's to state.
+ */
+export function useInvalidateApplied() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: APPLIED_ONE_KEY });
+    void queryClient.invalidateQueries({ queryKey: APPLIED_KEY });
+  };
 }
 
 /**

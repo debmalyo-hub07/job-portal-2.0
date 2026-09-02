@@ -47,16 +47,16 @@ const SEEKER = {
   pendingEmailChange: null,
 };
 
-function renderDetail({ signedIn = true, saved = false } = {}) {
+function renderDetail({ signedIn = true, saved = false, applied = false } = {}) {
   const store = makeStore();
   store.dispatch(setSingleJob(JOB as never));
   if (signedIn) store.dispatch(setUser(SEEKER as never));
   vi.spyOn(apiClient, "get").mockImplementation(async (url: string) => {
     if (url === "/saved/job-1") return { data: { success: true, saved } } as never;
-    if (url.startsWith("/job/get/")) return { data: { success: true, job: JOB } } as never;
-    if (url === "/application/get") {
-      return { data: { success: true, items: [], total: 0, page: 1, pages: 0 } } as never;
+    if (url === "/application/applied/job-1") {
+      return { data: { success: true, applied } } as never;
     }
+    if (url.startsWith("/job/get/")) return { data: { success: true, job: JOB } } as never;
     throw new Error(`unexpected GET ${url}`);
   });
   return render(
@@ -104,6 +104,12 @@ describe("the detail page's save control", () => {
       .mockResolvedValue({ data: { success: true } } as never);
     await userEvent.click(button);
     expect(add).toHaveBeenCalledWith("/saved/job-1");
+  });
+
+  it("reads the applied state per job, so the Apply button knows", async () => {
+    renderDetail({ applied: true });
+    expect(await screen.findByRole("button", { name: /application sent/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /apply for this role/i })).toBeNull();
   });
 });
 

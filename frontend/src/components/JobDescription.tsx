@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ArrowLeft, Banknote, Bookmark, BriefcaseBusiness, CalendarDays, CircleSlash, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
+import type { JobDto } from "@jobportal/shared";
 
 import CompanyAvatar from "./shared/CompanyAvatar";
 import { Badge } from "./ui/badge";
@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { userForPortal } from "@/redux/authSlice";
 import { completePathFor } from "@/lib/portalHome";
 import { useIsSaved, useSaveJob, useUnsaveJob } from "@/hooks/useSavedJobs";
+import { useIsApplied, useInvalidateApplied } from "@/hooks/useAppliedJobs";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
@@ -34,7 +35,12 @@ const JobDescription = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isApplied, setIsApplied] = useState(false);
+  // The applied state is a per-job read, replacing the effect that scanned
+  // the applied list with `limit: 50` — application 51 onward was invisible
+  // to this button. `=== true`: undefined while loading reads as not-yet.
+  const isAppliedQuery = useIsApplied(jobId);
+  const invalidateApplied = useInvalidateApplied();
+  const isApplied = isAppliedQuery.data === true;
   const isSavedQuery = useIsSaved(jobId);
   const saveJob = useSaveJob();
   const unsaveJob = useUnsaveJob();
@@ -69,7 +75,9 @@ const JobDescription = () => {
         `/application/apply/${jobId}`,
       );
       if (response.data.success) {
-        setIsApplied(true);
+        // The per-job check and the applied list both repaint from the
+        // server's answer — the new state isn't the client's to predict.
+        invalidateApplied();
         toast.success(response.data.message);
       }
     } catch (error) {
@@ -101,27 +109,6 @@ const JobDescription = () => {
       })
       .catch((error) => console.error(error));
   }, [jobId, dispatch]);
-
-  useEffect(() => {
-    if (!jobId || user?.portal !== "seeker") {
-      setIsApplied(false);
-      return;
-    }
-    let cancelled = false;
-    apiClient
-      .get<{ success: boolean } & PaginatedResponse<AppliedJobDto>>("/application/get", {
-        params: { limit: 50 },
-      })
-      .then((response) => {
-        if (!cancelled) setIsApplied(response.data.items.some((application) => application.job?.id === jobId));
-      })
-      .catch(() => {
-        if (!cancelled) setIsApplied(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [jobId, user?.id, user?.portal]);
 
   if (!singleJob) {
     return (
