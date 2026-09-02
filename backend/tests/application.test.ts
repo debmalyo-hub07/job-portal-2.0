@@ -4,28 +4,37 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Offline, like every other suite that touches uploads. The signed-URL stub
 // carries a marker so the applicant DTO assertion can prove the recruiter gets
-// a minted link rather than the stored key.
-vi.mock("../src/utils/cloudinary.js", () => ({
-  getCloudinary: () => ({
-    uploader: {
-      upload: vi.fn(async () => ({
-        public_id: "resumes/abc123",
-        secure_url: "https://res.cloudinary.com/test/raw/authenticated/resumes/abc123",
-      })),
-    },
-    utils: {
-      private_download_url: vi.fn(
-        (publicId: string) => `https://res.cloudinary.com/signed/${publicId}?sig=stub`,
-      ),
-    },
-  }),
-}));
+// a minted link rather than the stored key. The fns are shared across
+// getCloudinary() calls so tests can assert on the ones the app used, and the
+// upload id increments so a replacement test can tell two assets apart.
+vi.mock("../src/utils/cloudinary.js", () => {
+  let uploads = 0;
+  const upload = vi.fn(async () => {
+    uploads += 1;
+    return {
+      public_id: `resumes/abc${uploads}`,
+      secure_url: `https://res.cloudinary.com/test/raw/authenticated/resumes/abc${uploads}`,
+    };
+  });
+  const destroy = vi.fn(async () => ({}));
+  return {
+    getCloudinary: () => ({
+      uploader: { upload, destroy },
+      utils: {
+        private_download_url: vi.fn(
+          (publicId: string) => `https://res.cloudinary.com/signed/${publicId}?sig=stub`,
+        ),
+      },
+    }),
+  };
+});
 
 import { buildApp } from "../src/app.js";
 import { Application } from "../src/models/application.model.js";
 import { Job } from "../src/models/job.model.js";
 import { Recruiter } from "../src/models/recruiter.model.js";
 import { Seeker } from "../src/models/seeker.model.js";
+import { getCloudinary } from "../src/utils/cloudinary.js";
 import { setMailer } from "../src/lib/mailer.js";
 import { asSession, installCaptureMailer, outbox, signedUpOn } from "./auth/helpers.js";
 
@@ -244,6 +253,31 @@ describe("application routes", () => {
     expect(res.body.items[0].job.title).toBe("Dev");
     expect(res.body.items[0]._id).toBeUndefined();
     expect(res.body.items[0].applicant).toBeUndefined();
+  });
+
+  it("destroys the previous resume asset when a resume is replaced", async () => {
+    const upload = async (name: string, body: string) =>
+      request(app)
+        .post("/api/v1/user/profile/update")
+        .use(asSession("seeker", seeker))
+        .attach("file", Buffer.from(body), { filename: name, contentType: "application/pdf" });
+
+    expect((await upload("cv.pdf", "%PDF-1.4 fake")).status).toBe(200);
+    const first = await Seeker.findById((seeker as { id: string }).id).select("resume");
+    const firstKey = first?.resume?.storageKey;
+    expect(firstKey).toBeTruthy();
+
+    // No destroy yet — the first upload replaced nothing.
+    expect(getCloudinary().uploader.destroy).not.toHaveBeenCalled();
+
+    expect((await upload("cv2.pdf", "%PDF-1.5 fake two")).status).toBe(200);
+    const second = await Seeker.findById((seeker as { id: string }).id).select("resume");
+    expect(second?.resume?.storageKey).not.toBe(firstKey);
+    // The replaced asset is destroyed by its key, after the save committed.
+    expect(getCloudinary().uploader.destroy).toHaveBeenCalledWith(
+      firstKey,
+      expect.objectContaining({ resource_type: "raw" }),
+    );
   });
 
   describe("applicants + status, ownership matrix", () => {

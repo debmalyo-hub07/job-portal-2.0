@@ -1,5 +1,6 @@
 import { getCloudinary } from "../utils/cloudinary.js";
 import getDataUri from "../utils/datauri.js";
+import { logger } from "../lib/logger.js";
 
 /** How long a minted resume link stays usable. */
 const SIGNED_URL_TTL_SECONDS = 600;
@@ -31,4 +32,29 @@ export function signedResumeUrl(storageKey: string | null | undefined): string |
     type: "authenticated",
     expires_at: Math.floor(Date.now() / 1000) + SIGNED_URL_TTL_SECONDS,
   });
+}
+
+/**
+ * Best-effort cleanup of a replaced resume's asset — the upload and the save
+ * have already succeeded by the time this runs, so a failure here is storage
+ * growth, not data loss. Logged and swallowed rather than failing an update
+ * that already happened.
+ *
+ * Call it only after the record's save commits: on a failed save the previous
+ * key is still the referenced one, and destroying it would break the record
+ * to tidy storage.
+ */
+export async function destroyResume(storageKey: string | null | undefined): Promise<void> {
+  if (!storageKey) return;
+  // Legacy rows hold full public URLs rather than keys — nothing to destroy
+  // through this path, same branch `signedResumeUrl` takes.
+  if (/^https:\/\//i.test(storageKey)) return;
+  try {
+    await getCloudinary().uploader.destroy(storageKey, {
+      resource_type: "raw",
+      type: "authenticated",
+    });
+  } catch (error) {
+    logger.warn({ err: error }, "A replaced resume asset could not be destroyed");
+  }
 }

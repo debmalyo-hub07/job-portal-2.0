@@ -5,7 +5,7 @@ import { parseBody } from "../lib/validate.js";
 import { AppError } from "../lib/AppError.js";
 import { findAccountById, type AccountDocument } from "../services/account.service.js";
 import { toSessionUser } from "../services/auth.service.js";
-import { signedResumeUrl, uploadResume } from "../services/resume.service.js";
+import { destroyResume, signedResumeUrl, uploadResume } from "../services/resume.service.js";
 import type { SeekerDocument } from "../models/seeker.model.js";
 import type { RecruiterDocument } from "../models/recruiter.model.js";
 import type { Gender, Portal, ProfileView } from "@jobportal/shared";
@@ -119,6 +119,11 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   }
   if (body.gender !== undefined) account.gender = body.gender;
 
+  // Captured before the seeker block can overwrite it: the previous resume's
+  // key, destroyed after the save so a replaced upload no longer orphans its
+  // asset.
+  let previousResumeKey: string | null | undefined;
+
   if (portal === "seeker") {
     const seeker = account as SeekerDocument;
     if (body.bio !== undefined) seeker.profile!.bio = body.bio;
@@ -140,6 +145,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
 
     const file = req.file as Express.Multer.File | undefined;
     if (file) {
+      previousResumeKey = seeker.resume?.storageKey;
       const { storageKey } = await uploadResume(file);
       seeker.resume!.storageKey = storageKey;
       seeker.resume!.originalName = file.originalname;
@@ -158,6 +164,10 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
   }
 
   await account.save();
+  // Only now, with the save committed: on a failed save the previous key is
+  // still the referenced one, and destroying it would break the record to
+  // tidy storage. No-op when no resume was replaced.
+  await destroyResume(previousResumeKey);
 
   res.status(200).json({
     success: true,
