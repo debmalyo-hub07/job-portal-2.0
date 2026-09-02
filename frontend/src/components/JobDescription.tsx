@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Banknote, BriefcaseBusiness, CalendarDays, CircleSlash, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { ArrowLeft, Banknote, Bookmark, BriefcaseBusiness, CalendarDays, CircleSlash, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import type { AppliedJobDto, JobDto, PaginatedResponse } from "@jobportal/shared";
@@ -19,6 +19,7 @@ import { setSingleJob } from "@/redux/jobSlice";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { userForPortal } from "@/redux/authSlice";
 import { completePathFor } from "@/lib/portalHome";
+import { useIsSaved, useSaveJob, useUnsaveJob } from "@/hooks/useSavedJobs";
 
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   day: "numeric",
@@ -34,6 +35,28 @@ const JobDescription = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isApplied, setIsApplied] = useState(false);
+  const isSavedQuery = useIsSaved(jobId);
+  const saveJob = useSaveJob();
+  const unsaveJob = useUnsaveJob();
+  // `=== true`: the read is `undefined` while loading, and the honest state
+  // for a button that cannot know yet is the unsaved one it will flip from.
+  const isSaved = isSavedQuery.data === true;
+  const saving = saveJob.isPending || unsaveJob.isPending;
+
+  const toggleSaveHandler = async () => {
+    if (!user) {
+      navigate("/login", {
+        state: { from: `${location.pathname}${location.search}${location.hash}` },
+      });
+      return;
+    }
+    try {
+      if (isSaved) await unsaveJob.mutateAsync(jobId!);
+      else await saveJob.mutateAsync(jobId!);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not save this role"));
+    }
+  };
 
   const applyJobHandler = async () => {
     if (!user) {
@@ -231,6 +254,24 @@ const JobDescription = () => {
               {isApplied ? "Application sent" : "Apply for this role"}
             </Button>
           )}
+
+          {/*
+            The shortlist control. Offered to everyone the page is offered to:
+            a closed role can still be saved (roles reopen, and the list is
+            the seeker's own), and an anonymous click is routed to sign-in
+            with a way back — the same redirect Apply uses.
+          */}
+          <Button
+            onClick={toggleSaveHandler}
+            disabled={saving}
+            variant="outline"
+            size="lg"
+            aria-pressed={isSaved}
+            className="mt-3 w-full"
+          >
+            <Bookmark aria-hidden="true" className={isSaved ? "fill-current" : ""} />
+            {isSaved ? "Saved" : "Save role"}
+          </Button>
 
           <dl className="mt-6 divide-y divide-line border-t border-line">
             <div className="flex gap-3 py-4">
