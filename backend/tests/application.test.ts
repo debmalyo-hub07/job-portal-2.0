@@ -612,7 +612,7 @@ describe("application routes", () => {
       foreignId = rivalList.body.items[0].applicationId;
     });
 
-    const bulk = (body: unknown, session = recruiter) =>
+    const bulk = (body: object, session = recruiter) =>
       request(app)
         .post(`/api/v1/application/${jobId}/status/bulk`)
         .use(asSession("recruiter", session))
