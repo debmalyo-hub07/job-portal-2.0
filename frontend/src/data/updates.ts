@@ -30,6 +30,17 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "mobile-workspace-cards",
+    date: "2026-09-03",
+    kind: "Improvement",
+    title: "The hiring workspace is made for your phone",
+    summary:
+      "The applicants list and the cross-role queue now render as cards on small screens — every fact the table carries, readable without swiping sideways. Bulk selection and decisions work right from the cards.",
+    details: [
+      "Desktop is unchanged: the same tables, at the same widths, from the breakpoint up.",
+    ],
+  },
+  {
     id: "applied-state-per-job",
     date: "2026-09-02",
     kind: "Fix",

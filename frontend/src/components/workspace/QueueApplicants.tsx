@@ -1,22 +1,16 @@
 import { Link } from "react-router";
-import { MoreHorizontal, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { toast } from "sonner";
 import type { QueuedApplicantDto } from "@jobportal/shared";
 import { RECRUITER_SETTABLE, isTerminal } from "@jobportal/shared";
 
 import HireShell from "./HireShell";
+import DecisionMenu from "./DecisionMenu";
 import { FitBadge } from "@/components/FitBadge";
 import { Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -83,119 +77,161 @@ export function QueueApplicants() {
           description="Applications to any of your roles appear here, newest first."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Resume</TableHead>
-              <TableHead>Fit</TableHead>
-              <TableHead>Applied</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.items.map((item) => {
-              const status = statusMeta(item.status);
-              const StatusIcon = status.Icon;
-              // A closed application takes no further decision; the API answers
-              // one with 409, so the menu is not offered at all.
-              const closed = isTerminal(item.status);
-              return (
-                <TableRow key={item.applicationId}>
-                  <TableCell className="font-medium">{item.fullName}</TableCell>
-                  <TableCell>
-                    {item.jobId ? (
-                      <Link
-                        to={`/hire/jobs/${item.jobId}/applicants`}
-                        className="text-signal-text hover:underline"
-                      >
-                        {item.jobTitle}
-                      </Link>
-                    ) : (
-                      item.jobTitle || "—"
-                    )}
-                    {item.companyName ? (
-                      <span className="ml-2 text-xs text-ink-muted">{item.companyName}</span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>
-                    {item.resumeUrl ? (
-                      <a
-                        className="text-signal-text underline"
-                        href={item.resumeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.resumeName ?? "Download"}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="min-w-56">
-                    {item.fit ? (
-                      <FitBadge
-                        fit={item.fit}
-                        perfectLabel="Matches every requirement"
-                        className="flex-col items-start gap-1"
-                      />
-                    ) : (
-                      <span className="text-ink-muted">&mdash;</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {item.appliedAt.split("T")[0]}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={status.variant}>
-                      <StatusIcon aria-hidden="true" className="size-3" />
-                      {status.label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {closed ? (
-                      <span className="text-sm text-ink-muted">&mdash;</span>
-                    ) : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Change status for ${item.fullName}`}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {/* Built from RECRUITER_SETTABLE, so the menu cannot
-                              offer a move the API would refuse. */}
-                          {RECRUITER_SETTABLE.filter((next) => next !== item.status).map((next) => {
-                            const meta = statusMeta(next);
-                            const NextIcon = meta.Icon;
-                            return (
-                              <DropdownMenuItem
-                                key={next}
-                                onSelect={() => void onDecide(item.applicationId, next)}
-                              >
-                                <NextIcon className="size-4" />
-                                {meta.label}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Resume</TableHead>
+                <TableHead>Fit</TableHead>
+                <TableHead>Applied</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((item) => {
+                const status = statusMeta(item.status);
+                const StatusIcon = status.Icon;
+                // A closed application takes no further decision; the API answers
+                // one with 409, so the menu is not offered at all.
+                const closed = isTerminal(item.status);
+                return (
+                  <TableRow key={item.applicationId}>
+                    <TableCell className="font-medium">{item.fullName}</TableCell>
+                    <TableCell>
+                      {item.jobId ? (
+                        <Link
+                          to={`/hire/jobs/${item.jobId}/applicants`}
+                          className="text-signal-text hover:underline"
+                        >
+                          {item.jobTitle}
+                        </Link>
+                      ) : (
+                        item.jobTitle || "—"
+                      )}
+                      {item.companyName ? (
+                        <span className="ml-2 text-xs text-ink-muted">{item.companyName}</span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{item.email}</TableCell>
+                    <TableCell>
+                      {item.resumeUrl ? (
+                        <a
+                          className="text-signal-text underline"
+                          href={item.resumeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.resumeName ?? "Download"}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-56">
+                      {item.fit ? (
+                        <FitBadge
+                          fit={item.fit}
+                          perfectLabel="Matches every requirement"
+                          className="flex-col items-start gap-1"
+                        />
+                      ) : (
+                        <span className="text-ink-muted">&mdash;</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {item.appliedAt.split("T")[0]}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={status.variant}>
+                        <StatusIcon aria-hidden="true" className="size-3" />
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {closed ? (
+                        <span className="text-sm text-ink-muted">&mdash;</span>
+                      ) : (
+                        <DecisionMenu
+                          fullName={item.fullName}
+                          current={item.status}
+                          onDecide={(next) => void onDecide(item.applicationId, next)}
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
+      {data && data.items.length > 0 ? (
+        /* The small-screen rendering: one card per application, with the job
+           it belongs to — the whole point of this screen — leading the card. */
+        <ul
+          aria-label="Applicant queue"
+          className="mt-4 divide-y divide-line rounded-surface border border-line bg-paper-raised sm:hidden"
+        >
+          {data.items.map((item) => {
+            const status = statusMeta(item.status);
+            const StatusIcon = status.Icon;
+            const closed = isTerminal(item.status);
+            return (
+              <li key={item.applicationId} className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 break-words font-medium text-ink">{item.fullName}</p>
+                  <Badge variant={status.variant}>
+                    <StatusIcon aria-hidden="true" className="size-3" />
+                    {status.label}
+                  </Badge>
+                </div>
+                <p className="mt-1 break-words text-sm text-ink-muted">
+                  {item.jobId ? (
+                    <Link
+                      to={`/hire/jobs/${item.jobId}/applicants`}
+                      className="text-signal-text hover:underline"
+                    >
+                      {item.jobTitle}
+                    </Link>
+                  ) : (
+                    item.jobTitle || "—"
+                  )}
+                  {item.companyName ? ` · ${item.companyName}` : ""}
+                </p>
+                <p className="mt-1 break-words text-sm text-ink-muted">{item.email}</p>
+                <p className="mt-2 text-xs text-ink-muted">
+                  Applied <span className="font-mono">{item.appliedAt.split("T")[0]}</span>
+                  {item.fit ? ` · ${Math.round(item.fit.score)}% fit` : ""}
+                </p>
+                {item.resumeUrl ? (
+                  <a
+                    className="mt-2 inline-block text-sm text-signal-text underline"
+                    href={item.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {item.resumeName ?? "Resume"}
+                  </a>
+                ) : null}
+                {closed ? null : (
+                  <div className="mt-3">
+                    <DecisionMenu
+                      fullName={item.fullName}
+                      current={item.status}
+                      onDecide={(next) => void onDecide(item.applicationId, next)}
+                      trigger="labelled"
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </HireShell>
   );
 }

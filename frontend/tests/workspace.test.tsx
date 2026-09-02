@@ -371,11 +371,13 @@ describe("Applicants", () => {
     });
     // The inherited accept/reject were `<div onClick>` — no role, no tabIndex,
     // no focus ring. They worked for a mouse and did not exist for a keyboard.
-    const trigger = await screen.findByRole("button", {
+    // Both renderings of the row (table, small-screen card) must hold that
+    // line; jsdom applies no CSS, so both are in the tree.
+    const triggers = await screen.findAllByRole("button", {
       name: "Change status for Ada Lovelace",
     });
-    expect(trigger).toBeInTheDocument();
-    expect(trigger.tagName).toBe("BUTTON");
+    expect(triggers).toHaveLength(2);
+    for (const trigger of triggers) expect(trigger.tagName).toBe("BUTTON");
   });
 
   it("offers every recruiter-settable stage and never the current one", async () => {
@@ -387,7 +389,7 @@ describe("Applicants", () => {
     // userEvent, not fireEvent: Radix opens the menu on pointerdown, which
     // fireEvent.click does not dispatch, so the menu never opens in jsdom.
     await userEvent.click(
-      await screen.findByRole("button", { name: "Change status for Ada Lovelace" }),
+      (await screen.findAllByRole("button", { name: "Change status for Ada Lovelace" }))[0]!,
     );
     // Built from RECRUITER_SETTABLE, so the control cannot offer a transition the
     // API would refuse.
@@ -404,8 +406,9 @@ describe("Applicants", () => {
       path: "/hire/jobs/:id/applicants",
     });
     // A terminal application takes no further decision; the API answers one with
-    // 409, so a control that cannot succeed is not rendered.
-    expect(await screen.findByText("Withdrawn")).toBeInTheDocument();
+    // 409, so a control that cannot succeed is not rendered — in the table or
+    // on the card.
+    expect(await screen.findAllByText("Withdrawn")).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "Change status for Ada Lovelace" }),
     ).toBeNull();
@@ -418,8 +421,28 @@ describe("Applicants", () => {
       path: "/hire/jobs/:id/applicants",
     });
     // 2A's rule: semantic state is icon *and* label. A green pill alone tells a
-    // colourblind user nothing.
-    expect(await screen.findByText("Offered")).toBeInTheDocument();
+    // colourblind user nothing — in either rendering of the row.
+    expect(await screen.findAllByText("Offered")).toHaveLength(2);
+  });
+
+  it("renders each applicant as a card for small screens, facts intact", async () => {
+    withOneApplicant("interview");
+    renderRoute(<Applicants />, {
+      route: "/hire/jobs/64b0c8f2a9d3e45f6a7b8c9d/applicants",
+      path: "/hire/jobs/:id/applicants",
+    });
+    // The phone rendering: one card per applicant, carrying everything the
+    // table row carries — the status in text, the contact, the bulk checkbox,
+    // the decision menu. jsdom applies no CSS, so the list is in the tree
+    // alongside the table.
+    const cards = await screen.findByRole("list", { name: "Applicants" });
+    expect(within(cards).getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(within(cards).getByText("Interview")).toBeInTheDocument();
+    expect(within(cards).getByText("ada@example.com")).toBeInTheDocument();
+    expect(within(cards).getByLabelText("Select Ada Lovelace")).toBeInTheDocument();
+    expect(
+      within(cards).getByRole("button", { name: "Change status for Ada Lovelace" }),
+    ).toBeInTheDocument();
   });
 
   it("shows the recruiter-side fit score and its strongest explanation", async () => {
@@ -444,7 +467,7 @@ describe("Applicants", () => {
     // anchored regex keeps the absence assertion honest.
     expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
 
-    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
+    await userEvent.click((await screen.findAllByLabelText("Select Candidate 1"))[0]!);
     expect(await screen.findByText("1 selected")).toBeInTheDocument();
     // Some-but-not-all is indeterminate on the header box.
     expect(screen.getByLabelText("Select every applicant on this page").indeterminate).toBe(true);
@@ -455,6 +478,11 @@ describe("Applicants", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.queryByText(/^\d+ selected$/)).toBeNull();
+
+    // The card's checkbox wires into the same selection — it is the control a
+    // phone offers, so the bulk bar must answer it too.
+    await userEvent.click((await screen.findAllByLabelText("Select Candidate 1"))[1]!);
+    expect(await screen.findByText("1 selected")).toBeInTheDocument();
   });
 
   it("confirms the count and stage, then reports moved and skipped", async () => {
@@ -468,8 +496,8 @@ describe("Applicants", () => {
       path: "/hire/jobs/:id/applicants",
     });
 
-    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
-    await userEvent.click(screen.getByLabelText("Select Candidate 2"));
+    await userEvent.click((await screen.findAllByLabelText("Select Candidate 1"))[0]!);
+    await userEvent.click(screen.getAllByLabelText("Select Candidate 2")[0]!);
     await userEvent.click(screen.getByRole("button", { name: /move to/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Interview" }));
 
@@ -502,7 +530,7 @@ describe("Applicants", () => {
       path: "/hire/jobs/:id/applicants",
     });
 
-    await userEvent.click(await screen.findByLabelText("Select Candidate 1"));
+    await userEvent.click((await screen.findAllByLabelText("Select Candidate 1"))[0]!);
     await userEvent.click(screen.getByRole("button", { name: /move to/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Shortlisted" }));
     await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));

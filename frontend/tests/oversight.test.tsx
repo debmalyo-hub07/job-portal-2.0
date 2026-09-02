@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -234,10 +234,33 @@ describe("the recruiter's cross-job queue", () => {
     });
     renderAt(<QueueApplicants />);
 
-    expect(await screen.findByText("Queue Person")).toBeTruthy();
-    const jobLink = screen.getByRole("link", { name: /queued role/i });
-    expect(jobLink).toHaveAttribute("href", "/hire/jobs/job-9/applicants");
+    // The table and the small-screen card both carry the row (only one is
+    // visible at any width; jsdom applies no CSS), so the reads take both.
+    expect((await screen.findAllByText("Queue Person")).length).toBe(2);
+    const jobLinks = screen.getAllByRole("link", { name: /queued role/i });
+    expect(jobLinks).toHaveLength(2);
+    for (const link of jobLinks) {
+      expect(link).toHaveAttribute("href", "/hire/jobs/job-9/applicants");
+    }
     expect(screen.getByText("1 person across all your roles.")).toBeTruthy();
+    get.mockRestore();
+  });
+
+  it("renders the queue as cards for small screens, job link leading", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, ...QUEUE_PAGE },
+    });
+    renderAt(<QueueApplicants />);
+
+    const cards = await screen.findByRole("list", { name: "Applicant queue" });
+    expect(within(cards).getByText("Queue Person")).toBeInTheDocument();
+    expect(
+      within(cards).getByRole("link", { name: /queued role/i }),
+    ).toHaveAttribute("href", "/hire/jobs/job-9/applicants");
+    expect(within(cards).getByText(/Acme/)).toBeInTheDocument();
+    expect(
+      within(cards).queryByRole("button", { name: "Change status for Queue Person" }),
+    ).toBeInTheDocument();
     get.mockRestore();
   });
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MoreHorizontal, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import type { ApplicantDto, BulkSkipReason } from "@jobportal/shared";
@@ -7,6 +7,7 @@ import { ACTIVE_STATUSES, RECRUITER_SETTABLE, TERMINAL_STATUSES, isTerminal } fr
 
 import HireShell from "./HireShell";
 import PostingHealth from "./PostingHealth";
+import DecisionMenu from "./DecisionMenu";
 import { FitBadge } from "@/components/FitBadge";
 import { Pager } from "@/components/layout/ListControls";
 import { EmptyState } from "@/components/layout/EmptyState";
@@ -240,139 +241,181 @@ export function Applicants() {
           description="Applications appear here as seekers apply to this role."
         />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">
+        <div className="hidden sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    aria-label="Select every applicant on this page"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    ref={(el) => {
+                      // Native checkboxes have no `indeterminate` attribute and
+                      // React does not manage the property — the ref is the one
+                      // way to show some-but-not-all.
+                      if (el) el.indeterminate = selected.size > 0 && !allSelected;
+                    }}
+                    className="size-4 rounded accent-[var(--signal-text)]"
+                  />
+                </TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Resume</TableHead>
+                <TableHead>Fit</TableHead>
+                <TableHead>Applied</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((item) => {
+                const status = statusMeta(item.status);
+                const StatusIcon = status.Icon;
+                // A closed application takes no further decision; the API answers
+                // one with 409, so the menu is not offered at all. It stays
+                // selectable: a select-all batch reports it as a skip, which is
+                // the honest result, not a hidden one.
+                const closed = isTerminal(item.status);
+                return (
+                  <TableRow
+                    key={item.applicationId}
+                    data-state={selected.has(item.applicationId) ? "selected" : undefined}
+                  >
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${item.fullName}`}
+                        checked={selected.has(item.applicationId)}
+                        onChange={() => toggleOne(item.applicationId)}
+                        className="size-4 rounded accent-[var(--signal-text)]"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{item.fullName}</TableCell>
+                    <TableCell>{item.email}</TableCell>
+                    <TableCell>{item.phone ?? "—"}</TableCell>
+                    <TableCell>
+                      {item.resumeUrl ? (
+                        <a
+                          className="text-signal-text underline"
+                          href={item.resumeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.resumeName ?? "Download"}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-56">
+                      {item.fit ? (
+                        <FitBadge
+                          fit={item.fit}
+                          perfectLabel="Matches every requirement"
+                          className="flex-col items-start gap-1"
+                        />
+                      ) : (
+                        <span className="text-ink-muted">&mdash;</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {item.appliedAt.split("T")[0]}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={status.variant}>
+                        <StatusIcon aria-hidden="true" className="size-3" />
+                        {status.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {closed ? (
+                        <span className="text-sm text-ink-muted">&mdash;</span>
+                      ) : (
+                        <DecisionMenu
+                          fullName={item.fullName}
+                          current={item.status}
+                          onDecide={(next) => void onDecide(item.applicationId, next)}
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {data && data.items.length > 0 ? (
+        /* The small-screen rendering of the same list: one card per applicant,
+           because a nine-column table on a phone is three sideways screens of
+           swiping. Everything the table carries is here — the bulk checkbox,
+           the decision menu, the honest skip rules — through the same state. */
+        <ul
+          aria-label="Applicants"
+          className="mt-4 divide-y divide-line rounded-surface border border-line bg-paper-raised sm:hidden"
+        >
+          {data.items.map((item) => {
+            const status = statusMeta(item.status);
+            const StatusIcon = status.Icon;
+            const closed = isTerminal(item.status);
+            return (
+              <li
+                key={item.applicationId}
+                className="flex items-start gap-3 p-4 data-[state=selected]:bg-signal-muted"
+                data-state={selected.has(item.applicationId) ? "selected" : undefined}
+              >
                 <input
                   type="checkbox"
-                  aria-label="Select every applicant on this page"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  ref={(el) => {
-                    // Native checkboxes have no `indeterminate` attribute and
-                    // React does not manage the property — the ref is the one
-                    // way to show some-but-not-all.
-                    if (el) el.indeterminate = selected.size > 0 && !allSelected;
-                  }}
-                  className="size-4 rounded accent-[var(--signal-text)]"
+                  aria-label={`Select ${item.fullName}`}
+                  checked={selected.has(item.applicationId)}
+                  onChange={() => toggleOne(item.applicationId)}
+                  className="mt-1 size-4 rounded accent-[var(--signal-text)]"
                 />
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Resume</TableHead>
-              <TableHead>Fit</TableHead>
-              <TableHead>Applied</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.items.map((item) => {
-              const status = statusMeta(item.status);
-              const StatusIcon = status.Icon;
-              // A closed application takes no further decision; the API answers
-              // one with 409, so the menu is not offered at all. It stays
-              // selectable: a select-all batch reports it as a skip, which is
-              // the honest result, not a hidden one.
-              const closed = isTerminal(item.status);
-              return (
-                <TableRow
-                  key={item.applicationId}
-                  data-state={selected.has(item.applicationId) ? "selected" : undefined}
-                >
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${item.fullName}`}
-                      checked={selected.has(item.applicationId)}
-                      onChange={() => toggleOne(item.applicationId)}
-                      className="size-4 rounded accent-[var(--signal-text)]"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{item.fullName}</TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>{item.phone ?? "—"}</TableCell>
-                  <TableCell>
-                    {item.resumeUrl ? (
-                      <a
-                        className="text-signal-text underline"
-                        href={item.resumeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.resumeName ?? "Download"}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="min-w-56">
-                    {item.fit ? (
-                      <FitBadge
-                        fit={item.fit}
-                        perfectLabel="Matches every requirement"
-                        className="flex-col items-start gap-1"
-                      />
-                    ) : (
-                      <span className="text-ink-muted">&mdash;</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {item.appliedAt.split("T")[0]}
-                  </TableCell>
-                  <TableCell>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 break-words font-medium text-ink">{item.fullName}</p>
                     <Badge variant={status.variant}>
                       <StatusIcon aria-hidden="true" className="size-3" />
                       {status.label}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {closed ? (
-                      <span className="text-sm text-ink-muted">&mdash;</span>
-                    ) : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Change status for ${item.fullName}`}
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {/*
-                            Built from RECRUITER_SETTABLE, so the menu cannot
-                            offer a move the API would refuse — and a stage added
-                            to the pipeline appears here without an edit.
-                            The current status is omitted: setting it again is a
-                            409 STATUS_UNCHANGED by design.
-                          */}
-                          {RECRUITER_SETTABLE.filter((next) => next !== item.status).map((next) => {
-                            const meta = statusMeta(next);
-                            const NextIcon = meta.Icon;
-                            return (
-                              <DropdownMenuItem
-                                key={next}
-                                onSelect={() => void onDecide(item.applicationId, next)}
-                              >
-                                <NextIcon className="size-4" />
-                                {meta.label}
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
+                  </div>
+                  <p className="mt-1 break-words text-sm text-ink-muted">{item.email}</p>
+                  {item.phone ? (
+                    <p className="break-words text-sm text-ink-muted">{item.phone}</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-ink-muted">
+                    Applied <span className="font-mono">{item.appliedAt.split("T")[0]}</span>
+                    {item.fit ? ` · ${Math.round(item.fit.score)}% fit` : ""}
+                  </p>
+                  {item.resumeUrl ? (
+                    <a
+                      className="mt-2 inline-block text-sm text-signal-text underline"
+                      href={item.resumeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {item.resumeName ?? "Resume"}
+                    </a>
+                  ) : null}
+                  {closed ? null : (
+                    <div className="mt-3">
+                      <DecisionMenu
+                        fullName={item.fullName}
+                        current={item.status}
+                        onDecide={(next) => void onDecide(item.applicationId, next)}
+                        trigger="labelled"
+                      />
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       <ConfirmDialog
         open={pendingStage !== null}
         onOpenChange={(open) => {
