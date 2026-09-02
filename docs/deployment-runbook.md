@@ -478,6 +478,14 @@ account-existence result.
 Render's free plan sleeps after inactivity: the first request after an idle
 period takes 30–60 seconds and looks like a hang. That is not a fault.
 
+The `.github/workflows/keepalive.yml` workflow holds that sleep off: it pings
+`/api/v1/health` through the Vercel proxy every 10 minutes, so the instance
+stays warm and nobody's first visit pays the wake. It is a deliberate use of
+the free instance's idle hours (the Actions minutes are free — the repository
+is public), a failing ping turns the run red and emails rather than failing
+silently, and the file should be deleted the day the API moves to a paid
+instance that does not sleep.
+
 ## Condensed order
 
 1. Atlas allows `0.0.0.0/0`, and the production URI names its own database

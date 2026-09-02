@@ -1,0 +1,36 @@
+name: Keep-alive
+
+# Render's free tier spins the API down after 15 minutes without traffic, and
+# the wake-up is a 30-60s hang for whichever request lands first — usually an
+# already-signed-in recruiter whose first workspace query pays it, because the
+# app's own wake call only exists on the login screens.
+#
+# This workflow holds the sleep off: one ping of the health endpoint every 10
+# minutes, through the same-origin proxy the app itself uses. It costs nothing
+# (the repository is public, so Actions minutes are free) and deliberately
+# spends the instance's otherwise-idle free hours. Delete this file the day
+# the API moves to a paid instance that does not sleep.
+on:
+  schedule:
+    # Off the round minutes: GitHub documents that scheduled workflows are
+    # delayed during high-load periods, and the delay piles up at :00/:30.
+    # The 10-minute cadence tolerates several minutes of drift — Render
+    # sleeps at 15.
+    - cron: "7,17,27,37,47,57 * * * *"
+  # Manual trigger, so the ping can be tested and run on demand.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the API health endpoint
+        # --fail so a dead keep-alive is a red run that emails, not a silent
+        # return of the 50-second hang. --retry absorbs the transient case:
+        # the first ping after a Render restart or an outage may itself sit
+        # on a spin-up and time out; the retry lands on a waking instance.
+        run: |
+          curl --fail --silent --show-error --max-time 90 \
+            --retry 2 --retry-all-errors --retry-delay 20 \
+            https://job-portal-debmalyo.vercel.app/api/v1/health
