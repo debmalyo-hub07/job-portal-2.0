@@ -37,7 +37,9 @@ import { apiClient } from "@/lib/apiClient";
  *
  * `refetchIntervalInBackground` is left at its default of false throughout, so a
  * forgotten tab stops asking. The manual refresh control on the dashboard stays
- * — an admin who has just acted should not have to wait out a tick.
+ * — an admin who has just acted should not have to wait out a tick. And every
+ * read refetches on window focus: polling stops on hidden tabs, so the moment
+ * the forgotten tab comes back is the moment the numbers must catch up.
  */
 
 /** Every console query hangs off this root so one call can clear the console. */
@@ -55,6 +57,7 @@ export function useAdminOverview() {
     },
     staleTime: 30 * 1000,
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -81,6 +84,7 @@ export function useAdminInsights() {
     placeholderData: keepPreviousData,
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -96,6 +100,7 @@ export function useAdminActivity() {
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -111,6 +116,7 @@ export function usePendingRecruiters() {
     },
     staleTime: 15 * 1000,
     refetchInterval: 15 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 

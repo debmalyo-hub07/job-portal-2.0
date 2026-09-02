@@ -34,7 +34,10 @@ import { apiClient } from "@/lib/apiClient";
  * a background write would fight whatever the recruiter is typing.
  *
  * `refetchIntervalInBackground` stays at its default of false, so a tab left open
- * in another window stops asking.
+ * in another window stops asking. When that tab comes BACK, though, the lists
+ * refetch on focus: polling stops on hidden tabs, so without it the worst case
+ * is a full interval of staleness the moment the recruiter returns — the exact
+ * "reload the page to see it" this hook exists to remove.
  */
 
 /** Every workspace query hangs off this root so one call can clear it. */
@@ -97,6 +100,7 @@ export function useOwnedJobs() {
     // Applicant counts on these rows move while the recruiter is looking at
     // them; see the note above the file's read hooks.
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
   return { ...query, keyword, page, setKeyword, setPage };
 }
@@ -122,6 +126,7 @@ export function useOwnedCompanies() {
     },
     staleTime: 30 * 1000,
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   const needle = keyword.trim().toLowerCase();
@@ -168,6 +173,7 @@ export function useApplicants(jobId: string | undefined) {
     // anything: a new application appears here and nowhere else in the UI.
     // `staleTime` is the client default of 30s, so the interval matches it.
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
   return { ...query, page, setPage };
 }
@@ -193,6 +199,7 @@ export function useApplicationQueue() {
     },
     placeholderData: keepPreviousData,
     refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
   });
   return { ...query, page, setPage };
 }

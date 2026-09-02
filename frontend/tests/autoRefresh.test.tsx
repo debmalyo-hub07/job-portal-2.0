@@ -13,7 +13,12 @@ import {
   useAdminOverview,
   usePendingRecruiters,
 } from "@/hooks/useAdminConsole";
-import { useApplicants, useOwnedCompanies, useOwnedJobs } from "@/hooks/useRecruiterWorkspace";
+import {
+  useApplicants,
+  useApplicationQueue,
+  useOwnedCompanies,
+  useOwnedJobs,
+} from "@/hooks/useRecruiterWorkspace";
 import { useSessionRefresh } from "@/hooks/useSessionRefresh";
 
 /**
@@ -99,6 +104,7 @@ const LIVE_READS: ReadonlyArray<[string, () => unknown, number]> = [
   ["useOwnedJobs", () => useOwnedJobs(), 30_000],
   ["useOwnedCompanies", () => useOwnedCompanies(), 30_000],
   ["useApplicants", () => useApplicants("job-1"), 30_000],
+  ["useApplicationQueue", () => useApplicationQueue(), 30_000],
 ];
 
 describe("live console and workspace reads", () => {
@@ -134,5 +140,25 @@ describe("live console and workspace reads", () => {
     await waitFor(() => expect(client.getQueryCache().getAll().length).toBeGreaterThan(0));
     const entry = client.getQueryCache().getAll()[0]!;
     expect(entry.observers[0]?.options.refetchIntervalInBackground).toBeFalsy();
+  });
+
+  /**
+   * A tab that was parked while the world moved. Polling stops on hidden tabs
+   * (the test above), so without a focus refetch the worst case is a full
+   * interval of staleness after the user returns — and "reload the page" was
+   * the reported workaround. Focus refetches respect `staleTime`, so an
+   * already-fresh list asks for nothing.
+   */
+  it.each(LIVE_READS)("%s refetches when its tab regains focus", async (_name, hook) => {
+    vi.spyOn(apiClient, "get").mockResolvedValue({
+      data: { success: true, items: [], page: 1, pages: 1, total: 0 },
+    } as never);
+    const client = makeQueryClient();
+
+    renderHook(hook, { wrapper: wrapper(client) });
+
+    await waitFor(() => expect(client.getQueryCache().getAll().length).toBeGreaterThan(0));
+    const entry = client.getQueryCache().getAll()[0]!;
+    expect(entry.observers[0]?.options.refetchOnWindowFocus).toBe(true);
   });
 });
