@@ -45,7 +45,9 @@ frontend/tests/visual/shots/
 # Scratch space for research agents — never committed
 .research/
 .agents/
-.claude/
+# Local Claude state stays ignored; project skills are part of the repo.
+.claude/*
+!.claude/skills/
 skills-lock.json
 .brevo-probe/
 *-registry.json
