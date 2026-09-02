@@ -141,6 +141,38 @@ export const applicationStatusBodySchema = z.object({
   status: z.enum(RECRUITER_SETTABLE),
 }).strict();
 
+/**
+ * A bulk status move: one stage, many of one job's applications.
+ *
+ * The ids are capped at 100 — larger than any page the applicants screen
+ * holds, small enough to bound one request's work. Each id is an ObjectId
+ * string, so a malformed one fails validation here rather than reaching the
+ * service, and the stage rides the same RECRUITER_SETTABLE derivation the
+ * single move's schema uses.
+ */
+export const BULK_STATUS_CAP = 100;
+
+export const bulkStatusBodySchema = z
+  .object({
+    applicationIds: z.array(objectIdSchema).min(1).max(BULK_STATUS_CAP),
+    status: z.enum(RECRUITER_SETTABLE),
+  })
+  .strict();
+
+export type BulkStatusBody = z.infer<typeof bulkStatusBodySchema>;
+
+/** Why one row of a bulk move did not move. */
+export type BulkSkipReason = "TERMINAL" | "SAME_STATUS" | "NOT_FOUND";
+
+/**
+ * The bulk move's honest result: how many rows moved, and every row that
+ * refused with its reason. Skipped rows are reported, never a veto.
+ */
+export type BulkStatusResult = {
+  moved: number;
+  skipped: { id: string; reason: BulkSkipReason }[];
+};
+
 export type CompanyCreateBody = z.infer<typeof companyCreateBodySchema>;
 export type CompanyUpdateBody = z.infer<typeof companyUpdateBodySchema>;
 export type JobCreateBody = z.infer<typeof jobCreateBodySchema>;

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applicationStatusBodySchema,
+  bulkStatusBodySchema,
+  BULK_STATUS_CAP,
   companyCreateBodySchema,
   jobCreateBodySchema,
   jobListQuerySchema,
@@ -292,5 +294,44 @@ describe("profileUpdateBodySchema identity fields", () => {
   it("accepts designation, which nothing could write before", () => {
     expect(profileUpdateBodySchema.parse({ designation: "Talent Lead" }).designation)
       .toBe("Talent Lead");
+  });
+});
+
+describe("bulkStatusBodySchema", () => {
+  const ids = ["64b0c8f2a9d3e45f6a7b8c9d", "64b0c8f2a9d3e45f6a7b8c9e"];
+
+  it("accepts a legal batch and every settable stage", () => {
+    // Derived from RECRUITER_SETTABLE, so the schema and the state machine
+    // still name the same set — same assertion the single move's schema has.
+    for (const status of RECRUITER_SETTABLE) {
+      expect(bulkStatusBodySchema.parse({ applicationIds: ids, status }).status).toBe(status);
+    }
+  });
+
+  it("refuses an empty batch and a batch over the cap", () => {
+    expect(
+      bulkStatusBodySchema.safeParse({ applicationIds: [], status: "rejected" }).success,
+    ).toBe(false);
+    const tooMany = Array.from({ length: BULK_STATUS_CAP + 1 }, () => "64b0c8f2a9d3e45f6a7b8c9d");
+    expect(
+      bulkStatusBodySchema.safeParse({ applicationIds: tooMany, status: "rejected" }).success,
+    ).toBe(false);
+  });
+
+  it("refuses a malformed id and the stages a recruiter may not set", () => {
+    expect(
+      bulkStatusBodySchema.safeParse({ applicationIds: ["not-an-id"], status: "rejected" }).success,
+    ).toBe(false);
+    // `applied` is the creation default; `withdrawn` is the candidate's alone.
+    for (const status of ["applied", "withdrawn"]) {
+      expect(bulkStatusBodySchema.safeParse({ applicationIds: ids, status }).success).toBe(false);
+    }
+  });
+
+  it("is strict about unknown keys", () => {
+    expect(
+      bulkStatusBodySchema.safeParse({ applicationIds: ids, status: "rejected", reason: "x" })
+        .success,
+    ).toBe(false);
   });
 });
