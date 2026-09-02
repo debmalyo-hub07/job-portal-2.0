@@ -33,6 +33,16 @@ export const getQueue = async (req: Request, res: Response): Promise<void> => {
   res.status(200).json({ success: true, ...result });
 };
 
+/**
+ * The per-job applied check. No body for the same reason the saved check has
+ * none: the caller asserts nothing, and the answer is derived.
+ */
+export const checkApplied = async (req: Request, res: Response): Promise<void> => {
+  const jobId = parseBody(objectIdSchema, req.params.jobId);
+  const applied = await applicationService.isJobApplied(req.auth!.id, jobId);
+  res.status(200).json({ success: true, applied });
+};
+
 export const updateStatus = async (req: Request, res: Response): Promise<void> => {
   const applicationId = parseBody(objectIdSchema, req.params.id);
   const { status } = parseBody(applicationStatusBodySchema, req.body);

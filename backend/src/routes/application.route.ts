@@ -5,6 +5,7 @@ import { requireProfileComplete } from "../middleware/requireProfileComplete.js"
 import {
   applyJob,
   bulkUpdateStatus,
+  checkApplied,
   getAppliedJobs,
   getApplicants,
   getQueue,
@@ -29,6 +30,11 @@ router.route("/get").get(authenticate("seeker"), getAppliedJobs);
 // deserves — a seeker's name, email, phone and resume link. The queue carries
 // exactly the same fields, so it carries exactly the same gate.
 router.route("/queue").get(authenticate("recruiter"), requireApproved, getQueue);
+// The role page's applied state, one job at a time — exact where the old
+// client-side scan of the applied list was capped. Registered among the
+// literal-first routes, above the `/:id/...` patterns that would otherwise
+// swallow "applied" as an id.
+router.route("/applied/:jobId").get(authenticate("seeker"), checkApplied);
 router.route("/:id/applicants").get(authenticate("recruiter"), requireApproved, getApplicants);
 router
   .route("/status/:id/update")

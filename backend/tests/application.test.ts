@@ -836,4 +836,42 @@ describe("application routes", () => {
       expect(res.body.health.series.every((p: { count: number }) => p.count === 0)).toBe(true);
     });
   });
+
+  describe("the per-job applied check", () => {
+    const check = (id = jobId, session = seeker) =>
+      request(app)
+        .get(`/api/v1/application/applied/${id}`)
+        .use(asSession("seeker", session!));
+
+    it("answers false before applying and true after, without a job read", async () => {
+      expect((await check()).body).toMatchObject({ applied: false });
+      await apply({ portal: "seeker", session: seeker });
+      expect((await check()).body).toMatchObject({ applied: true });
+    });
+
+    it("answers each seeker's own state only", async () => {
+      const stranger = await signedUpOn("seeker", "stranger@example.com");
+      await apply({ portal: "seeker", session: seeker });
+      expect((await check()).body).toMatchObject({ applied: true });
+      expect((await check(jobId, stranger)).body).toMatchObject({ applied: false });
+    });
+
+    it("never 404s for a job that does not exist, and refuses malformed ids", async () => {
+      const missing = await check("64b0c8f2a9d3e45f6a7b8c9d");
+      expect(missing.status).toBe(200);
+      expect(missing.body.applied).toBe(false);
+      expect((await check("not-an-id")).status).toBe(400);
+    });
+
+    it("is the seeker's route: anonymous and recruiter get 401", async () => {
+      expect((await request(app).get(`/api/v1/application/applied/${jobId}`)).status).toBe(401);
+      expect(
+        (
+          await request(app)
+            .get(`/api/v1/application/applied/${jobId}`)
+            .use(asSession("recruiter", recruiter))
+        ).status,
+      ).toBe(401);
+    });
+  });
 });

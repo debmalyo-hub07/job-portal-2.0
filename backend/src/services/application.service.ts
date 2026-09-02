@@ -266,6 +266,20 @@ const applicationNotFound = () =>
   AppError.notFound("APPLICATION_NOT_FOUND", "Application not found");
 
 /**
+ * The per-job applied check the role page's button state reads.
+ *
+ * `exists` on {job, applicant} with no job read at all: an application can
+ * legitimately outlive its job (the applied list keeps deleted-job rows), so
+ * the answer is about the pair, never about the job's existence — which is
+ * also why this never 404s for a missing job.
+ */
+export async function isJobApplied(seekerId: string, jobId: string): Promise<boolean> {
+  // `exists` returns a Query, not a value — comparing it directly to null is
+  // comparing a thenable object to null, which is always true. Await first.
+  return Boolean(await Application.exists({ job: jobId, applicant: seekerId }));
+}
+
+/**
  * The recruiter's cross-job queue (Project D): every application on every job
  * the recruiter owns, newest first.
  *
