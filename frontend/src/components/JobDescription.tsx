@@ -11,6 +11,8 @@ import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { FitBreakdown } from "./FitBadge";
 import PageShell from "./layout/PageShell";
+import { MOTION_VARS } from "./layout/motionTiers";
+import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { Reveal } from "@/lib/motion";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
@@ -140,15 +142,35 @@ const JobDescription = () => {
     user?.portal === "seeker" && user.isMinor && singleJob.jobType !== "Internship";
 
   return (
-    <PageShell width="wide" motion="standard" className="pt-8">
-      <Link to="/jobs" viewTransition className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink">
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        Back to roles
-      </Link>
+    // The page owns a full-bleed layout rather than PageShell's container —
+    // the same escape hatch Home uses — because the header band carries the
+    // ambient field across the viewport, and a field that stopped at max-w-7xl
+    // would read as a misaligned patch (see HireLanding's workflow section for
+    // the same reasoning). The standard tier's half amplitude is the whole
+    // point: this is a reading surface, and the system's own vocabulary says
+    // atmosphere here sits behind content someone is reading rather than
+    // behind a headline.
+    <div
+      data-density="spacious"
+      data-motion="standard"
+      style={MOTION_VARS.standard}
+      className="min-h-screen bg-paper text-ink"
+    >
+      {/* The band: back link, company, title, badges — the field pools in its
+          upper third and the shader's textBand masks it out of the title's
+          rows, so the copy always clears it (the 0.12 paper ceiling holds the
+          rest measured-safe). `isolate` keeps the -z-10 layer inside the
+          section; the border is the band's full-bleed bottom edge, the same
+          treatment the landing sections give theirs. */}
+      <section className="relative isolate overflow-clip border-b border-line">
+        <Atmosphere className="-z-10" textBand={[0.3, 0.62]} />
+        <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
+          <Link to="/jobs" viewTransition className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink">
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            Back to roles
+          </Link>
 
-      <article className="mt-7 grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
-        <div className="min-w-0">
-          <header className="border-b border-line pb-8">
+          <header className="mt-7 pb-8">
             <div className="flex items-center gap-3">
               <CompanyAvatar name={singleJob.company?.name} logoUrl={singleJob.company?.logoUrl} className="size-11" />
               <div className="min-w-0">
@@ -168,35 +190,43 @@ const JobDescription = () => {
               {singleJob.remote ? <Badge variant="signal">Remote</Badge> : null}
             </div>
           </header>
+        </div>
+      </section>
 
-          {singleJob.fit ? (
-            <Reveal className="mt-7">
-              <FitBreakdown fit={singleJob.fit} />
-            </Reveal>
-          ) : null}
+      <div className="mx-auto max-w-7xl px-4 pb-(--space-section) sm:px-6">
+        {/* The action card now top-aligns with the role's content rather than
+            with its title: the header gets the full stage across the band, and
+            the sticky card sits beside the text it acts on. */}
+        <article className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
+          <div className="min-w-0">
+            {singleJob.fit ? (
+              <Reveal className="mt-7">
+                <FitBreakdown fit={singleJob.fit} />
+              </Reveal>
+            ) : null}
 
-          <Reveal className="mt-9" delay={0.05}>
-            <section aria-labelledby="role-heading">
-              <h2 id="role-heading" className="font-display text-display-sm font-semibold text-ink">About the role</h2>
-              <p className="mt-5 whitespace-pre-line text-base leading-8 text-ink-muted">{singleJob.description}</p>
-            </section>
-          </Reveal>
-
-          {singleJob.requirements.length > 0 ? (
-            <Reveal className="mt-10 border-t border-line pt-8" delay={0.1}>
-              <section aria-labelledby="requirements-heading">
-                <h2 id="requirements-heading" className="font-display text-display-sm font-semibold text-ink">What the team is looking for</h2>
-                <ul className="mt-5 flex flex-wrap gap-2">
-                  {singleJob.requirements.map((skill) => (
-                    <li key={skill}><Badge variant="outline">{skill}</Badge></li>
-                  ))}
-                </ul>
+            <Reveal className="mt-9" delay={0.05}>
+              <section aria-labelledby="role-heading">
+                <h2 id="role-heading" className="font-display text-display-sm font-semibold text-ink">About the role</h2>
+                <p className="mt-5 whitespace-pre-line text-base leading-8 text-ink-muted">{singleJob.description}</p>
               </section>
             </Reveal>
-          ) : null}
-        </div>
 
-        <aside className="rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)] lg:sticky lg:top-24">
+            {singleJob.requirements.length > 0 ? (
+              <Reveal className="mt-10 border-t border-line pt-8" delay={0.1}>
+                <section aria-labelledby="requirements-heading">
+                  <h2 id="requirements-heading" className="font-display text-display-sm font-semibold text-ink">What the team is looking for</h2>
+                  <ul className="mt-5 flex flex-wrap gap-2">
+                    {singleJob.requirements.map((skill) => (
+                      <li key={skill}><Badge variant="outline">{skill}</Badge></li>
+                    ))}
+                  </ul>
+                </section>
+              </Reveal>
+            ) : null}
+          </div>
+
+          <aside className="rounded-surface border border-line bg-paper-raised p-5 shadow-[var(--elevate-1)] lg:sticky lg:top-24">
           {/*
             A closed role is still reachable by URL — a candidate who applied has
             this link in their applied-jobs list, so 404ing it would break their
@@ -343,8 +373,9 @@ const JobDescription = () => {
             </section>
           ) : null}
         </aside>
-      </article>
-    </PageShell>
+        </article>
+      </div>
+    </div>
   );
 };
 
