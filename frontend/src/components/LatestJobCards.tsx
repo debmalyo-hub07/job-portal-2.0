@@ -44,6 +44,7 @@ const LatestJobCards = ({ job, index, featured = false }: LatestJobCardsProps) =
   return (
     <Link
       to={`/description/${job.id}`}
+      viewTransition
       onPointerMove={handlePointerMove}
       onPointerLeave={resetTilt}
       className="job-spotlight-card group relative flex h-full min-h-80 flex-col overflow-hidden rounded-surface border border-line bg-paper-raised p-6 shadow-[var(--elevate-1)] focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none sm:p-7"

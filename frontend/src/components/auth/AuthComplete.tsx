@@ -58,7 +58,10 @@ const AuthComplete = () => {
         // this component with a brand-new account and no date of birth. Sending
         // it to the board would let it past the identity step entirely, and the
         // first thing it heard about the gate would be a 403 on an application.
-        navigate(landingAfterAuth(res.data.user), { replace: true });
+        navigate(landingAfterAuth(res.data.user), {
+          replace: true,
+          viewTransition: true,
+        });
       })
       .catch(() => navigate(failed, { replace: true }));
   }, [portal, code, dispatch, navigate]);

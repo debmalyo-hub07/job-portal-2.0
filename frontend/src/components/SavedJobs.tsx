@@ -104,6 +104,7 @@ export function SavedJobs() {
                       {item.job ? (
                         <Link
                           className="text-ink hover:text-signal-text"
+                          viewTransition
                           to={`/description/${item.job.id}`}
                         >
                           {item.job.title}

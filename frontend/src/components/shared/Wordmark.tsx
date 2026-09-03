@@ -87,9 +87,13 @@ export function Wordmark({
     </span>
   );
 
+  // `viewTransition` unconditionally: the lockup only becomes a link on
+  // surfaces where following it changes the page (a portal home), which is
+  // exactly the class of navigation the cross-fade exists for.
   return to ? (
     <Link
       to={to}
+      viewTransition
       className="inline-block rounded-sharp outline-none focus-visible:ring-[3px] focus-visible:ring-signal-ring"
     >
       {lockup}

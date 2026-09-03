@@ -40,6 +40,7 @@ const LatestJobs = () => {
             </p>
             <Link
               to="/jobs"
+              viewTransition
               className="group mt-5 inline-flex items-center gap-3 text-sm font-semibold text-ink transition-colors hover:text-signal-text focus-visible:rounded-sharp focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
             >
               See the full job board

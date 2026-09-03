@@ -43,7 +43,10 @@ const VerifyEmail = () => {
       // password account takes, and it has never supplied a date of birth. Sending
       // it to the board would mean the identity step is skipped by every account
       // that registers with a password, which is most of them.
-      navigate(landingAfterAuth(res.data.user), { replace: true });
+      navigate(landingAfterAuth(res.data.user), {
+        replace: true,
+        viewTransition: true,
+      });
     } catch (error) {
       toast.error(getApiErrorMessage(error, "That code did not work"));
     } finally {

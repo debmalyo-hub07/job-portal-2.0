@@ -98,6 +98,7 @@ export function NearYouRail() {
           <li key={job.id}>
             <Link
               to={`/description/${job.id}`}
+              viewTransition
               className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-paper"
             >
               <span className="min-w-0">

@@ -101,7 +101,7 @@ export function PostingHealth({
         <p className="mt-1 text-sm text-ink-muted">
           Share the role's public page to put it in front of candidates —{" "}
           {jobId ? (
-            <Link className="text-signal-text underline" to={`/description/${jobId}`}>
+            <Link className="text-signal-text underline" viewTransition to={`/description/${jobId}`}>
               view the live posting
             </Link>
           ) : null}

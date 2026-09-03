@@ -24,6 +24,7 @@ const Job = ({ job }: JobProps) => {
   return (
     <Link
       to={`/description/${job.id}`}
+      viewTransition
       className="group grid gap-5 py-6 transition-colors duration-(--dur-fast) hover:bg-paper-sunken/65 focus-visible:bg-paper-sunken/65 focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_11rem] sm:px-4"
     >
       <div className="min-w-0">

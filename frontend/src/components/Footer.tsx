@@ -18,7 +18,7 @@ import { SocialLinks } from "@/components/shared/SocialLinks";
  */
 const Footer = () => {
   return (
-    <footer className="border-t border-media-copy/10 bg-media-shade text-media-copy">
+    <footer className="site-chrome-footer border-t border-media-copy/10 bg-media-shade text-media-copy">
       <div className="mx-auto max-w-7xl px-6 py-16">
         <div className="grid gap-12 lg:grid-cols-[1.55fr_repeat(4,minmax(0,1fr))]">
           <div className="lg:pr-10">

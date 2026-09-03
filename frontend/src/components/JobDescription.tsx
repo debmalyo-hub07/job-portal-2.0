@@ -52,6 +52,7 @@ const JobDescription = () => {
   const toggleSaveHandler = async () => {
     if (!user) {
       navigate("/login", {
+        viewTransition: true,
         state: { from: `${location.pathname}${location.search}${location.hash}` },
       });
       return;
@@ -67,6 +68,7 @@ const JobDescription = () => {
   const applyJobHandler = async () => {
     if (!user) {
       navigate("/login", {
+        viewTransition: true,
         state: { from: `${location.pathname}${location.search}${location.hash}` },
       });
       return;
@@ -139,7 +141,7 @@ const JobDescription = () => {
 
   return (
     <PageShell width="wide" motion="standard" className="pt-8">
-      <Link to="/jobs" className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink">
+      <Link to="/jobs" viewTransition className="inline-flex items-center gap-2 text-sm font-medium text-ink-muted hover:text-ink">
         <ArrowLeft aria-hidden="true" className="size-4" />
         Back to roles
       </Link>

@@ -66,7 +66,12 @@ const Login = ({ portal }: { portal: Portal }) => {
       setPortalHint(portal);
       setCsrfToken(portal, res.data.csrfToken ?? null);
       dispatch(setUser(res.data.user));
-      navigate(loginDestination(res.data.user, location.state), { replace: true });
+      // `viewTransition`: a successful sign-in leaves the auth split for the
+      // product — the page-identity change the route cross-fade exists for.
+      navigate(loginDestination(res.data.user, location.state), {
+        replace: true,
+        viewTransition: true,
+      });
     } catch (error) {
       // EMAIL_NOT_VERIFIED is not a failure the user can act on from here — it
       // means "finish signing up". Route them instead of showing a dead end.

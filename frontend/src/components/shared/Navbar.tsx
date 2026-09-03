@@ -68,7 +68,9 @@ const Navbar = () => {
       clearPortalHint(user.portal);
       setCsrfToken(user.portal, null);
       dispatch(clearPortalSession(user.portal));
-      navigate(user.portal === "seeker" ? "/" : loginPathFor(user.portal));
+      navigate(user.portal === "seeker" ? "/" : loginPathFor(user.portal), {
+        viewTransition: true,
+      });
     }
   };
 
@@ -84,7 +86,7 @@ const Navbar = () => {
   return (
     <header
       className={cn(
-        "top-0 z-40 w-full border-b transition-[background-color,border-color,box-shadow] duration-(--dur-base) backdrop-blur-xl",
+        "site-chrome-nav top-0 z-40 w-full border-b transition-[background-color,border-color,box-shadow] duration-(--dur-base) backdrop-blur-xl",
         isHeroRoute ? "fixed inset-x-0" : "sticky",
         mediaTone
           ? "navbar-hero border-transparent bg-transparent shadow-none"
@@ -118,6 +120,7 @@ const Navbar = () => {
                 <NavLink
                   to={link.to}
                   end={link.to === "/"}
+                  viewTransition
                   className={({ isActive }) =>
                     isActive
                       ? cn(
@@ -156,7 +159,7 @@ const Navbar = () => {
                   mediaTone && "text-media-copy hover:bg-media-copy/10 hover:text-media-copy",
                 )}
               >
-                <Link to={publicLogin}>Sign in</Link>
+                <Link to={publicLogin} viewTransition>Sign in</Link>
               </Button>
               <Button
                 asChild
@@ -165,6 +168,7 @@ const Navbar = () => {
               >
                 <Link
                   to={publicSignup}
+                  viewTransition
                   aria-label={isPublicRecruiter ? "Post a role" : "Get started"}
                 >
                   {isPublicRecruiter ? (
@@ -222,6 +226,7 @@ const Navbar = () => {
                       the profile page until something else is clicked. */}
                   <Link
                     to={profilePathFor(user.portal)}
+                    viewTransition
                     onClick={() => setAccountOpen(false)}
                     className="flex items-center gap-2 rounded-sharp px-2 py-1.5 text-sm text-ink hover:bg-signal-muted"
                   >
@@ -267,6 +272,7 @@ const Navbar = () => {
                     key={link.to}
                     to={link.to}
                     end={link.to === "/"}
+                    viewTransition
                     onClick={() => setMenuOpen(false)}
                     className={({ isActive }) =>
                       `rounded-sharp px-2 py-2 text-base hover:bg-signal-muted ${
@@ -280,6 +286,7 @@ const Navbar = () => {
                 {!user && (
                   <Link
                     to={publicLogin}
+                    viewTransition
                     onClick={() => setMenuOpen(false)}
                     className="rounded-sharp px-2 py-2 text-base text-ink hover:bg-signal-muted sm:hidden"
                   >

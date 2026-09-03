@@ -12,11 +12,13 @@ function HeroSection() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
+  // `viewTransition`: submitting the search leaves the landing page for the
+  // board — a page change, which is what the route cross-fade is for.
   const searchJobHandler = (event: FormEvent) => {
     event.preventDefault();
-    navigate(jobBoardPath(query));
+    navigate(jobBoardPath(query), { viewTransition: true });
   };
-  const runSearch = (value: string) => navigate(jobBoardPath(value));
+  const runSearch = (value: string) => navigate(jobBoardPath(value), { viewTransition: true });
 
   return (
     <ImageHero

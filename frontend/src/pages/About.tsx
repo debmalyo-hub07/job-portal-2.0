@@ -138,6 +138,7 @@ export default function About() {
                 <p className="mt-4 min-h-24 text-sm leading-7 text-ink-muted">{portal.body}</p>
                 <Link
                   to={portal.href}
+                  viewTransition
                   className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-ink transition-colors hover:text-signal-text"
                 >
                   {portal.label}
@@ -171,13 +172,13 @@ export default function About() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Button asChild variant="outline">
-              <Link to="/help">
+              <Link to="/help" viewTransition>
                 Read the FAQ
                 <Users data-icon="inline-end" />
               </Link>
             </Button>
             <Button asChild variant="signal">
-              <Link to="/contact">
+              <Link to="/contact" viewTransition>
                 Contact Cairn
                 <ArrowRight data-icon="inline-end" />
               </Link>
