@@ -601,6 +601,21 @@ Motion goes through `src/lib/motion.tsx`. Each composable short-circuits to a
 plain `<div>` under `prefers-reduced-motion`, which is why pages never import
 `framer-motion` directly.
 
+Two motion systems deliberately do not go through it. Route cross-fades are
+the browser's own View Transitions — React Router's `viewTransition` prop,
+opted in per navigation so search and pagination stay instant, with the
+navbar and footer carrying `view-transition-name`s so they hold still while
+the page swaps beneath. The hero's scroll drift is a scroll-driven CSS
+animation on the `translate` property (never `transform`, which carries the
+pointer parallax and its easing), on a named view timeline declared on the
+hero section — `overflow-x-hidden` on an ancestor would create the scroll
+container that pins it, which is why the landing wrappers clip instead. Both
+collapse under `prefers-reduced-motion` in `index.css`, and both no-op
+silently where the browser lacks them: unsupported browsers get yesterday's
+page, not a JS reimplementation. That fallback philosophy is why the
+framer-based parallax and shared-element primitives were deleted rather than
+wired — the native APIs superseded them.
+
 Pointer tracking is not framer-motion either, and for the same reason it is not
 per-event: `pointermove` fires several times per frame on a fine mouse, so the
 hero's handler (`ImageHero`) records the latest position and writes the custom

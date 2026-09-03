@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "ambient-depth",
+    date: "2026-09-04",
+    kind: "Improvement",
+    title: "The quieter surfaces gained depth",
+    summary:
+      "The landing photo now drifts gently as it leaves the screen, the open-roles figure counts up when you reach it, and a role's page opens on a composed band instead of flat paper. Every movement is small by design, sits behind the copy rather than in front of it, and switches off entirely if you prefer reduced motion.",
+    details: [
+      "The count-up runs once, when the figure first comes into view — a refreshed number settles without re-rolling.",
+      "The depth effects are polish, not information: on a browser without the pieces they need, each surface is exactly what it was before.",
+    ],
+  },
+  {
     id: "softer-route-changes",
     date: "2026-09-03",
     kind: "Improvement",

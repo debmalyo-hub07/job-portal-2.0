@@ -623,6 +623,7 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | Recruiter power (2026-09-02) | Bulk applicant moves and posting health | Complete |
 | Location-aware (2026-09-01) | Consented city-level seeker area, "Near you" rail on the board, phone country codes, the console's live clock | Complete |
 | Console automation (2026-09-02) | Admin alerts for new work, orphan sweep on approval, feature flags + the Flags screen, guardrailed approval automation, applicant alerts + the pipeline funnel | Complete |
+| Motion & depth (2026-09-04) | Route cross-fades, the admin panel's own face, ambient fields on the landings and the role page, hero scroll drift, the landing stat count-up; the never-wired motion primitives deleted | Complete |
 
 Recruiter approval is now end to end. Sign in at `/admin/login` with an account
 from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
@@ -679,6 +680,27 @@ role's state — an Applied marker, Closed, or "no longer available" when the
 posting has come down. Saved roles stay on the list and are marked rather
 than silently dropped; save and unsave are idempotent, and a save is the
 seeker's private signal that reaches no recruiter surface.
+
+**The motion & depth phase (2026-09-03/04)** gave the surfaces between the
+headlines the depth the heroes already had. Page changes cross-fade through
+the browser's own View Transitions — opt-in per navigation, so search,
+filters and pagination stay instant, with the navbar and footer holding
+still while the page swaps beneath them — and collapse to the hard cut under
+reduced motion. The admin sign-in panel wears its own face at last: a rose
+Atmosphere field on a new dark ground, whose accessibility budget is measured
+per ground (0.12 alpha on paper, 0.30 on media) rather than guessed. Both
+landings carry their portal's colour between the sections, and a role's page
+opens on a composed full-bleed band at the standard tier's half amplitude
+instead of flat paper. The landing photo drifts as the hero leaves the
+viewport — a scroll-driven CSS animation on the `translate` property so the
+pointer parallax's easing on `transform` is untouched, with the landings'
+wrappers on `overflow-x-clip` because `hidden` would create the scroll
+container that pins the timeline — and the open-roles figure counts up from
+zero the first time it scrolls into view. The phase also deleted the motion
+primitives that never found a consumer (`useParallax`, `useMotionBudget`,
+`useReveal`, `SharedElement`, `HoverLift`, and the parallax and feedback-scale
+variables): native browser APIs now own shared elements and scroll-driven
+parallax, and dormant machinery reads as a promise the app never kept.
 
 The public informational surfaces are live: `/about`, `/contact`, `/help`,
 `/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries
