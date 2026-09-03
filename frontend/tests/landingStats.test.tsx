@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { act, screen, waitFor } from "@testing-library/react";
 import { CATALOGUE_COMPANIES } from "@jobportal/shared";
 
 import { renderRoute } from "./helpers/renderRoute";
@@ -47,6 +47,93 @@ function statValue(label: string): string | null {
 }
 
 /**
+ * A controllable IntersectionObserver. setup.ts stubs the global to an
+ * observer that never fires — the honest off-screen state, since jsdom gives
+ * every element a zero-sized box — so the figure's in-view gate can only be
+ * driven from the test side. Instances register themselves rather than
+ * capturing one callback because the carousel mounts several observers (its
+ * category tracker, the figure's gate) and a single captured callback would
+ * be whichever was constructed last.
+ */
+const observers: Array<{ fire: () => void }> = [];
+
+function stubControllableObserver() {
+  observers.length = 0;
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      private targets: Element[] = [];
+      constructor(private cb: IntersectionObserverCallback) {
+        observers.push(this);
+      }
+      observe(target: Element): void {
+        this.targets.push(target);
+      }
+      /** Reports every observed target as intersecting: the scroll-in. */
+      fire(): void {
+        // The carousel's own category observer sorts entries by
+        // boundingClientRect.top, so the rect is not optional decoration —
+        // an entry without one takes that observer down with a TypeError.
+        const rect = { top: 0, left: 0, bottom: 0, right: 0, width: 0, height: 0, x: 0, y: 0 };
+        this.cb(
+          this.targets.map((target) =>
+            ({ isIntersecting: true, target, intersectionRatio: 1, boundingClientRect: rect, intersectionRect: rect, rootBounds: rect, time: 0 }) as IntersectionObserverEntry,
+          ),
+          this as unknown as IntersectionObserver,
+        );
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+      root = null;
+      rootMargin = "";
+      thresholds: readonly number[] = [];
+    },
+  );
+}
+
+/** The setup.ts stub again: what a test sees that never touched the global. */
+function restoreNoopObserver() {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+      root = null;
+      rootMargin = "";
+      thresholds: readonly number[] = [];
+    },
+  );
+}
+
+/** The MediaQueryList shape prefersReduced reads; matches is the only input. */
+function mediaList(matches: boolean): MediaQueryList {
+  return {
+    matches,
+    media: "",
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList;
+}
+
+afterEach(() => {
+  // A firing observer must not leak into the next test: without this, the
+  // gate is open from mount and every later assertion sees its end state.
+  restoreNoopObserver();
+  vi.restoreAllMocks();
+});
+
+/**
  * The value logic is a pure function rather than an inline ternary so the
  * empty and failed cases are assertable without a race: both render the same
  * dash the pending state does, so a DOM test for them would pass at t=0
@@ -68,9 +155,28 @@ describe("displayCount", () => {
 });
 
 describe("the landing stats tile", () => {
-  it("takes its open-role count from the API", async () => {
+  it("takes its open-role count from the API and counts up when it scrolls into view", async () => {
+    stubControllableObserver();
     mockLanding({ total: 198 });
     renderRoute(<CategoryCarousel />, { route: "/" });
+    // The figure is the API's answer, held at zero until the tile is seen:
+    // a count-up that fired while the tile was off-screen would be motion
+    // nobody watched, and one that skipped the gate would never count at all.
+    await waitFor(() => expect(statValue("open roles")).toBe("0"));
+    act(() => {
+      observers.forEach((observer) => observer.fire());
+    });
+    await waitFor(() => expect(statValue("open roles")).toBe("198"));
+  });
+
+  it("shows the open-role figure without waiting under reduced motion", async () => {
+    mockLanding({ total: 198 });
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) =>
+      mediaList(query.includes("reduce")),
+    );
+    renderRoute(<CategoryCarousel />, { route: "/" });
+    // No observer fires here. The gate collapses under the preference — the
+    // figure is simply present, the same contract every reveal holds.
     await waitFor(() => expect(statValue("open roles")).toBe("198"));
   });
 
@@ -121,10 +227,14 @@ describe("the landing sections share one request", () => {
       </>,
       { route: "/" },
     );
-    await waitFor(() => expect(statValue("open roles")).toBe("198"));
+    const jobCalls = get.mock.calls.filter(([url]) => String(url).startsWith("/job/get"));
     // Two components asking the same question must not cost two round trips;
     // that is the entire reason the query is keyed rather than per-component.
-    const jobCalls = get.mock.calls.filter(([url]) => String(url).startsWith("/job/get"));
+    //
+    // The wait target is the figure, not the fetch: the query resolving is
+    // what moves it from the dash to zero (held at the in-view gate), so
+    // "0" here is the resolved state — the shared request has answered both.
+    await waitFor(() => expect(statValue("open roles")).toBe("0"));
     expect(jobCalls).toHaveLength(1);
   });
 });

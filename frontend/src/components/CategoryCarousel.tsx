@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUpRight, BadgeCheck } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { CATALOGUE_COMPANIES } from "@jobportal/shared";
 
@@ -8,6 +8,8 @@ import { useLandingJobs } from "@/hooks/useLandingJobs";
 import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { displayCount } from "@/lib/displayCount";
 import { Reveal } from "@/lib/motion";
+import { useInViewOnce } from "@/lib/motion/index";
+import { AnimatedNumber } from "@/lib/numberFlow";
 import "./landing-interactions.css";
 
 /**
@@ -84,6 +86,34 @@ const CATEGORIES = [
   },
 ] as const;
 
+/**
+ * The live figure: the API's open-role count, rolled up from zero the first
+ * time the tile enters the viewport.
+ *
+ * The wrapper span is unconditional so the in-view ref attaches on mount — a
+ * ref that first exists when the data arrives is a ref the observer never
+ * sees. Inside it, the dash contract stays displayCount's alone: unknown,
+ * empty and failed all print "—" rather than a number, so a marketplace with
+ * no answer never advertises "0 open roles". The zero beneath it only ever
+ * paints off-screen (the gate is holding it back) or as the first frame of
+ * the roll itself.
+ *
+ * A figure the user is already looking at when the data lands swaps
+ * dash→number without a roll — the count-up belongs to the scroll-in, and
+ * manufacturing one on arrival would mean showing the resting zero the dash
+ * exists to avoid. Under reduced motion the gate collapses and the figure is
+ * simply present, the same contract every reveal holds.
+ */
+function OpenRolesFigure({ total }: { total: number | undefined }) {
+  const { ref, inView } = useInViewOnce<HTMLSpanElement>();
+  const count = typeof total === "number" && total > 0 ? total : null;
+  return (
+    <span ref={ref}>
+      {count === null ? displayCount(total) : <AnimatedNumber value={inView ? count : 0} />}
+    </span>
+  );
+}
+
 const CategoryCarousel = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
@@ -101,11 +131,17 @@ const CategoryCarousel = () => {
    * twenty-seven. Disciplines counts CATEGORIES, not the thirteen-entry
    * department taxonomy: the tile sits beneath "Explore by discipline" next to
    * exactly these rows, and the taxonomy's thirteenth entry is "Other".
+   *
+   * Only the open-roles figure animates. It is the one number on the page
+   * that arrives — the API's answer, landing while the other two are
+   * constants — and the roll is how a figure's arrival reads as live rather
+   * than painted. The constants render once and never change, which is the
+   * case AnimatedNumber's own contract says not to spend a web component on.
    */
-  const STATS = [
-    { value: displayCount(data?.total), label: "open roles" },
-    { value: String(CATALOGUE_COMPANIES.length), label: "verified teams" },
-    { value: String(CATEGORIES.length), label: "disciplines" },
+  const STATS: Array<{ label: string; figure: ReactNode }> = [
+    { label: "open roles", figure: <OpenRolesFigure total={data?.total} /> },
+    { label: "verified teams", figure: String(CATALOGUE_COMPANIES.length) },
+    { label: "disciplines", figure: String(CATEGORIES.length) },
   ];
 
   useEffect(() => {
@@ -219,7 +255,7 @@ const CategoryCarousel = () => {
               <div className="mt-5 grid grid-cols-3 border-y border-line py-4">
                 {STATS.map((item) => (
                   <div key={item.label} className="px-3 first:pl-0 last:pr-0 [&+&]:border-l [&+&]:border-line">
-                    <strong className="block font-display text-2xl font-semibold text-ink">{item.value}</strong>
+                    <strong className="block font-display text-2xl font-semibold text-ink">{item.figure}</strong>
                     <span className="mt-1 block text-[0.68rem] font-semibold uppercase leading-4 text-ink-muted">{item.label}</span>
                   </div>
                 ))}
