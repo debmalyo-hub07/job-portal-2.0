@@ -743,6 +743,16 @@
     position: relative;
     isolation: isolate;
     overflow: hidden;
+    /* The exit timeline the image's scroll drift runs on, named here because
+       `view()` cannot work from the image itself: view() resolves the
+       subject's NEAREST ANCESTOR SCROLL CONTAINER, and this rule's own
+       `overflow: hidden` makes the hero one — a container that never scrolls,
+       so an unnamed view() on the image pins the drift at zero progress no
+       matter how far the page scrolls. Declared on the section, the subject
+       is the hero measured in the document scroller, which is the range the
+       drift means; the image reaches the name through the ancestor lookup
+       `animation-timeline: --hero-exit` performs. */
+    view-timeline-name: --hero-exit;
   }
 
   .hero-media__image {
@@ -765,6 +775,51 @@
     transform: translate3d(var(--hero-depth-x), var(--hero-depth-y), 0) scale(1.035);
     will-change: transform;
     transition: transform 900ms var(--ease-out-quint);
+  }
+
+  /* The scroll drift: as the hero leaves the viewport the photo lags the
+     page, which is the depth cue a photographic hero is for. Scroll-driven,
+     so the scroll itself is the timing — `linear` is the only easing that
+     does not fight it, and the UA runs it on the compositor with no JS on
+     the main thread.
+
+     Three load-bearing choices, each with a test:
+
+     - `translate`, not `transform`. The image's `transform` carries the
+       pointer depth and its 900ms easing; an animation that owns `transform`
+       overrides transitions outright, so the pointer parallax would snap
+       while the timeline is attached. `translate` composes with `transform`
+       (it applies first), so the two depths add and each keeps its own
+       behaviour — the same separation the cursor reticle's comment documents.
+     - The exit range, over the hero's own height of scrolling. A page-top
+       hero begins exiting the moment the page scrolls, so the drift reads as
+       proportional to scroll from the first pixel. Downward only: the drift
+       can outrun the 3.5% oversize because the shortfall it opens at the
+       hero's top edge is always above the viewport top by then — the band
+       never scrolls back into view, where an upward drift would uncover the
+       section boundary behind the photo.
+     - A named timeline, never bare `view()`: the image's nearest ancestor
+       scroll container is the hero's own `overflow: hidden`, so a bare
+       view() measures the image in a box that never scrolls and the drift
+       pins at zero (see .hero-media above). The name must match the
+       declaration there exactly — a timeline name typo is a silently dead
+       animation, and heroMedia.test.tsx pins the pair.
+     - @supports-gated. Where scroll timelines do not exist (86% of browsers
+       and rising), the block is skipped and the hero is exactly what it was
+       before this rule — the same silent no-op the route cross-fade falls
+       back to, and the reason there is no JS parallax fallback: the drift is
+       polish, not information, and a rAF loop on the LCP element's page for
+       the remaining 14% is a price the effect does not earn.
+
+     The shorthand comes first: `animation:` written after `animation-timeline:`
+     would reset the timeline to auto and leave the animation on the document
+     timeline, where `both` would pin it at its 0% keyframe forever. */
+  @supports (animation-timeline: view()) {
+    .hero-media__image {
+      animation: hero-photo-exit linear both;
+      animation-timeline: --hero-exit;
+      animation-range: exit;
+    }
   }
 
   .hero-media__wash {
@@ -957,6 +1012,14 @@
       animation: none;
     }
 
+    /* Later in source than the @supports drift rule on purpose: both address
+       the image at the same specificity, so this only wins the cascade by
+       being below it. The shorthand also resets animation-timeline to auto,
+       which retires the timeline along with the animation. */
+    .hero-media__image {
+      animation: none;
+    }
+
     .hero-media__image,
     .hero-media__focus,
     .hero-media__cursor {
@@ -975,6 +1038,20 @@
   }
   to {
     transform: translate3d(7%, 0, 0) scale(1.08);
+  }
+}
+
+/* The hero photo's scroll drift — see the @supports block beside
+   .hero-media__image for why this is `translate` and never `transform`.
+   Eight percent of the photo's own height over the hero's exit: enough to
+   read as depth next to the pointer parallax's ~12px, small enough never to
+   feel like the photo is escaping the section. */
+@keyframes hero-photo-exit {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 8%;
   }
 }
 

@@ -27,11 +27,14 @@ const STEPS = [
 
 export default function HireLanding() {
   return (
+    // `overflow-x-clip` for the same reason as Home's wrapper: hidden would
+    // make this div a scroll container, and the hero's scroll-drift timeline
+    // cannot see through a scroller to the document.
     <div
       data-density="spacious"
       data-motion="ambient"
       style={MOTION_VARS.ambient}
-      className="overflow-x-hidden bg-paper"
+      className="overflow-x-clip bg-paper"
     >
       <ImageHero
         portal="recruiter"

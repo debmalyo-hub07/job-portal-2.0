@@ -14,11 +14,17 @@ const Home = () => {
     // data-motion ancestor the tier resolver in lib/motion/dataset.ts defaults to
     // "response" and every ambient effect on the page correctly refuses to draw,
     // which is what happened before this attribute existed.
+    // `overflow-x-clip` — clip, not hidden: hidden computes the other axis to
+    // `auto`, which makes this wrapper a scroll container — and the hero's
+    // scroll-drift timeline resolves its subject's nearest ancestor scroller,
+    // so a hidden here pins the drift at a constant progress no matter how
+    // the page scrolls. Clip stops the same horizontal overflow without
+    // becoming a scroller.
     <div
       data-density="spacious"
       data-motion="ambient"
       style={MOTION_VARS.ambient}
-      className="overflow-x-hidden"
+      className="overflow-x-clip"
     >
       <HeroSection />
       <CategoryCarousel />

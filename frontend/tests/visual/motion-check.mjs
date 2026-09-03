@@ -237,6 +237,51 @@ const browser = await chromium.launch({ channel: "chrome" });
   await ctx.close();
 }
 
+// ---- 8. The hero photo's scroll drift, mid-scroll ---------------------------
+// The drift is a scroll-driven animation, which jsdom cannot run and a
+// screenshot at rest cannot distinguish from yesterday's hero. Mid-scroll is
+// the only vantage point: at half the hero's height of scroll the exit
+// timeline is at ~50%, so the computed `translate` must be roughly half the
+// drift (4% of the photo's height in px). No API data needed — the hero
+// paints regardless of the job query.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
+  await page.goto(BASE + "/", { waitUntil: "load" });
+  await page.waitForTimeout(400);
+
+  const at = await page.evaluate(() => {
+    const hero = document.querySelector("[data-hero-media]");
+    if (!hero?.querySelector(".hero-media__image")) return null;
+    const height = hero.getBoundingClientRect().height;
+    window.scrollTo(0, height / 2);
+    return { height };
+  });
+  if (!at) fail("no hero or hero image found on the landing page");
+  else {
+    await page.waitForTimeout(150);
+    const drift = await page
+      .locator(".hero-media__image")
+      .evaluate((el) => getComputedStyle(el).translate);
+    // "0px 4%" or "0px 35.84px" — the Y component, resolved to px either way
+    // (Chrome reports the interpolated value in the keyframe's unit).
+    const token = String(drift).split(" ")[1] ?? "0";
+    const y = token.endsWith("%") ? (Number.parseFloat(token) / 100) * at.height : Number.parseFloat(token);
+    const expected = at.height * 0.04;
+    if (Math.abs(y - expected) > 2)
+      fail(`hero drift at half-exit is ${drift} (~${y.toFixed(1)}px), expected ~4% of the hero (${expected.toFixed(1)}px) — the scroll timeline is not running or is off-range`);
+    else ok(`hero drift runs mid-scroll (translate ${drift} at half exit)`);
+  }
+
+  const real = errors.filter((e) => !/CORS|Network Error|ERR_FAILED|Failed to load resource/i.test(e));
+  if (real.length) fail(`hero drift console errors: ${real.join(" | ")}`);
+  else ok("hero drift console clean");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(bad === 0 ? "\nmotion pass: OK" : `\nmotion pass: ${bad} FAILURE(S)`);
 process.exit(bad === 0 ? 0 : 1);
