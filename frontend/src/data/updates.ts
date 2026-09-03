@@ -30,6 +30,18 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "softer-route-changes",
+    date: "2026-09-03",
+    kind: "Improvement",
+    title: "Pages change with a soft cross-fade",
+    summary:
+      "Opening a role from the board, signing in, or following the navigation now dissolves gently into the next page instead of cutting hard. The admin sign-in page also has a look of its own — a quiet rose field instead of a borrowed photo — and both landing pages carry a touch of their portal's colour between the sections.",
+    details: [
+      "Search, filters, and pagination stay instant — only real page changes fade.",
+      "If you prefer reduced motion, pages change immediately, as before.",
+    ],
+  },
+  {
     id: "mobile-workspace-cards",
     date: "2026-09-03",
     kind: "Improvement",

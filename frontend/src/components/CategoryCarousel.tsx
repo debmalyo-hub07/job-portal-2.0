@@ -5,6 +5,7 @@ import { CATALOGUE_COMPANIES } from "@jobportal/shared";
 
 import { jobBoardPath } from "@/hooks/useJobSearch";
 import { useLandingJobs } from "@/hooks/useLandingJobs";
+import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { displayCount } from "@/lib/displayCount";
 import { Reveal } from "@/lib/motion";
 import "./landing-interactions.css";
@@ -135,8 +136,19 @@ const CategoryCarousel = () => {
   return (
     <section
       aria-labelledby="categories-heading"
-      className="relative overflow-clip border-y border-line bg-paper"
+      // `isolate` keeps the field's -z-10 inside the section (the same reason
+      // the hero and the auth panel isolate theirs) instead of letting it slip
+      // behind the section's own paper.
+      className="relative isolate overflow-clip border-y border-line bg-paper"
     >
+      {/* The ambient field this section was missing. The hero above is the
+          richest surface on the page and this was three screens of flat paper:
+          the field pools a teal wash into the upper third, around and above
+          the heading column, and the shader's textBand + 0.12 paper ceiling
+          keep it measured-safe behind whatever prose it passes. Cards and
+          rows above it are opaque, so the field reads in the gaps and
+          margins rather than behind content. */}
+      <Atmosphere className="-z-10" textBand={[0.34, 0.62]} />
       <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20 lg:py-28">
         <Reveal>
           <div className="lg:sticky lg:top-32 lg:min-h-[30rem] lg:self-start">
@@ -171,6 +183,7 @@ const CategoryCarousel = () => {
 
             <Link
               to="/jobs"
+              viewTransition
               className="group mt-9 inline-flex items-center gap-3 border-b border-ink pb-2 text-sm font-semibold text-ink transition-colors hover:border-signal-text hover:text-signal-text focus-visible:rounded-sharp focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
             >
               Browse every open role
@@ -193,6 +206,7 @@ const CategoryCarousel = () => {
                     <Link
                       key={`${employer.name}-${index}`}
                       to={jobBoardPath(employer.name)}
+                      viewTransition
                       className="employer-stream__row group px-1 focus-visible:rounded-sharp focus-visible:ring-[3px] focus-visible:ring-signal-ring focus-visible:outline-none"
                     >
                       <span className={`employer-stream__mark ${employer.tone}`} aria-hidden="true"><img src={employer.logo} alt="" /></span>
@@ -229,6 +243,7 @@ const CategoryCarousel = () => {
               <Reveal delay={(index % 3) * 0.04}>
                 <Link
                   to={jobBoardPath(category.title)}
+                  viewTransition
                   className="role-index-row group grid min-h-36 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-start gap-3 border-b border-line py-7 pr-1 focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-signal-ring focus-visible:outline-none sm:grid-cols-[3.5rem_minmax(0,1fr)_auto] sm:gap-5 sm:py-8"
                 >
                   <span className="pt-1 font-mono text-xs text-ink-muted transition-colors group-hover:text-signal-text">
