@@ -96,11 +96,7 @@ describe("HireShell", () => {
     // The cap, as values rather than as a claim in a comment.
     const style = (shell as HTMLElement).style;
     expect(style.getPropertyValue("--motion-reveal-distance")).toBe("0px");
-    expect(style.getPropertyValue("--motion-parallax-depth")).toBe("0");
     expect(style.getPropertyValue("--motion-ambient-amplitude")).toContain("0.25");
-    // Tier 3 is never reducible and never scaled — it is how a control confirms
-    // it was pressed, on every surface.
-    expect(style.getPropertyValue("--motion-feedback-scale")).toBe("1");
   });
 
   it("builds its sub-nav from navLinksFor, so the tabs and navbar agree", () => {

@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FadeIn, HoverLift, StaggerItem, StaggerList } from "@/lib/motion";
+import { FadeIn, StaggerItem, StaggerList } from "@/lib/motion";
 import { CircleCheck, CircleX, Menu, MoreVertical, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -467,22 +467,20 @@ function GallerySection({ theme }: { theme: "light" | "dark" }) {
       {/* Card */}
       <section className="space-y-4">
         <h4 className="text-sm font-medium uppercase text-ink-muted">Card</h4>
-        <HoverLift>
-          <Card className="max-w-md">
-            <CardHeader>
-              <CardTitle>Card Title</CardTitle>
-              <CardDescription>Card description text goes here</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-ink">
-                Card content with some placeholder text to show how it looks.
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button variant="signal">Action</Button>
-            </CardFooter>
-          </Card>
-        </HoverLift>
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Card Title</CardTitle>
+            <CardDescription>Card description text goes here</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-ink">
+              Card content with some placeholder text to show how it looks.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button variant="signal">Action</Button>
+          </CardFooter>
+        </Card>
       </section>
 
       {/* Skeleton & Separator */}

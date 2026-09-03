@@ -11,9 +11,10 @@ const Home = () => {
     //
     // data-motion is "ambient" because this is the marketing surface — Tier 1,
     // the only tier where the atmosphere runs at full amplitude. Without a
-    // data-motion ancestor the tier resolver in lib/motion/dataset.ts defaults to
-    // "response" and every ambient effect on the page correctly refuses to draw,
-    // which is what happened before this attribute existed.
+    // data-motion ancestor no amplitude property is set at all, and the
+    // Atmosphere reads the unparseable value as 0: every ambient effect on the
+    // page correctly refuses to draw, which is what happened before this
+    // attribute existed.
     // `overflow-x-clip` — clip, not hidden: hidden computes the other axis to
     // `auto`, which makes this wrapper a scroll container — and the hero's
     // scroll-drift timeline resolves its subject's nearest ancestor scroller,

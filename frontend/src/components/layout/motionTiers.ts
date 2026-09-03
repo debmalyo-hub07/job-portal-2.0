@@ -23,51 +23,47 @@ export type MotionTier = "ambient" | "standard" | "response";
  * Why `var()` for the reducible tier variables instead of literals: the values
  * ambient and standard actually ship must collapse under the user's
  * `prefers-reduced-motion` setting, and index.css owns that single collapse.
- * Pointing the reveal distance, parallax and ambient switches at the :root
- * variables (`--motion-distance`, `--motion-parallax`, `--motion-ambient`) lets
- * one @media block collapse them for every surface without any component code
- * passing a flag. Response's literals are zero/one because nothing about them is
- * reducible. Reveal opacity and feedback scale are literals in every tier:
- * neither is ever reduced.
+ * Pointing the reveal distance and ambient switches at the :root variables
+ * (`--motion-distance`, `--motion-ambient`) lets one @media block collapse
+ * them for every surface without any component code passing a flag. Response's
+ * literals are zero because nothing about them is reducible.
  *
- * Why the parallax and ambient variables are RENAMED here
- * (`--motion-parallax-depth`, `--motion-ambient-amplitude`) rather than declared
- * under their :root names: a custom property cannot reference itself
- * (`--motion-parallax: var(--motion-parallax)` is a cycle and resolves to
- * empty), and `calc(var(--motion-parallax) * 0.5)` inherits that cycle, so the
- * same-name form was dead on every surface from 4A.1 until Phase 5 — it read
- * `""`, and a consumer parsing that got `NaN`. The scale step in the standard
- * and response tiers needs the tier-scoped variable to refer to the :root one,
- * which requires the two to have different names. The :root names stay the
- * reducible switches; the tier-scoped names carry the resolved value.
+ * Why the ambient variable is RENAMED here (`--motion-ambient-amplitude`)
+ * rather than declared under its :root name: a custom property cannot
+ * reference itself (`--motion-ambient: var(--motion-ambient)` is a cycle and
+ * resolves to empty), and `calc(var(--motion-ambient) * 0.5)` inherits that
+ * cycle, so the same-name form was dead on every surface from 4A.1 until
+ * Phase 5 — it read `""`, and a consumer parsing that got `NaN`. The scale
+ * step in the standard and response tiers needs the tier-scoped variable to
+ * refer to the :root one, which requires the two to have different names. The
+ * :root names stay the reducible switches; the tier-scoped names carry the
+ * resolved value.
+ *
+ * Two variables this map no longer sets: `--motion-parallax-depth` and
+ * `--motion-feedback-scale` were declared in every tier and read by nothing —
+ * the parallax hooks they were built for never found a consumer, and the
+ * scroll drift that finally delivered parallax is a scroll-driven CSS
+ * animation that reads no variable at all. They were deleted rather than
+ * left as documentation; git history holds the story.
  */
 export const MOTION_VARS: Record<MotionTier, CSSProperties> = {
   ambient: {
-    "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "var(--motion-distance)",
-    "--motion-parallax-depth": "var(--motion-parallax)",
     "--motion-ambient-amplitude": "var(--motion-ambient)",
-    "--motion-feedback-scale": 1,
   } as CSSProperties,
   standard: {
-    "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "var(--motion-distance)",
-    "--motion-parallax-depth": "var(--motion-parallax)",
     // Half amplitude: browse and detail carry atmosphere, but it sits behind
     // content someone is reading rather than behind a headline.
     "--motion-ambient-amplitude": "calc(var(--motion-ambient) * 0.5)",
-    "--motion-feedback-scale": 1,
   } as CSSProperties,
   response: {
-    "--motion-reveal-opacity": 1,
     "--motion-reveal-distance": "0px",
-    "--motion-parallax-depth": 0,
     // Quarter amplitude, and nothing on the workspace reads it yet — no surface
     // running this tier mounts an Atmosphere. The value exists so the tier scale
     // is complete rather than having a hole: if the workspace ever takes one, a
     // whisper is the right size for a surface where a data table is the subject.
     // Until something mounts one, this line is a declaration, not a behaviour.
     "--motion-ambient-amplitude": "calc(var(--motion-ambient) * 0.25)",
-    "--motion-feedback-scale": 1,
   } as CSSProperties,
 };

@@ -5,21 +5,22 @@ import { resolve } from "node:path";
 /**
  * The motion switches must actually switch.
  *
- * From 4A.1 until this test, `:root` set `--motion-parallax: 0` and
- * `--motion-ambient: 0` — those are the *enabled* values — while the
- * `prefers-reduced-motion` block set the same two to `0`. On and off were
- * byte-identical, so no CSS-driven ambient or parallax could ever run and the
- * reduced-motion collapse was a no-op in both directions.
+ * From 4A.1 until this test, `:root` — the block that should carry the enabled
+ * values — set `--motion-ambient: 0` (and `--motion-parallax: 0`, before that
+ * variable was deleted unwired), the same value the `prefers-reduced-motion`
+ * block set. On and off were byte-identical, so no CSS-driven ambient could
+ * ever run and the reduced-motion collapse was a no-op in both directions.
  *
  * Nothing caught it. `motionTiers.test.tsx` asserted the *indirection* only, and
- * that indirection was itself broken in a second way: PageShell declared
- * `--motion-parallax: var(--motion-parallax)`, a self-reference, which is a CSS
- * cycle that resolves to the empty string rather than to the :root value. Two
- * independent defects stacked, and a specified-value assertion could see
- * neither. `motionAllows` reads the data attribute instead of the variable, so
- * the JS path worked and only CSS consumers were dead. That is the likely
- * reason `useParallax` and `useMotionBudget` shipped with zero consumers:
- * wiring them up produced no visible effect, which reads as your own bug.
+ * that indirection was itself broken in a second way: the tier-scoped alias was
+ * declared as a self-reference, a CSS cycle that resolves to the empty string
+ * rather than to the :root value. Two independent defects stacked, and a
+ * specified-value assertion could see neither. The likely reason the parallax
+ * hooks shipped with zero consumers: wiring them up produced no visible
+ * effect, which reads as your own bug. (Both the hooks and the parallax
+ * variable are gone now — the scroll drift that finally delivered parallax is
+ * a scroll-driven CSS animation reading no variable — but the switch test
+ * stays: the same no-op failure mode is one typo away.)
  *
  * So this asserts the one property no other test covers — that the enabled
  * value and the reduced value DIFFER. Asserting either number alone would pass
@@ -64,7 +65,7 @@ describe("motion switches", () => {
     expect(CSS).toContain("--motion-distance");
   });
 
-  it.each(["--motion-parallax", "--motion-ambient", "--motion-distance"])(
+  it.each(["--motion-ambient", "--motion-distance"])(
     "%s differs between the enabled and reduced states",
     (prop) => {
       const enabled = valueOf(baseRootBlock(), prop);
@@ -75,13 +76,13 @@ describe("motion switches", () => {
     },
   );
 
-  it.each(["--motion-parallax", "--motion-ambient"])("%s is off under reduced motion", (prop) => {
-    expect(valueOf(reducedRootBlock(), prop)).toBe("0");
+  it("--motion-ambient is off under reduced motion", () => {
+    expect(valueOf(reducedRootBlock(), "--motion-ambient")).toBe("0");
   });
 
-  it.each(["--motion-parallax", "--motion-ambient"])("%s is on by default", (prop) => {
+  it("--motion-ambient is on by default", () => {
     // Non-zero is what "enabled" means; the exact amplitude is a design choice
     // the tier layer scales, so this asserts the switch rather than the value.
-    expect(Number(valueOf(baseRootBlock(), prop))).toBeGreaterThan(0);
+    expect(Number(valueOf(baseRootBlock(), "--motion-ambient"))).toBeGreaterThan(0);
   });
 });

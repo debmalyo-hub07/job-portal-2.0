@@ -5,7 +5,5 @@
  */
 export { subscribe, subscriberCount } from "./clock";
 export { prefersReduced, onReducedMotionChange } from "./reducedMotion";
-export { useInViewOnce, useScrollProgress } from "./scroll";
-export { motionAllows } from "./dataset";
-export { useMotionBudget, useReveal, useParallax, type MotionBudget } from "./budget";
+export { useInViewOnce } from "./scroll";
 export { EASE_OUT_QUINT, DUR_FAST, DUR_BASE, DUR_SLOW } from "./timing";

@@ -120,33 +120,33 @@
    sibling to data-density: PageShell sets it, components read the resolved
    custom properties and never branch on the attribute. The three tiers map to
    the spec's vocabulary: ambient (marketing), standard (browse/detail),
-   response (workspace). Tier 3 (`--motion-feedback-scale`) is feedback and
-   survives every tier; Tier 1+2 are what reduced-motion collapses. */
+   response (workspace). Feedback motion — a control's own transitions, a
+   count animating — is Tier 3, belongs to no variable, and survives every
+   tier including the workspace's. Tier 1+2 are what reduced-motion collapses. */
 
-/* The vocabulary: distance + three switches. Notice there is no reveal-opacity
-   variable. A richer reveal uses max(0, 1 − progress × N) with N already in the
-   quadratic-safe range, and N itself comes from the easing library rather than
-   a token. The variables here are the four genuinely-variable quantities.
+/* The vocabulary: one distance and one amplitude switch. Notice there is no
+   reveal-opacity or parallax variable. A richer reveal uses max(0, 1 −
+   progress × N) with N already in the quadratic-safe range, and N itself
+   comes from the easing library rather than a token; parallax arrived as a
+   scroll-driven CSS animation that reads no variable at all (see the hero
+   drift), so the switch and its tier-scoped alias were deleted unwired
+   rather than kept as promises.
 
-   The two switches are 1 = on, 0 = off, and the reduced-motion block below is
-   the only place they turn off. They were both 0 here from 4A.1 until Phase 5,
-   which made the collapse a no-op: on and off were byte-identical, so no
-   CSS-driven ambient or parallax could run on any surface. `motionAllows` reads
-   the data attribute rather than these variables, so the JS path was unaffected
-   and the defect stayed invisible — wiring up `useParallax` simply did nothing.
-   `motionSwitches.test.ts` asserts enabled ≠ reduced, which is the property
-   that was false and that asserting either value alone cannot catch. */
+   The switch is 1 = on, 0 = off, and the reduced-motion block below is the
+   only place it turns off. The switches — ambient, and parallax before it was
+   deleted unwired — were 0 here from 4A.1 until Phase 5, which made the
+   collapse a no-op: on and off were byte-identical, so no CSS-driven ambient
+   could run on any surface. `motionSwitches.test.ts` asserts enabled ≠
+   reduced, which is the property that was false and that asserting either
+   value alone cannot catch. */
 :root {
   --motion-distance: 24px;
-  --motion-parallax: 1;
   --motion-ambient: 1;
-  --motion-feedback-scale: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-distance: 0px;
-    --motion-parallax: 0;
     --motion-ambient: 0;
   }
 }
