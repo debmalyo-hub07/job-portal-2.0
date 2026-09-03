@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { act, render } from "@testing-library/react";
+import type { CSSProperties } from "react";
 
 import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { subscriberCount } from "@/lib/motion/clock";
@@ -21,6 +22,84 @@ import { subscriberCount } from "@/lib/motion/clock";
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+/**
+ * A controllable IntersectionObserver: jsdom's stub never fires, so without
+ * this the section stays off-screen and the shader is never asked to start.
+ * The captured `fire` is module-level because the observer is constructed
+ * inside the component's effect.
+ */
+let fireObserver: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
+
+function stubControllableObserver() {
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+        fireObserver = cb;
+      }
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+      takeRecords() {
+        return [];
+      }
+      root = null;
+      rootMargin = "";
+      thresholds = [];
+    },
+  );
+}
+
+/** The MediaQueryList shape prefersReduced reads; matches is the only input. */
+function mediaList(matches: boolean): MediaQueryList {
+  return {
+    matches,
+    media: "",
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList;
+}
+
+/** The GL context stub, with drawArrays counted for the static-frame tests. */
+function stubGl(drawArrays: ReturnType<typeof vi.fn>) {
+  const gl = {
+    createShader: () => ({}),
+    shaderSource: () => {},
+    compileShader: () => {},
+    createProgram: () => ({}),
+    attachShader: () => {},
+    linkProgram: () => {},
+    useProgram: () => {},
+    createBuffer: () => ({}),
+    bindBuffer: () => {},
+    bufferData: () => {},
+    getAttribLocation: () => 0,
+    enableVertexAttribArray: () => {},
+    vertexAttribPointer: () => {},
+    getUniformLocation: () => ({}),
+    viewport: () => {},
+    uniform2f: () => {},
+    uniform1f: () => {},
+    uniform3f: () => {},
+    drawArrays,
+    deleteProgram: () => {},
+    deleteShader: () => {},
+    VERTEX_SHADER: 0,
+    FRAGMENT_SHADER: 1,
+    ARRAY_BUFFER: 2,
+    STATIC_DRAW: 3,
+    FLOAT: 4,
+    TRIANGLES: 5,
+  };
+  return vi
+    .spyOn(HTMLCanvasElement.prototype, "getContext")
+    .mockReturnValue(gl as unknown as WebGLRenderingContext);
+}
 
 describe("Atmosphere", () => {
   it("renders a decorative layer that cannot take a click or the focus ring", () => {
@@ -171,5 +250,92 @@ describe("Atmosphere", () => {
   it("accepts a className so a section can size and place it", () => {
     const { container } = render(<Atmosphere className="h-[32rem]" />);
     expect((container.firstElementChild as HTMLElement).className).toMatch(/h-\[32rem\]/);
+  });
+
+  it.each([
+    ["paper", undefined, "bg-paper"],
+    ["paper", "paper", "bg-paper"],
+    ["media", "media", "bg-media-shade"],
+  ] as const)(
+    "paints the %s ground: host background and nothing else",
+    (_ground, ground, bgClass) => {
+      // The host's own background follows the ground so the never-drawn
+      // canvas (no WebGL, no signal colour) dissolves into the surface the
+      // caller placed the layer on — a black or white rectangle standing in
+      // for a dark panel would be worse than no field at all.
+      const { container } = render(<Atmosphere ground={ground} />);
+      expect((container.firstElementChild as HTMLElement).className).toMatch(
+        new RegExp(bgClass),
+      );
+    },
+  );
+
+  /**
+   * The static first frame, which is three contracts at once:
+   *
+   * 1. Reduced motion shows the field held still at t=0, not nothing — the
+   *    drift is what the user asked to reduce, not the colour.
+   * 2. An alpha:false WebGL canvas that has never been drawn composites as
+   *    opaque black; without the first draw, a reduced-motion visitor to a
+   *    media-ground panel would see a black rectangle where the ground
+   *    belongs.
+   * 3. Drawing and subscribing are separate guards: this asserts a draw
+   *    WITHOUT a subscription, which the loop-only implementation could not
+   *    express — there, no subscription meant no paint at all.
+   *
+   * The signal colour comes from an inline custom property on a real
+   * [data-portal] ancestor rather than from mocking readOklchVar, so the
+   * test exercises the same resolution path the browser does. matchMedia is
+   * spied (setup.ts leaves it writable) because prefersReduced() reads it
+   * live, and the spy is reverted by this file's restoreAllMocks.
+   */
+  it("paints one static frame and opens no clock under reduced motion", () => {
+    stubControllableObserver();
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) =>
+      mediaList(query.includes("reduce")),
+    );
+
+    const drawArrays = vi.fn();
+    stubGl(drawArrays);
+
+    const before = subscriberCount();
+    render(
+      <div data-portal="admin" style={{ "--signal": "oklch(0.545 0.255 320)" } as CSSProperties}>
+        <Atmosphere ground="media" />
+      </div>,
+    );
+    act(() => fireObserver!([{ isIntersecting: true }]));
+
+    // The static frame painted exactly once — no clock, so exactly one draw.
+    expect(drawArrays).toHaveBeenCalledTimes(1);
+    // And the shared clock stayed closed.
+    expect(subscriberCount()).toBe(before);
+  });
+
+  /**
+   * The motion-enabled counterpart: same setup, matchMedia no-preference.
+   * The static frame still paints (it is unconditional), and the clock opens
+   * exactly one subscription for the drift.
+   */
+  it("paints the static frame and then subscribes when motion is allowed", () => {
+    stubControllableObserver();
+    vi.spyOn(window, "matchMedia").mockImplementation(() => mediaList(false));
+
+    const drawArrays = vi.fn();
+    stubGl(drawArrays);
+
+    const before = subscriberCount();
+    const { unmount } = render(
+      <div data-portal="seeker" style={{ "--signal": "oklch(0.545 0.09 200)" } as CSSProperties}>
+        <Atmosphere />
+      </div>,
+    );
+    act(() => fireObserver!([{ isIntersecting: true }]));
+
+    expect(drawArrays).toHaveBeenCalledTimes(1);
+    expect(subscriberCount()).toBe(before + 1);
+
+    unmount();
+    expect(subscriberCount()).toBe(before);
   });
 });

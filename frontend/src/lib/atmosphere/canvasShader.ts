@@ -5,6 +5,24 @@ import { subscribe } from "@/lib/motion/clock";
 import { prefersReduced } from "@/lib/motion/reducedMotion";
 import { readOklchVar } from "./oklch";
 
+/** The ground the field paints on, and the measured budget that comes with it. */
+export type ShaderGround = "paper" | "media";
+
+const GROUND: Record<
+  ShaderGround,
+  { token: string; ceiling: number; fallback: { r: number; g: number; b: number } }
+> = {
+  // The budgets and their measurements are documented in shader.ts, beside the
+  // uniform that consumes them. These numbers only route each ground to its own.
+  //
+  // The fallback is the colour painted when the ground token cannot be parsed —
+  // a path a real browser never takes, since --paper and --media-shade are
+  // plain oklch literals, but one that must still look like its ground: white
+  // behind a flash of a dark panel would be worse than no field at all.
+  paper: { token: "--paper", ceiling: 0.12, fallback: { r: 255, g: 255, b: 255 } },
+  media: { token: "--media-shade", ceiling: 0.3, fallback: { r: 16, g: 14, b: 12 } },
+};
+
 /**
  * Mounts the fragment shader on a full-bleed canvas that fills its parent.
  *
@@ -27,6 +45,7 @@ export function useShader(
   amplitude: number,
   textBand: [number, number] | null,
   active: boolean,
+  ground: ShaderGround = "paper",
 ): void {
   const amplitudeRef = useRef(amplitude);
   const textBandRef = useRef(textBand);
@@ -73,6 +92,40 @@ export function useShader(
       paper: gl.getUniformLocation(program, "uPaper"),
       amplitude: gl.getUniformLocation(program, "uAmplitude"),
       textBand: gl.getUniformLocation(program, "uTextBand"),
+      ceiling: gl.getUniformLocation(program, "uCeiling"),
+    };
+
+    // Resolve the portal signal and the ground colour once per paint from the
+    // element's ancestors — the same through-the-browser route contrast.mjs
+    // uses, so the shader and the CSS agree by construction. A null signal
+    // (unsupported syntax, e.g. color-mix()) means no draw at all: with no
+    // signal colour the shader would paint toward black, and refusing is the
+    // same state as a canvas with no context — transparent, ground showing.
+    // The ground token follows the caller's choice; the uniform keeps its
+    // `uPaper` name because to the shader it is only ever "the base colour to
+    // mix away from".
+    const host = canvas.closest("[data-portal]") ?? canvas;
+    const paper = readOklchVar(host, GROUND[ground].token) ?? GROUND[ground].fallback;
+    const signal = readOklchVar(host, "--signal");
+
+    // A reduced-motion change mid-session, not just at mount.
+    const reduced = prefersReduced();
+
+    // The paint call, shared by the static first frame and the clock. Written
+    // once because the two must not drift apart: the static frame IS what a
+    // reduced-motion user sees, so it is the same field at t=0, not a cheaper
+    // approximation of one.
+    const draw = (elapsed: number) => {
+      gl.uniform2f(loc.resolution, canvas.width, canvas.height);
+      gl.uniform1f(loc.time, elapsed);
+      gl.uniform3f(loc.signal, signal!.r / 255, signal!.g / 255, signal!.b / 255);
+      gl.uniform3f(loc.paper, paper.r / 255, paper.g / 255, paper.b / 255);
+      gl.uniform1f(loc.amplitude, amplitudeRef.current);
+      gl.uniform1f(loc.ceiling, GROUND[ground].ceiling);
+      if (textBandRef.current) {
+        gl.uniform2f(loc.textBand, textBandRef.current[0], textBandRef.current[1]);
+      }
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
 
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -87,31 +140,16 @@ export function useShader(
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
-    // Resolve the portal signal once per paint from the element's ancestors —
-    // the same through-the-browser route contrast.mjs uses, so the shader and
-    // the CSS agree by construction. A null here (unsupported syntax) renders
-    // the paper colour, which is indistinguishable from a background that is
-    // simply absent.
-    const host = canvas.closest("[data-portal]") ?? canvas;
-    const paper = readOklchVar(host, "--paper") ?? { r: 255, g: 255, b: 255 };
-    const signal = readOklchVar(host, "--signal");
-
-    // A reduced-motion change mid-session, not just at mount.
-    const reduced = prefersReduced();
+    // One static frame before anything else. An alpha:false WebGL canvas that
+    // has never been drawn composites as opaque black, so without this a
+    // reduced-motion visitor — or anyone whose clock never opens — would see a
+    // black rectangle where the ground belongs. With it, the reduced-motion
+    // experience is the field held still at t=0: no drift, all of the colour.
+    if (signal) draw(0);
 
     let unsub: (() => void) | null = null;
     if (!reduced && signal) {
-      unsub = subscribe((_dt, elapsed) => {
-        gl.uniform2f(loc.resolution, canvas.width, canvas.height);
-        gl.uniform1f(loc.time, elapsed);
-        gl.uniform3f(loc.signal, signal.r / 255, signal.g / 255, signal.b / 255);
-        gl.uniform3f(loc.paper, paper.r / 255, paper.g / 255, paper.b / 255);
-        gl.uniform1f(loc.amplitude, amplitudeRef.current);
-        if (textBandRef.current) {
-          gl.uniform2f(loc.textBand, textBandRef.current[0], textBandRef.current[1]);
-        }
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      });
+      unsub = subscribe((_dt, elapsed) => draw(elapsed));
     }
 
     return () => {
@@ -121,5 +159,5 @@ export function useShader(
       gl.deleteShader(vs);
       gl.deleteShader(fs);
     };
-  }, [ref, active]);
+  }, [ref, active, ground]);
 }

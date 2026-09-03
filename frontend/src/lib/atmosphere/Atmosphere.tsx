@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { useShader } from "./canvasShader";
+import { useShader, type ShaderGround } from "./canvasShader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
  * vanish across the band where copy sits. A section that wants one places it and
  * takes responsibility for what sits on top.
  *
+ * The ground picks the palette the field paints on — paper for page sections,
+ * media for the dark photographic surfaces, whose near-white copy over a
+ * near-black ground carries a much larger measured budget (see shader.ts). The
+ * host's own background follows the ground so the never-drawn canvas (no WebGL,
+ * no signal colour) dissolves into the surface it was placed on.
+ *
  * The amplitude comes from `--motion-ambient-amplitude`, resolved by whichever
  * ancestor set the motion tier — PageShell on most surfaces, Home.tsx directly on
  * the landing page, which owns a full-bleed layout instead of PageShell's
@@ -33,6 +39,7 @@ import { cn } from "@/lib/utils";
 export function Atmosphere({
   className,
   textBand = [0.35, 0.62],
+  ground = "paper",
 }: {
   className?: string;
   /**
@@ -41,6 +48,8 @@ export function Atmosphere({
    * supporting paragraph.
    */
   textBand?: [number, number];
+  /** The palette the field mixes from: page paper, or the dark media ground. */
+  ground?: ShaderGround;
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -74,13 +83,17 @@ export function Atmosphere({
     setAmplitude(Number.isFinite(value) ? value : 0);
   }, [visible]);
 
-  useShader(canvasRef, amplitude, textBand, visible);
+  useShader(canvasRef, amplitude, textBand, visible, ground);
 
   return (
     <div
       ref={hostRef}
       aria-hidden="true"
-      className={cn("pointer-events-none absolute inset-0 overflow-hidden bg-paper", className)}
+      className={cn(
+        "pointer-events-none absolute inset-0 overflow-hidden",
+        ground === "media" ? "bg-media-shade" : "bg-paper",
+        className,
+      )}
     >
       <canvas ref={canvasRef} className="size-full opacity-70" />
     </div>

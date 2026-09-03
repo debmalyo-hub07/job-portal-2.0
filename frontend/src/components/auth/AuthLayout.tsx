@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 import type { Portal } from "@jobportal/shared";
 
+import { MOTION_VARS } from "@/components/layout/motionTiers";
 import { FadeIn } from "@/lib/motion";
 import { AUTH_COPY } from "./authCopy";
 import { PortalPanel } from "./PortalPanel";
@@ -22,7 +23,18 @@ export function AuthLayout({
   const copy = AUTH_COPY[portal];
 
   return (
-    <div className="auth-layout grid min-h-screen bg-paper lg:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]">
+    // `data-motion="ambient"` because the admin panel's Atmosphere field reads
+    // `--motion-ambient-amplitude` from its tier-resolved ancestors — and this
+    // layout is the outermost one on an auth surface. Without a tier ancestor
+    // no amplitude property is set at all, and an unparseable value reads as
+    // 0: the field would never paint. The tier costs the form nothing — nothing
+    // else on this surface consumes the reveal distance or parallax.
+    <div
+      data-density="spacious"
+      data-motion="ambient"
+      style={MOTION_VARS.ambient}
+      className="auth-layout grid min-h-screen bg-paper lg:grid-cols-[minmax(24rem,0.82fr)_minmax(32rem,1.18fr)]"
+    >
       <div className="auth-form-column flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14">
         <div className="flex items-center justify-between gap-4">
           <Wordmark portal={portal} to={copy.homeHref ?? undefined} className="text-xl" />

@@ -44,6 +44,7 @@ uniform vec3  uSignal;
 uniform vec3  uPaper;
 uniform float uAmplitude;
 uniform vec2  uTextBand;
+uniform float uCeiling;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -77,17 +78,27 @@ void main() {
   float edge     = smoothstep(0.0, 0.42, uv.y);
   float textBand = 1.0 - smoothstep(uTextBand.x, uTextBand.y, 1.0 - uv.y);
 
-  // The ceiling is the accessibility budget, measured rather than chosen. Compositing
-  // --signal over --paper and testing every token pairing in Chrome, the maximum
-  // alpha that keeps light-mode --ink-muted above WCAG 4.5:1 is 0.135 for the seeker
-  // signal and 0.125 for admin; dark mode tolerates ~0.30. A single ceiling of 0.12
-  // is under the tightest of those, so the field is safe on every portal in both
-  // themes without the component needing to know which it is on.
+  // The ceiling is the accessibility budget, measured rather than chosen, and
+  // it belongs to the GROUND the field paints on, not to the shader. It
+  // arrives as a uniform because two grounds with one budget would waste one
+  // of them:
   //
-  // Without it the masks alone peaked near 0.58 — a half-strength signal wash that
-  // measured 4.03:1 behind the hero's badge, a real fail. The masks shape WHERE the
-  // field falls; this bounds HOW FAR it can go anywhere.
-  float field = n * pool * edge * textBand * uAmplitude * 0.12;
+  // - paper: compositing --signal over --paper and testing every token pairing
+  //   in Chrome, the maximum alpha that keeps light-mode --ink-muted above
+  //   WCAG 4.5:1 is 0.135 for the seeker signal and 0.125 for admin. A single
+  //   ceiling of 0.12 is under the tightest of those, so the field is safe on
+  //   every portal in both themes without the component needing to know which
+  //   it is on.
+  // - media: the photographic dark ground. Its copy is --media-copy (L 0.99)
+  //   over --media-shade (L 0.14), roughly 14:1 before any wash; dark mode was
+  //   measured to tolerate ~0.30 of signal over its 0.19 paper, and media-shade
+  //   is darker still. 0.30 therefore keeps the pairing far above 4.5:1 even at
+  //   the field's peak.
+  //
+  // Without the cap the masks alone peaked near 0.58 — a half-strength signal
+  // wash that measured 4.03:1 behind the hero's badge, a real fail. The masks
+  // shape WHERE the field falls; this bounds HOW FAR it can go anywhere.
+  float field = n * pool * edge * textBand * uAmplitude * uCeiling;
 
   gl_FragColor = vec4(mix(uPaper, uSignal, clamp(field, 0.0, 1.0)), 1.0);
 }

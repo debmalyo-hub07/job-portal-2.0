@@ -89,4 +89,47 @@ describe("AuthLayout", () => {
     const { container } = renderAuth("seeker");
     expect(container.querySelector('input[type="radio"]')).toBeNull();
   });
+
+  /**
+   * The motion tier the panel's field needs. `--motion-ambient-amplitude` is
+   * resolved through the layout's `data-motion` ancestor chain — without the
+   * attribute no tier is set, the property reads as unparseable, and the
+   * admin panel's field would never paint. jsdom reads inline custom
+   * properties on computed style (see motionTiers.ts for why the values are
+   * inline at all), so the indirection is assertable here, not just in the
+   * visual suite.
+   */
+  it("runs the ambient motion tier", () => {
+    const { container } = renderAuth("admin");
+    const layout = container.querySelector(".auth-layout") as HTMLElement;
+    expect(layout).toHaveAttribute("data-motion", "ambient");
+    // The tier's vars are declared, so an Atmosphere on this surface reads a
+    // number rather than the empty string.
+    expect(getComputedStyle(layout).getPropertyValue("--motion-ambient-amplitude")).toContain(
+      "var(--motion-ambient)",
+    );
+  });
+
+  /**
+   * The admin panel's face is the Atmosphere field, not a photograph. The
+   * seeker hero used to stand in for it — one photo doing four jobs across
+   * the app — which left the rose portal wearing the candidates' picture.
+   * What each portal's panel carries is the identity claim; assert both
+   * halves so a regression in either direction is caught.
+   */
+  it.each([
+    ["seeker", "img"],
+    ["recruiter", "img"],
+    ["admin", "canvas"],
+  ] satisfies Array<[Portal, "img" | "canvas"]>)(
+    "the %s panel carries a %s and nothing of the other kind",
+    (portal, medium) => {
+      const { container } = renderAuth(portal);
+      const panel = container.querySelector(".auth-visual") as HTMLElement;
+      expect(panel, "the PortalPanel aside must render").not.toBeNull();
+      expect(panel.querySelector(medium)).not.toBeNull();
+      const other = medium === "img" ? "canvas" : "img";
+      expect(panel.querySelector(other)).toBeNull();
+    },
+  );
 });
