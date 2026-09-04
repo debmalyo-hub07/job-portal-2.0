@@ -623,7 +623,7 @@ overwrite one another. See [ADR-0005](docs/adr/0005-cookie-sessions.md) and
 | Recruiter power (2026-09-02) | Bulk applicant moves and posting health | Complete |
 | Location-aware (2026-09-01) | Consented city-level seeker area, "Near you" rail on the board, phone country codes, the console's live clock | Complete |
 | Console automation (2026-09-02) | Admin alerts for new work, orphan sweep on approval, feature flags + the Flags screen, guardrailed approval automation, applicant alerts + the pipeline funnel | Complete |
-| Motion & depth (2026-09-04) | Route cross-fades, the admin panel's own face, ambient fields on the landings and the role page, hero scroll drift, the landing stat count-up; the never-wired motion primitives deleted | Complete |
+| Motion & depth (2026-09-04) | Route cross-fades, the admin panel's own face, ambient fields on the landings and the role page, hero scroll drift, the landing stat count-up, the card→detail avatar morph, the About page's own field; the never-wired motion primitives deleted | Complete |
 
 Recruiter approval is now end to end. Sign in at `/admin/login` with an account
 from `npm run seed:admin` and the queue is at `/admin/recruiters`; denial
@@ -700,7 +700,20 @@ zero the first time it scrolls into view. The phase also deleted the motion
 primitives that never found a consumer (`useParallax`, `useMotionBudget`,
 `useReveal`, `SharedElement`, `HoverLift`, and the parallax and feedback-scale
 variables): native browser APIs now own shared elements and scroll-driven
-parallax, and dormant machinery reads as a promise the app never kept.
+parallax, and dormant machinery reads as a promise the app never kept. The
+shared-element half is literal: the company avatar carries a per-job
+`view-transition-name` (built by one function, `lib/viewTransitionNames.ts`)
+on the board row, the landing spotlight card, and the detail band, so the
+browser morphs it from the row you clicked into the page's header — with the
+"Near you" rail deliberately unnamed, because it repeats jobs the list also
+shows and two live elements sharing a name abort the whole transition. The
+About page closed the last one-photo-four-jobs borrow the same day, trading
+its desaturated copy of the seeker hero for the ambient field on the media
+ground. One defect escaped to production and was fixed within hours: the
+shared clock speaks milliseconds while the shader's time uniform expected
+seconds, so the fields advected a thousand times faster than designed and
+read as flickering light — a rate a single-frame screenshot cannot see,
+now pinned by a per-tick advance test.
 
 The public informational surfaces are live: `/about`, `/contact`, `/help`,
 `/privacy` and `/terms`. They mount inside a `PublicLayout` that also carries

@@ -605,16 +605,26 @@ Two motion systems deliberately do not go through it. Route cross-fades are
 the browser's own View Transitions — React Router's `viewTransition` prop,
 opted in per navigation so search and pagination stay instant, with the
 navbar and footer carrying `view-transition-name`s so they hold still while
-the page swaps beneath. The hero's scroll drift is a scroll-driven CSS
-animation on the `translate` property (never `transform`, which carries the
-pointer parallax and its easing), on a named view timeline declared on the
-hero section — `overflow-x-hidden` on an ancestor would create the scroll
-container that pins it, which is why the landing wrappers clip instead. Both
-collapse under `prefers-reduced-motion` in `index.css`, and both no-op
-silently where the browser lacks them: unsupported browsers get yesterday's
-page, not a JS reimplementation. That fallback philosophy is why the
-framer-based parallax and shared-element primitives were deleted rather than
-wired — the native APIs superseded them.
+the page swaps beneath. The same mechanism carries the card→detail avatar
+morph: the company avatar is named per job (one function,
+`lib/viewTransitionNames.ts`, because a name mismatch between the two
+surfaces is a silently dead morph) on the board row, the landing spotlight
+card, and the detail band; the "Near you" rail is deliberately unnamed
+because it repeats jobs the list also shows, and two live elements sharing
+a name abort the whole transition. The hero's scroll drift is a
+scroll-driven CSS animation on the `translate` property (never `transform`,
+which carries the pointer parallax and its easing), on a named view
+timeline declared on the hero section — `overflow-x-hidden` on an ancestor
+would create the scroll container that pins it, which is why the landing
+wrappers clip instead. Both collapse under `prefers-reduced-motion` in
+`index.css`, and both no-op silently where the browser lacks them:
+unsupported browsers get yesterday's page, not a JS reimplementation. That
+fallback philosophy is why the framer-based parallax and shared-element
+primitives were deleted rather than wired — the native APIs superseded
+them. The ambient field's one escape taught the units rule the hard way:
+the shared clock (`lib/motion/clock.ts`) speaks milliseconds, the shader's
+`uTime` speaks seconds, and the conversion lives at the one boundary
+between them.
 
 Pointer tracking is not framer-motion either, and for the same reason it is not
 per-event: `pointermove` fires several times per frame on a fine mouse, so the

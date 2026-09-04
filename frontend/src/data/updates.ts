@@ -30,6 +30,17 @@ export type PlatformUpdate = {
  */
 export const PLATFORM_UPDATES: PlatformUpdate[] = [
   {
+    id: "avatar-continuity",
+    date: "2026-09-04",
+    kind: "Improvement",
+    title: "A role's page opens where you left it",
+    summary:
+      "Opening a role from the board or the landing now carries the company's mark across the page change — it lifts out of the row you clicked and settles into the page's header, rather than everything dissolving at once. The About page also has a look of its own at last, in the platform's own colour field rather than a borrowed photograph.",
+    details: [
+      "The carry is the browser's own shared-element transition; with reduced motion, the page changes as one immediate swap.",
+    ],
+  },
+  {
     id: "ambient-depth",
     date: "2026-09-04",
     kind: "Improvement",
