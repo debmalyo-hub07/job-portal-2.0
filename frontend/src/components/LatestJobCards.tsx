@@ -5,6 +5,7 @@ import type { JobDto } from "@jobportal/shared";
 
 import { Badge } from "./ui/badge";
 import CompanyAvatar from "./shared/CompanyAvatar";
+import { jobAvatarName } from "@/lib/viewTransitionNames";
 import "./landing-interactions.css";
 
 type LatestJobCardsProps = {
@@ -54,7 +55,14 @@ const LatestJobCards = ({ job, index, featured = false }: LatestJobCardsProps) =
       <div className="job-spotlight-card__depth flex items-start justify-between gap-5">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <CompanyAvatar name={job.company?.name} logoUrl={job.company?.logoUrl} className="size-9" />
+            {/* Named for the card→detail morph — same name as the detail band's
+                avatar, built by the one function that owns it. */}
+            <CompanyAvatar
+              name={job.company?.name}
+              logoUrl={job.company?.logoUrl}
+              className="size-9"
+              style={{ viewTransitionName: jobAvatarName(job.id) }}
+            />
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-ink-muted">{String(index + 1).padStart(2, "0")}</span>

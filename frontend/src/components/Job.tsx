@@ -5,6 +5,7 @@ import type { JobDto } from "@jobportal/shared";
 import { Badge } from "./ui/badge";
 import CompanyAvatar from "./shared/CompanyAvatar";
 import { FitBadge } from "./FitBadge";
+import { jobAvatarName } from "@/lib/viewTransitionNames";
 
 type JobProps = {
   job: JobDto;
@@ -29,7 +30,16 @@ const Job = ({ job }: JobProps) => {
     >
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-3">
-          <CompanyAvatar name={job.company?.name} logoUrl={job.company?.logoUrl} className="size-10" />
+          {/* Named for the card→detail morph: the avatar lifts out of this row
+              and lands in the detail band. See lib/viewTransitionNames.ts for
+              why the name comes from one function and why the Near you rail
+              must never carry one. */}
+          <CompanyAvatar
+            name={job.company?.name}
+            logoUrl={job.company?.logoUrl}
+            className="size-10"
+            style={{ viewTransitionName: jobAvatarName(job.id) }}
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">{job.company?.name}</p>
             <p className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">

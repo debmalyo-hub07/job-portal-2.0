@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, CSSProperties } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { initialsOf } from "@/lib/initials";
@@ -9,6 +9,9 @@ type CompanyAvatarProps = {
   logoUrl?: string | null;
   alt?: string;
   className?: ComponentProps<typeof Avatar>["className"];
+  /** Passed through for inline custom properties — the shared-element morph's
+   *  per-job `view-transition-name` arrives this way. */
+  style?: CSSProperties;
 };
 
 /**
@@ -16,7 +19,7 @@ type CompanyAvatarProps = {
  * Logos are contained on a neutral canvas so transparent marks survive both
  * themes; the fallback is intentionally branded rather than an empty circle.
  */
-export function CompanyAvatar({ name, logoUrl, alt = "", className }: CompanyAvatarProps) {
+export function CompanyAvatar({ name, logoUrl, alt = "", className, style }: CompanyAvatarProps) {
   const companyName = name?.trim() || "Company";
   const decorative = alt.length === 0;
 
@@ -24,6 +27,7 @@ export function CompanyAvatar({ name, logoUrl, alt = "", className }: CompanyAva
     <Avatar
       data-company-avatar=""
       aria-hidden={decorative ? true : undefined}
+      style={style}
       className={cn("rounded-sharp border border-line bg-paper-raised shadow-[var(--elevate-1)]", className)}
     >
       <AvatarImage

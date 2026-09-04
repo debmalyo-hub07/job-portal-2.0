@@ -14,6 +14,7 @@ import PageShell from "./layout/PageShell";
 import { MOTION_VARS } from "./layout/motionTiers";
 import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { Reveal } from "@/lib/motion";
+import { jobAvatarName } from "@/lib/viewTransitionNames";
 import { apiClient } from "@/lib/apiClient";
 import { getApiErrorCode, getApiErrorMessage } from "@/lib/apiError";
 import { initialsOf } from "@/lib/initials";
@@ -172,7 +173,15 @@ const JobDescription = () => {
 
           <header className="mt-7 pb-8">
             <div className="flex items-center gap-3">
-              <CompanyAvatar name={singleJob.company?.name} logoUrl={singleJob.company?.logoUrl} className="size-11" />
+              {/* Named for the card→detail morph: this is where the avatar
+                  from the clicked row lands. Same function as the row's —
+                  see lib/viewTransitionNames.ts. */}
+              <CompanyAvatar
+                name={singleJob.company?.name}
+                logoUrl={singleJob.company?.logoUrl}
+                className="size-11"
+                style={{ viewTransitionName: jobAvatarName(singleJob.id) }}
+              />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ink">{singleJob.company?.name}</p>
                 <p className="mt-0.5 text-xs text-ink-muted">Posted {posted}</p>
