@@ -66,6 +66,8 @@ function mediaList(matches: boolean): MediaQueryList {
 }
 
 /** The GL context stub, with drawArrays counted for the static-frame tests. */
+let uniform1fSpy: ReturnType<typeof vi.fn> = vi.fn();
+
 function stubGl(drawArrays: ReturnType<typeof vi.fn>) {
   const gl = {
     createShader: () => ({}),
@@ -81,10 +83,12 @@ function stubGl(drawArrays: ReturnType<typeof vi.fn>) {
     getAttribLocation: () => 0,
     enableVertexAttribArray: () => {},
     vertexAttribPointer: () => {},
-    getUniformLocation: () => ({}),
+    // Name-tagged so a test can tell the uniforms apart and read what the
+    // paint loop hands to each of them.
+    getUniformLocation: (_program: unknown, name: string) => ({ name }),
     viewport: () => {},
     uniform2f: () => {},
-    uniform1f: () => {},
+    uniform1f: (...args: unknown[]) => uniform1fSpy(...args),
     uniform3f: () => {},
     drawArrays,
     deleteProgram: () => {},
@@ -96,6 +100,7 @@ function stubGl(drawArrays: ReturnType<typeof vi.fn>) {
     FLOAT: 4,
     TRIANGLES: 5,
   };
+  uniform1fSpy = vi.fn();
   return vi
     .spyOn(HTMLCanvasElement.prototype, "getContext")
     .mockReturnValue(gl as unknown as WebGLRenderingContext);
@@ -337,5 +342,52 @@ describe("Atmosphere", () => {
 
     unmount();
     expect(subscriberCount()).toBe(before);
+  });
+
+  /**
+   * The clock speaks milliseconds (it accumulates performance.now() deltas);
+   * the shader's uTime speaks seconds. The field this phase first mounted on
+   * real pages shimmers when the two are confused: uTime fed milliseconds
+   * races the noise advection a thousand times faster than designed, the
+   * pattern decorrelates frame to frame, and what reads from a distance is
+   * flickering light under the hero — invisible to any single-frame
+   * screenshot, which is exactly how it shipped.
+   *
+   * jsdom cannot see the pixels, but it can see the uniform. The values handed
+   * to uTime must advance at seconds' pace: no tick may move it by more than
+   * the clock's own 50ms clamp, which in seconds is 0.05. Fed raw
+   * milliseconds, even one 16ms frame moves it by 16 — a separation of three
+   * orders of magnitude, so the bound is not tight enough to matter.
+   */
+  it("advects the field on seconds, not the clock's milliseconds", async () => {
+    stubControllableObserver();
+    vi.spyOn(window, "matchMedia").mockImplementation(() => mediaList(false));
+
+    const drawArrays = vi.fn();
+    stubGl(drawArrays);
+    render(
+      <div data-portal="seeker" style={{ "--signal": "oklch(0.545 0.09 200)" } as CSSProperties}>
+        <Atmosphere />
+      </div>,
+    );
+    act(() => fireObserver!([{ isIntersecting: true }]));
+
+    // Let the shared clock tick a few frames — jsdom's rAF fires ~every 16ms.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    });
+
+    const times = uniform1fSpy.mock.calls
+      .filter(([loc]) => (loc as { name?: string }).name === "uTime")
+      .map(([, value]) => value as number);
+    expect(times.length, "the clock never ticked — the loop is not running").toBeGreaterThan(2);
+    const worstStep = Math.max(
+      ...times.slice(1).map((value, i) => value - times[i]),
+      0,
+    );
+    expect(
+      worstStep,
+      `uTime advanced ${worstStep} in one tick — the clock's milliseconds are reaching the shader`,
+    ).toBeLessThan(1);
   });
 });

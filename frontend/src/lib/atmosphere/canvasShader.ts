@@ -149,7 +149,16 @@ export function useShader(
 
     let unsub: (() => void) | null = null;
     if (!reduced && signal) {
-      unsub = subscribe((_dt, elapsed) => draw(elapsed));
+      // The clock speaks milliseconds — it accumulates performance.now()
+      // deltas. The shader's uTime speaks seconds, and t = uTime * 0.04 in
+      // the fragment source assumes it. Handed through raw, the advection
+      // runs a thousand times faster than designed: the noise pattern
+      // decorrelates frame to frame and the field reads as flickering light
+      // — invisible to any single-frame screenshot, which is how it shipped.
+      // The conversion happens here, at the boundary, so neither side ever
+      // needs to know the other's units; atmosphere.test.tsx pins the
+      // per-tick advance this feed may make.
+      unsub = subscribe((_dt, elapsed) => draw(elapsed / 1000));
     }
 
     return () => {
