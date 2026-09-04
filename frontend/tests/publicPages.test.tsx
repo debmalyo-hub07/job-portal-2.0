@@ -47,6 +47,25 @@ describe("public informational routes", () => {
 });
 
 /**
+ * The about hero's own identity. Until the motion phase it borrowed the
+ * seeker landing's photograph — the last surviving one-photo-four-jobs
+ * borrow, with a desaturation pass standing in for an identity of its own.
+ * It now carries the ambient field on the media ground, the same judgement
+ * the admin panel made: a page explaining the system is served by the
+ * abstraction, not by a picture of someone else's team. Asserted as the
+ * medium itself, both directions, so a regression either way is caught.
+ */
+describe("the about hero", () => {
+  it("carries the field, not the seeker's borrowed photograph", () => {
+    const { container } = renderAppAt("/about");
+    const hero = container.querySelector("main > section");
+    expect(hero, "the about hero section must render").not.toBeNull();
+    expect(hero!.querySelector("canvas"), "the field must paint the hero").not.toBeNull();
+    expect(hero!.querySelector("img"), "no borrowed photograph may remain").toBeNull();
+  });
+});
+
+/**
  * The employer marketing page.
  *
  * Not in PUBLIC_PAGES because it is a pitch rather than an informational

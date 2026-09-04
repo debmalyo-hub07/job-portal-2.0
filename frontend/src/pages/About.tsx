@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { MOTION_VARS } from "@/components/layout/motionTiers";
+import { Atmosphere } from "@/lib/atmosphere/Atmosphere";
 import { FadeIn, Reveal } from "@/lib/motion";
 
 const PRINCIPLES = [
@@ -55,16 +56,17 @@ export default function About() {
       style={MOTION_VARS.ambient}
       className="bg-paper text-ink"
     >
+      {/* The field instead of the seeker landing's photograph — the last
+          surviving one-photo-four-jobs borrow. A desaturated copy of the
+          candidates' hero was standing in for an identity of its own; this
+          page explains the system, and the abstraction serves that better
+          than a picture of someone else's team, the same judgement the admin
+          panel made. The textBand masks the copy band the veil used to dim
+          (the veil is a photo treatment — on the field, the shader does both
+          jobs), and the media ground's larger measured budget lets the wash
+          actually read at this scale. */}
       <section className="relative isolate min-h-[34rem] max-h-[44rem] overflow-hidden bg-media-shade text-media-copy">
-        <img
-          src="/images/cairn-seeker-hero.jpg"
-          alt="A team working together around a shared table"
-          width="2400"
-          height="1600"
-          fetchPriority="high"
-          className="absolute inset-0 size-full object-cover object-center grayscale-[0.08] saturate-[0.82]"
-        />
-        <div aria-hidden="true" className="hero-media-veil absolute inset-0" />
+        <Atmosphere ground="media" className="-z-10" textBand={[0.55, 0.85]} />
         <FadeIn className="relative mx-auto flex min-h-[34rem] max-w-7xl items-end px-4 py-14 sm:px-6 lg:py-20">
           <div className="max-w-4xl">
             <p className="text-sm font-semibold uppercase text-media-copy/70">About Cairn</p>
